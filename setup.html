@@ -260,7 +260,29 @@
         <!-- Honeypot: unsichtbar für Menschen, Bots füllen es aus -->
         <input type="text" name="_hp" id="_hp" style="display:none;position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true">
 
-        <p class="section-title">Dein Business</p>
+        <p class="section-title">Kontaktperson</p>
+
+        <div class="field">
+          <label for="anrede">Anrede <span class="req">*</span></label>
+          <select id="anrede" name="anrede" required>
+            <option value="" disabled selected>Bitte wählen</option>
+            <option value="Herr">Herr</option>
+            <option value="Frau">Frau</option>
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field" style="margin-bottom:0">
+            <label for="vorname">Vorname <span class="req">*</span></label>
+            <input type="text" id="vorname" name="vorname" placeholder="Max" required/>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="nachname">Nachname <span class="req">*</span></label>
+            <input type="text" id="nachname" name="nachname" placeholder="Mustermann" required/>
+          </div>
+        </div>
+
+        <p class="section-title" style="margin-top:24px">Dein Business</p>
 
         <div class="field">
           <label for="businessName">Firmenname <span class="req">*</span></label>
@@ -392,13 +414,16 @@
     const errorMsg = document.getElementById('errorMsg');
     errorMsg.classList.remove('visible');
 
+    const anrede = document.getElementById('anrede').value.trim();
+    const vorname = document.getElementById('vorname').value.trim();
+    const nachname = document.getElementById('nachname').value.trim();
     const businessName = document.getElementById('businessName').value.trim();
     const email = document.getElementById('email').value.trim();
     const website = document.getElementById('website').value.trim();
     const openingHours = document.getElementById('openingHours').value.trim();
 
-    if (!businessName || !email || !website) {
-      errorMsg.textContent = 'Bitte Firmenname, Email und Website-URL ausfüllen.';
+    if (!anrede || !vorname || !nachname || !businessName || !email || !website) {
+      errorMsg.textContent = 'Bitte Anrede, Vor- und Nachname, Firmenname, Email und Website ausfüllen.';
       errorMsg.classList.add('visible');
       return;
     }
@@ -414,6 +439,9 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          anrede,
+          vorname,
+          nachname,
           businessName,
           email,
           phone: document.getElementById('phone').value.trim() || null,
