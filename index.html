@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatBot Widget — KI-Assistent für dein Business</title>
+  <meta name="description" content="KI-Chatbot für lokale Businesses. Reservierungen, FAQs automatisch. CHF 295 Einrichtung + CHF 149/Monat.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* ====== TOP NAV ====== */
+    .top-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      background: #0f172a;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+    }
+    .top-nav-inner {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 0;
+    }
+    .top-logo {
+      font-family: 'Manrope', sans-serif;
+      font-weight: 800;
+      font-size: 17px;
+      color: #fff;
+      white-space: nowrap;
+      margin-right: 32px;
+      text-decoration: none;
+    }
+    .top-logo span { color: #6366f1; }
+
+    .tab-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-family: 'Manrope', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(99,102,241,0.18);
+      border: 1px solid rgba(99,102,241,0.35);
+    }
+
+    .top-cta {
+      background: #6366f1;
+      color: #fff;
+      text-decoration: none;
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 8px;
+      white-space: nowrap;
+      transition: background 0.15s;
+      margin-left: auto;
+    }
+    .top-cta:hover { background: #4f46e5; }
+
+    /* ====== TAB PANELS ====== */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ====== DEMO PANEL ====== */
+    #panel-demo {
+      padding-top: 60px; /* nav height */
+    }
+
+    /* ====== ANLEITUNG PANEL ====== */
+    #panel-anleitung {
+      padding-top: 60px;
+      background: #f8fafc;
+      min-height: 100vh;
+    }
+    .guide-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+    .guide-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .guide-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6366f1;
+      margin-bottom: 10px;
+    }
+    .guide-header h1 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 12px;
+    }
+    .guide-header p {
+      color: #64748b;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .guide-steps { display: flex; flex-direction: column; gap: 0; }
+
+    .guide-step {
+      display: flex;
+      gap: 24px;
+      padding-bottom: 40px;
+      position: relative;
+    }
+    .guide-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 44px;
+      bottom: 0;
+      width: 2px;
+      background: #e2e8f0;
+    }
+    .step-num-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #6366f1;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .guide-step:last-child .step-num-circle { background: #10b981; }
+
+    .step-body { flex: 1; padding-top: 8px; }
+    .step-body h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 8px;
+    }
+    .step-body p {
+      color: #475569;
+      font-size: 15px;
+      line-height: 1.65;
+      margin: 0 0 12px;
+    }
+    .step-note {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+    .step-warning {
+      background: #fefce8;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #92400e;
+    }
+    .code-block {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 12px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #7dd3fc;
+      word-break: break-all;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+    .platform-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .platform-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .platform-card strong {
+      display: block;
+      font-size: 14px;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .platform-card p {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .platform-card code {
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #7c3aed;
+    }
+    @media (max-width: 560px) {
+      .platform-cards { grid-template-columns: 1fr; }
+    }
+
+    /* ====== PREISE PANEL ====== */
+    #panel-preise {
+      padding-top: 60px;
+      background: #f8fafc;
+      min-height: 100vh;
+    }
+    .price-wrap {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+      text-align: center;
+    }
+    .price-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6366f1;
+      margin-bottom: 10px;
+    }
+    .price-wrap h1 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 10px;
+    }
+    .price-wrap > p {
+      color: #64748b;
+      font-size: 16px;
+      margin: 0 0 36px;
+    }
+
+    .price-card {
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 36px 32px 28px;
+      text-align: left;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    .price-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 28px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .price-item { text-align: center; }
+    .price-item-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .price-item-amount {
+      font-size: 36px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+    .price-item-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .price-plus {
+      font-size: 28px;
+      color: #cbd5e1;
+      font-weight: 300;
+    }
+
+    .price-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .price-features li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      color: #374151;
+    }
+    .price-features li::before {
+      content: '✓';
+      width: 22px;
+      height: 22px;
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .price-cta {
+      display: block;
+      width: 100%;
+      background: #6366f1;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Manrope', sans-serif;
+      transition: background 0.15s;
+      margin-bottom: 14px;
+    }
+    .price-cta:hover { background: #4f46e5; }
+    .price-note {
+      text-align: center;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    /* ====== LANDING PANEL ====== */
+    #panel-landing {
+      background: #060912;
+      color: #f0f4ff;
+      font-family: 'Inter', sans-serif;
+      padding-top: 60px;
+      min-height: 100vh;
+    }
+    #panel-landing .lp-container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    #panel-landing .btn-lp { display: inline-block; padding: .625rem 1.25rem; border-radius: 8px; font-weight: 600; font-size: .9rem; text-decoration: none; transition: .15s; cursor: pointer; border: none; font-family: 'Inter', sans-serif; }
+    #panel-landing .btn-lp-primary { background: #3b7fff; color: #fff; }
+    #panel-landing .btn-lp-primary:hover { background: #2563eb; }
+    #panel-landing .btn-lp-outline { background: transparent; color: #f0f4ff; border: 1px solid #1f2d4a; }
+    #panel-landing .btn-lp-outline:hover { border-color: #3b7fff; color: #3b7fff; }
+    #panel-landing .btn-lp-lg { padding: .875rem 2rem; font-size: 1rem; border-radius: 10px; }
+    /* Hero */
+    #panel-landing .lp-hero { padding: 6rem 0 5rem; text-align: center; }
+    #panel-landing .lp-badge { display: inline-block; background: rgba(59,127,255,.12); color: #3b7fff; border: 1px solid rgba(59,127,255,.3); border-radius: 99px; padding: .3rem 1rem; font-size: .85rem; font-weight: 600; margin-bottom: 1.5rem; }
+    #panel-landing .lp-h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.25rem; font-family: 'Inter', sans-serif; }
+    #panel-landing .lp-gradient { background: linear-gradient(135deg, #3b7fff, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    #panel-landing .lp-hero-sub { color: #8899bb; font-size: 1.15rem; max-width: 580px; margin: 0 auto 2.5rem; }
+    #panel-landing .lp-hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    /* Features */
+    #panel-landing .lp-features { padding: 5rem 0; border-top: 1px solid #1f2d4a; }
+    #panel-landing .lp-section-title { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: .75rem; font-family: 'Inter', sans-serif; }
+    #panel-landing .lp-section-sub { text-align: center; color: #8899bb; margin-bottom: 3rem; }
+    #panel-landing .lp-features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
+    #panel-landing .lp-feature-card { background: #111827; border: 1px solid #1f2d4a; border-radius: 12px; padding: 1.5rem; }
+    #panel-landing .lp-feature-icon { font-size: 1.75rem; margin-bottom: .75rem; }
+    #panel-landing .lp-feature-card h3 { font-size: 1.05rem; margin-bottom: .4rem; font-family: 'Inter', sans-serif; }
+    #panel-landing .lp-feature-card p { color: #8899bb; font-size: .9rem; margin: 0; }
+    /* Demo teaser */
+    #panel-landing .lp-demo-section { padding: 5rem 0; border-top: 1px solid #1f2d4a; text-align: center; }
+    #panel-landing .lp-demo-section p { color: #8899bb; margin-bottom: 2rem; }
+    /* Pricing */
+    #panel-landing .lp-pricing { padding: 5rem 0; border-top: 1px solid #1f2d4a; }
+    #panel-landing .lp-pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; align-items: start; }
+    #panel-landing .lp-pricing-card { background: #111827; border: 1px solid #1f2d4a; border-radius: 16px; padding: 2rem; position: relative; }
+    #panel-landing .lp-pricing-card--featured { border-color: #3b7fff; background: linear-gradient(135deg, rgba(59,127,255,.08), #111827); }
+    #panel-landing .lp-plan-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b7fff; color: #fff; font-size: .75rem; font-weight: 700; padding: .25rem .75rem; border-radius: 99px; white-space: nowrap; }
+    #panel-landing .lp-plan-name { font-size: .9rem; color: #8899bb; font-weight: 600; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .05em; }
+    #panel-landing .lp-plan-price { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; font-family: 'Inter', sans-serif; }
+    #panel-landing .lp-plan-price span { font-size: 1rem; font-weight: 400; color: #8899bb; }
+    #panel-landing .lp-plan-features { list-style: none; display: flex; flex-direction: column; gap: .6rem; margin-bottom: 2rem; padding: 0; }
+    #panel-landing .lp-plan-features li { font-size: .9rem; color: #8899bb; }
+    #panel-landing .lp-pricing-card .btn-lp { display: block; width: 100%; text-align: center; box-sizing: border-box; }
+    /* CTA */
+    #panel-landing .lp-cta { padding: 5rem 0; text-align: center; border-top: 1px solid #1f2d4a; }
+    #panel-landing .lp-cta p { color: #8899bb; margin: 1rem 0 2rem; }
+    /* Footer */
+    #panel-landing .lp-footer { padding: 2rem 0; border-top: 1px solid #1f2d4a; text-align: center; color: #8899bb; font-size: .875rem; }
+    #panel-landing .lp-footer a { color: #8899bb; }
+    @media (max-width: 640px) {
+      #panel-landing .lp-hero { padding: 4rem 0 3rem; }
+      #panel-landing .lp-pricing-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-glow page-glow-left"></div>
+<div class="page-glow page-glow-right"></div>
+
+<!-- ====== TOP NAV ====== -->
+<nav class="top-nav">
+  <div class="top-nav-inner">
+    <a href="#" class="top-logo" onclick="switchTab('landing');return false;">💬 ChatBot<span>Widget</span></a>
+    <div class="tab-nav">
+      <button class="tab-btn" onclick="switchTab('demo')">Demo</button>
+      <button class="tab-btn" onclick="switchTab('anleitung')">Anleitung</button>
+      <button class="tab-btn" onclick="switchTab('preise')">Preise</button>
+    </div>
+    <a href="https://chatbot-landing-seven.vercel.app/setup.html" class="top-cta">Jetzt starten →</a>
+  </div>
+</nav>
+
+<!-- ====== PANEL: LANDING ====== -->
+<div id="panel-landing" class="panel active">
+
+  <section class="lp-hero">
+    <div class="lp-container">
+      <p class="lp-badge">KI-Chatbot für lokale Businesses</p>
+      <h1 class="lp-h1">Dein Business antwortet<br><span class="lp-gradient">24/7 automatisch</span></h1>
+      <p class="lp-hero-sub">Reservierungen, Fragen, Öffnungszeiten — dein Chatbot erledigt alles. Für Restaurants, Coiffeure, Ärzte und mehr.</p>
+      <div class="lp-hero-actions">
+        <button onclick="switchTab('demo')" class="btn-lp btn-lp-primary btn-lp-lg">Live Demo ansehen</button>
+        <button onclick="switchTab('preise')" class="btn-lp btn-lp-outline btn-lp-lg">Preise ansehen</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-features">
+    <div class="lp-container">
+      <h2 class="lp-section-title">Was dein Chatbot kann</h2>
+      <div class="lp-features-grid">
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">📅</div>
+          <h3>Reservierungen</h3>
+          <p>Nimmt Reservierungen entgegen und schickt automatisch eine Bestätigung an den Gast.</p>
+        </div>
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">💬</div>
+          <h3>Fragen beantworten</h3>
+          <p>Öffnungszeiten, Preise, Angebote — der Bot kennt dein Business und antwortet sofort.</p>
+        </div>
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">🧠</div>
+          <h3>Versteht Tippfehler</h3>
+          <p>Echte Sprache, Dialekt, Tippfehler — der Bot versteht trotzdem was gemeint ist.</p>
+        </div>
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">📧</div>
+          <h3>Email-Benachrichtigung</h3>
+          <p>Du bekommst sofort eine Email wenn eine neue Reservierung eingeht.</p>
+        </div>
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">📱</div>
+          <h3>Omnichannel</h3>
+          <p>Website, WhatsApp, Instagram — ein Bot, alle Kanäle. Kommt bald.</p>
+        </div>
+        <div class="lp-feature-card">
+          <div class="lp-feature-icon">⚡</div>
+          <h3>1-Zeilen Einbindung</h3>
+          <p>Einen Script-Tag auf deine Website — fertig. Kein Techniker nötig.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-demo-section">
+    <div class="lp-container">
+      <h2 class="lp-section-title">Sieh es live in Aktion</h2>
+      <p>3 verschiedene Business-Typen — schau wie der Bot für jeden anders reagiert.</p>
+      <button onclick="switchTab('demo')" class="btn-lp btn-lp-primary btn-lp-lg">Demo öffnen →</button>
+    </div>
+  </section>
+
+  <section class="lp-pricing">
+    <div class="lp-container">
+      <h2 class="lp-section-title">Einfache Preise</h2>
+      <p class="lp-section-sub">Keine Einrichtungsgebühr. Monatlich kündbar.</p>
+      <div class="lp-pricing-grid">
+        <div class="lp-pricing-card">
+          <p class="lp-plan-name">Starter</p>
+          <p class="lp-plan-price">CHF 99<span>/Monat</span></p>
+          <ul class="lp-plan-features">
+            <li>✓ Chatbot auf deiner Website</li>
+            <li>✓ Reservierungen entgegennehmen</li>
+            <li>✓ Email-Benachrichtigungen</li>
+            <li>✓ Fragen beantworten</li>
+            <li>✓ Support per Email</li>
+          </ul>
+          <a href="mailto:leon@isek.ch?subject=Chatbot Starter" class="btn-lp btn-lp-outline">Jetzt starten</a>
+        </div>
+        <div class="lp-pricing-card lp-pricing-card--featured">
+          <p class="lp-plan-badge">Beliebt</p>
+          <p class="lp-plan-name">Pro</p>
+          <p class="lp-plan-price">CHF 199<span>/Monat</span></p>
+          <ul class="lp-plan-features">
+            <li>✓ Alles aus Starter</li>
+            <li>✓ WhatsApp Integration</li>
+            <li>✓ Eigenes Branding</li>
+            <li>✓ Mehrere Standorte</li>
+            <li>✓ Priority Support</li>
+          </ul>
+          <a href="mailto:leon@isek.ch?subject=Chatbot Pro" class="btn-lp btn-lp-primary">Jetzt starten</a>
+        </div>
+        <div class="lp-pricing-card">
+          <p class="lp-plan-name">Enterprise</p>
+          <p class="lp-plan-price">CHF 299<span>/Monat</span></p>
+          <ul class="lp-plan-features">
+            <li>✓ Alles aus Pro</li>
+            <li>✓ Instagram &amp; Facebook</li>
+            <li>✓ Individuelle Anpassungen</li>
+            <li>✓ Onboarding-Call</li>
+            <li>✓ Dedizierter Support</li>
+          </ul>
+          <a href="mailto:leon@isek.ch?subject=Chatbot Enterprise" class="btn-lp btn-lp-outline">Kontakt aufnehmen</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-cta">
+    <div class="lp-container">
+      <h2 class="lp-section-title">Bereit loszulegen?</h2>
+      <p>Schreib mir — ich richte alles ein, du konzentrierst dich aufs Business.</p>
+      <a href="mailto:leon@isek.ch?subject=Chatbot Widget Anfrage" class="btn-lp btn-lp-primary btn-lp-lg">Jetzt anfragen</a>
+    </div>
+  </section>
+
+  <footer class="lp-footer">
+    <div class="lp-container">
+      <p>© 2026 ChatBot Widget · <a href="mailto:leon@isek.ch">leon@isek.ch</a></p>
+    </div>
+  </footer>
+
+</div><!-- /panel-landing -->
+
+
+<!-- ====== PANEL: DEMO ====== -->
+<div id="panel-demo" class="panel">
+
+  <!-- Theme Bar -->
+  <div class="theme-bar" id="themeBar">
+    <div class="theme-bar-inner">
+      <span class="theme-bar-label">Zeigt gerade:</span>
+      <span class="theme-bar-name" id="themeBarName">🍕 Pizzeria Bella Napoli</span>
+      <div class="theme-dots">
+        <button class="theme-dot is-active" data-idx="0" title="Pizzeria"></button>
+        <button class="theme-dot" data-idx="1" title="Barbershop"></button>
+        <button class="theme-dot" data-idx="2" title="Café"></button>
+      </div>
+      <div class="theme-progress-track">
+        <div class="theme-progress-fill" id="themeProgressFill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mock Website -->
+  <div id="viewDemo">
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="#top" class="brand">
+          <span class="brand-mark" id="brandMark">BN</span>
+          <span class="brand-text" id="brandName">Pizzeria Bella Napoli</span>
+        </a>
+        <button id="menuButton" class="menu-button" aria-label="Menü öffnen" aria-expanded="false">Menü</button>
+        <nav id="mainNav" class="main-nav">
+          <a href="#services">Angebot</a>
+          <a href="#hours">Öffnungszeiten</a>
+          <a href="#contact">Kontakt</a>
+          <a href="#reservation">Reservieren</a>
+        </nav>
+        <a href="#reservation" class="btn btn-primary desktop-cta" id="navCtaBtn">Jetzt reservieren</a>
+      </div>
+    </header>
+
+    <main>
+      <section id="hero" class="hero section">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="kicker" id="heroKicker">Tradizione Italiana</p>
+            <h1 id="heroTitle">Frische Pizza, warme Atmosphäre und dein Tisch in wenigen Sekunden reserviert.</h1>
+            <p class="hero-text" id="heroText">Willkommen in der Pizzeria Bella Napoli.</p>
+            <div class="hero-highlights">
+              <ul id="heroHighlights">
+                <li>Steinofenpizza mit frischen Zutaten</li>
+                <li>Platz für bis zu 80 Gäste</li>
+                <li>Täglich frische Zutaten aus der Region</li>
+              </ul>
+            </div>
+            <div class="hero-actions">
+              <a href="#reservation" class="btn btn-primary" id="heroBtn1">Tisch reservieren</a>
+              <a href="#services" class="btn btn-outline" id="heroBtn2">Jetzt reservieren</a>
+            </div>
+            <div class="hero-note">
+              <strong id="heroNoteTitle">Heute beliebt</strong>
+              <span id="heroNoteText">Pizza Burrata e Basilico für 19.50 CHF</span>
+            </div>
+          </div>
+          <div class="hero-visual">
+            <div class="badge" id="heroBadge">Seit 1998</div>
+            <div id="heroIllustration"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="services" class="section">
+        <div class="container">
+          <p class="kicker" id="sectionKicker">Menu</p>
+          <h2 id="sectionTitle">Unsere Pizza-Favoriten</h2>
+          <p class="section-copy" id="sectionCopy">Handgemachter Teig, San-Marzano-Tomaten und Fior di Latte.</p>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </section>
+
+      <section id="hours" class="section section-alt">
+        <div class="container two-col">
+          <div>
+            <p class="kicker" id="hoursKicker">Öffnungszeiten</p>
+            <h2 id="hoursTitle">Wir sind fast jeden Tag für dich da.</h2>
+            <div class="hours-grid" id="hoursGrid"></div>
+          </div>
+          <div>
+            <p class="kicker" id="contactKicker">Kontakt</p>
+            <h2 id="contactTitle">Mitten in der Stadt.</h2>
+            <ul class="contact-list">
+              <li>📍 <span id="contactAddress">Via Roma 18, 8001 Zürich</span></li>
+              <li>📞 <span id="contactPhone">+41 44 555 78 90</span></li>
+              <li>✉️ <span id="contactEmail">ciao@bellanapoli-demo.ch</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="reservation" class="section">
+        <div class="container reservation-wrap">
+          <h2 id="reservationTitle">Reserviere deinen Tisch in wenigen Sekunden.</h2>
+          <form id="reservationForm" class="reservation-form" autocomplete="off">
+            <label for="guestName">Name</label>
+            <input id="guestName" name="guestName" type="text" maxlength="80" placeholder="z. B. Maria Rossi" required>
+            <label for="guestEmail">E-Mail</label>
+            <input id="guestEmail" name="guestEmail" type="email" maxlength="120" placeholder="z. B. maria@email.com" required>
+            <label for="guestCount">Anzahl Personen</label>
+            <input id="guestCount" name="guestCount" type="number" min="1" max="20" placeholder="1 bis 20" required>
+            <label for="reservationDate">Datum</label>
+            <input id="reservationDate" name="reservationDate" type="date" required>
+            <label for="reservationTime">Uhrzeit</label>
+            <input id="reservationTime" name="reservationTime" type="time" required>
+            <button id="reserveButton" class="btn btn-primary btn-block" type="submit">Bestätigen</button>
+          </form>
+          <div id="reservationMessage" class="reservation-message" aria-live="polite"></div>
+          <div id="reservationResult" class="reservation-result" hidden></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-wrap">
+        <p id="footerText">© 2026 Pizzeria Bella Napoli</p>
+        <p class="demo-powered">Demo powered by <strong>ChatBot Widget</strong></p>
+      </div>
+    </footer>
+  </div><!-- /viewDemo -->
+</div><!-- /panel-demo -->
+
+
+<!-- ====== PANEL: ANLEITUNG ====== -->
+<div id="panel-anleitung" class="panel">
+  <div class="guide-wrap">
+    <div class="guide-header">
+      <p class="guide-kicker">Einrichtung</p>
+      <h1>So richtest du deinen Chatbot ein</h1>
+      <p>Keine Programmierkenntnisse nötig. Du brauchst nur eine E-Mail-Adresse und 5 Minuten.</p>
+    </div>
+
+    <div class="guide-steps">
+
+      <div class="guide-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-body">
+          <h3>Melde dich an</h3>
+          <p>Klick auf <strong>„Jetzt starten"</strong> oben rechts. Du füllst ein kurzes Formular aus — Firmenname, E-Mail-Adresse, Öffnungszeiten und optional deine Preise. Das dauert ca. 2 Minuten.</p>
+          <a href="https://chatbot-landing-seven.vercel.app/setup.html" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-top:4px;">Zum Anmeldeformular →</a>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-body">
+          <h3>Wir richten deinen Bot ein</h3>
+          <p>Nach deiner Anmeldung konfigurieren wir deinen persönlichen Chatbot. Er wird mit deinen Öffnungszeiten, Preisen und dem von dir gewählten Tonfall eingerichtet. Du musst nichts weiter tun.</p>
+          <div class="step-note">⏱ Dein Bot wird innerhalb von 24 Stunden aktiviert.</div>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-body">
+          <h3>Du erhältst deinen persönlichen Code per E-Mail</h3>
+          <p>Du bekommst eine E-Mail mit einer einzelnen Zeile Code. Das ist dein Chatbot — einzigartig für dein Business. Er sieht ungefähr so aus:</p>
+          <div class="code-block">&lt;script src="https://chatbot-prod-v1.vercel.app/widget.js" data-client-id="<span style="color:#fbbf24">dein-business-name</span>"&gt;&lt;/script&gt;</div>
+          <p style="font-size:13px;color:#64748b;margin:0">Kopiere diesen Code — du brauchst ihn im nächsten Schritt.</p>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-body">
+          <h3>Code auf deiner Website einfügen</h3>
+          <p>Der Code muss einmal auf deiner Website eingefügt werden — kurz vor dem <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;color:#7c3aed;">&lt;/body&gt;</code> Tag. Je nach System geht das so:</p>
+
+          <div class="platform-cards">
+            <div class="platform-card">
+              <strong>🔷 WordPress</strong>
+              <p>Geh zu <code>Design → Theme-Editor → footer.php</code>. Oder installiere das Plugin <em>„Insert Headers and Footers"</em>. Dort den Code im Bereich „Footer Scripts" einfügen und speichern.</p>
+            </div>
+            <div class="platform-card">
+              <strong>🔶 Wix</strong>
+              <p>Geh zu <code>Einstellungen → Erweitert → Benutzerdefinierten Code</code>. Klick auf „+ Code hinzufügen", wähle <em>„Körper — Ende"</em>, füge den Code ein und speichere.</p>
+            </div>
+            <div class="platform-card">
+              <strong>⬛ Squarespace</strong>
+              <p>Geh zu <code>Einstellungen → Erweitert → Code-Einschleusung</code>. Füge den Code im Bereich <em>„Footer"</em> ein und speichere die Änderungen.</p>
+            </div>
+            <div class="platform-card">
+              <strong>🌐 Eigene Website</strong>
+              <p>Öffne deine <code>index.html</code> im Editor. Suche nach <code>&lt;/body&gt;</code> am Ende der Datei. Füge den Code direkt <em>davor</em> ein und speichere.</p>
+            </div>
+          </div>
+
+          <div class="step-warning">
+            <strong>Nicht sicher wo das ist?</strong> Kein Problem — schreib uns einfach auf <a href="mailto:leon@isek.ch" style="color:#92400e;">leon@isek.ch</a>. Wir fügen den Code für dich ein. Das ist im Preis inbegriffen.
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="step-num-circle">5</div>
+        <div class="step-body">
+          <h3>Dein Chatbot ist live 🎉</h3>
+          <p>Sobald der Code eingefügt ist, erscheint der Chat-Button unten rechts auf deiner Website. Deine Kunden können sofort Fragen stellen, Öffnungszeiten erfragen und Reservierungen machen — und du bekommst bei jeder Reservierung automatisch eine E-Mail.</p>
+          <div class="step-note">✅ Fertig. Der Bot läuft ab sofort 24/7 auf deiner Website.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /panel-anleitung -->
+
+
+<!-- ====== PANEL: PREISE ====== -->
+<div id="panel-preise" class="panel">
+  <div class="price-wrap">
+    <p class="price-kicker">Preise</p>
+    <h1>Ein Preis. Kein Schnickschnack.</h1>
+    <p>Kein Abo-Dschungel — du weisst genau was du zahlst.</p>
+
+    <div class="price-card">
+      <div class="price-row">
+        <div class="price-item">
+          <div class="price-item-label">Einrichtung</div>
+          <div class="price-item-amount">CHF 295</div>
+          <div class="price-item-sub">einmalig</div>
+        </div>
+        <div class="price-plus">+</div>
+        <div class="price-item">
+          <div class="price-item-label">Monatlich</div>
+          <div class="price-item-amount">CHF 149</div>
+          <div class="price-item-sub">pro Monat</div>
+        </div>
+      </div>
+
+      <ul class="price-features">
+        <li>KI-Chatbot auf deiner Website</li>
+        <li>Reservierungen automatisch via Chat</li>
+        <li>E-Mail bei jeder neuen Reservierung</li>
+        <li>Bestätigungs-E-Mail an deine Kunden</li>
+        <li>Öffnungszeiten &amp; Preise automatisch beantwortet</li>
+        <li>Wir richten alles ein — du musst nichts technisches tun</li>
+        <li>Monatlich kündbar, kein Vertrag</li>
+      </ul>
+
+      <a href="https://chatbot-landing-seven.vercel.app/setup.html" class="price-cta">Jetzt einrichten →</a>
+      <p class="price-note">Zahlung per Banküberweisung oder Twint · Rechnung per E-Mail</p>
+    </div>
+  </div>
+</div><!-- /panel-preise -->
+
+
+<script src="script.js"></script>
+<script src="widget.js" data-client-id="bella-napoli-luzern"></script>
+
+<script>
+/* ====== TAB SWITCHING ====== */
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'landing') { window.scrollTo(0, 0); return; }
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().startsWith(tab === 'anleitung' ? 'anl' : tab === 'preise' ? 'prei' : 'demo')) {
+      b.classList.add('active');
+    }
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ====== ROTATING THEMES ====== */
+const THEMES = [
+  {
+    name: '🍕 Pizzeria Bella Napoli',
+    accent: '#c7372f', accentDeep: '#962d28',
+    accent2: '#2f8a48', accent2Soft: '#dff1e4',
+    bg: '#fff8ef',
+    brandMark: 'BN', brandName: 'Pizzeria Bella Napoli',
+    kicker: 'Tradizione Italiana',
+    heroTitle: 'Frische Pizza, warme Atmosphäre und dein Tisch in wenigen Sekunden reserviert.',
+    heroText: 'Willkommen in der Pizzeria Bella Napoli. Knuspriger Boden, sonnengereifte Zutaten und ein unkompliziertes Reservierungssystem für deinen Abend.',
+    heroBadge: 'Seit 1998',
+    heroHighlights: ['Steinofenpizza mit frischen Zutaten', 'Platz für bis zu 80 Gäste', 'Täglich frische Zutaten aus der Region'],
+    heroNoteTitle: 'Heute beliebt', heroNoteText: 'Pizza Burrata e Basilico für 19.50 CHF',
+    navCta: 'Jetzt reservieren',
+    sectionKicker: 'Menu', sectionTitle: 'Unsere Pizza-Favoriten',
+    sectionCopy: 'Handgemachter Teig, San-Marzano-Tomaten und Fior di Latte.',
+    items: [
+      { tag: 'Klassiker', name: 'Margherita Suprema', desc: 'Tomatensauce, Fior di Latte und Basilikum.', price: '12.50 CHF', accent: true },
+      { tag: 'Beliebt', name: 'Diavola Napoli', desc: 'Tomatensauce, Mozzarella und scharfe Salami.', price: '15.90 CHF' },
+      { tag: 'Cremig', name: 'Quattro Formaggi', desc: 'Mozzarella, Gorgonzola, Taleggio und Parmesan.', price: '16.50 CHF' },
+      { tag: 'Frisch', name: 'Burrata e Basilico', desc: 'Tomatensauce, Burrata und Cherrytomaten.', price: '19.50 CHF' },
+      { tag: 'Herzhaft', name: 'Prosciutto Funghi', desc: 'Tomatensauce, Mozzarella, Schinken und Pilze.', price: '17.20 CHF' },
+    ],
+    hours: [{ days: 'Mo – Do', time: '11:30 – 22:00' }, { days: 'Fr – Sa', time: '11:30 – 23:00' }, { days: 'Sonntag', time: '12:00 – 21:30' }],
+    hoursKicker: 'Öffnungszeiten', hoursTitle: 'Wir sind fast jeden Tag für dich da.',
+    contactKicker: 'Kontakt', contactTitle: 'Mitten in der Stadt.',
+    contactAddress: 'Via Roma 18, 8001 Zürich', contactPhone: '+41 44 555 78 90', contactEmail: 'ciao@bellanapoli-demo.ch',
+    reservationTitle: 'Reserviere deinen Tisch in wenigen Sekunden.',
+    footer: '© 2026 Pizzeria Bella Napoli',
+    svg: `<svg viewBox="0 0 520 520" style="width:100%;height:auto;display:block;margin:18px 0 10px"><defs><radialGradient id="pG" cx="50%" cy="45%" r="60%"><stop offset="0%" stop-color="#fff" stop-opacity=".96"/><stop offset="100%" stop-color="#e7e3d8"/></radialGradient><radialGradient id="pF" cx="45%" cy="40%" r="65%"><stop offset="0%" stop-color="#ffd37c"/><stop offset="100%" stop-color="#e18e3f"/></radialGradient></defs><circle cx="260" cy="260" r="220" fill="url(#pG)"/><circle cx="260" cy="260" r="160" fill="url(#pF)" stroke="#b46b2d" stroke-width="14"/><circle cx="194" cy="192" r="26" fill="#c13d2f"/><circle cx="296" cy="178" r="23" fill="#c13d2f"/><circle cx="344" cy="248" r="24" fill="#c13d2f"/><circle cx="222" cy="304" r="25" fill="#c13d2f"/><circle cx="304" cy="320" r="28" fill="#c13d2f"/><circle cx="160" cy="252" r="20" fill="#c13d2f"/><path d="M175 148c26 13 45 12 58-4" fill="none" stroke="#2f8a48" stroke-width="10" stroke-linecap="round"/><path d="M319 212c18 12 37 10 51-6" fill="none" stroke="#2f8a48" stroke-width="10" stroke-linecap="round"/><circle cx="260" cy="260" r="152" fill="none" stroke="#f6d79b" stroke-width="8" stroke-dasharray="5 18" opacity=".8"/></svg>`
+  },
+  {
+    name: '✂️ Kings Cut Barbershop',
+    accent: '#7c3aed', accentDeep: '#5b21b6',
+    accent2: '#0f172a', accent2Soft: '#ede9fe',
+    bg: '#faf5ff',
+    brandMark: 'KC', brandName: 'Kings Cut',
+    kicker: 'Premium Barbershop',
+    heroTitle: 'Dein Haarschnitt, dein Style — in 30 Minuten frisch vom Barber.',
+    heroText: 'Willkommen bei Kings Cut. Klassische und moderne Schnitte, Rasur und Bart-Styling von erfahrenen Barbern in Zürich.',
+    heroBadge: 'Walk-ins welcome',
+    heroHighlights: ['Haarschnitt ab CHF 35', 'Hot Towel Rasur inklusive', 'Termin buchen in Sekunden'],
+    heroNoteTitle: 'Top-Seller', heroNoteText: 'Classic Cut + Beard Trim für CHF 65',
+    navCta: 'Termin buchen',
+    sectionKicker: 'Services', sectionTitle: 'Was wir für dich tun',
+    sectionCopy: 'Klassisch oder modern — wir schneiden nach deinem Style.',
+    items: [
+      { tag: 'Beliebt', name: 'Classic Cut', desc: 'Haarschnitt inkl. Waschen, Stylen und Föhnen.', price: 'CHF 35', accent: true },
+      { tag: 'Komplett', name: 'Cut & Beard', desc: 'Haarschnitt plus Bartpflege und Kontur-Rasur.', price: 'CHF 65' },
+      { tag: 'Entspannt', name: 'Hot Towel Shave', desc: 'Klassische Nassrasur mit heissem Tuch.', price: 'CHF 45' },
+      { tag: 'Pflege', name: 'Beard Treatment', desc: 'Bartpflege, Öl-Behandlung und Kontur.', price: 'CHF 30' },
+      { tag: 'Kids', name: 'Kids Cut', desc: 'Haarschnitt für Kinder bis 12 Jahre.', price: 'CHF 25' },
+    ],
+    hours: [{ days: 'Di – Fr', time: '09:00 – 19:00' }, { days: 'Samstag', time: '08:00 – 17:00' }, { days: 'So – Mo', time: 'Geschlossen' }],
+    hoursKicker: 'Öffnungszeiten', hoursTitle: 'Wir sind für dich da.',
+    contactKicker: 'Standort', contactTitle: 'Du findest uns hier.',
+    contactAddress: 'Langstrasse 55, 8004 Zürich', contactPhone: '+41 44 888 12 34', contactEmail: 'hello@kingscut-demo.ch',
+    reservationTitle: 'Buch deinen Termin in wenigen Sekunden.',
+    footer: '© 2026 Kings Cut Barbershop',
+    svg: `<svg viewBox="0 0 520 520" style="width:100%;height:auto;display:block;margin:18px 0 10px"><circle cx="260" cy="260" r="220" fill="#f3f0ff" opacity=".9"/><g transform="translate(260,260)"><path d="M-8,-145 L-55,95 Q-75,128 -48,148 Q-18,162 2,138 L28,-105Z" fill="#7c3aed" opacity=".9"/><path d="M8,-145 L55,95 Q75,128 48,148 Q18,162 -2,138 L-28,-105Z" fill="#5b21b6" opacity=".9"/><circle cx="-52" cy="158" r="32" fill="none" stroke="#7c3aed" stroke-width="14"/><circle cx="52" cy="158" r="32" fill="none" stroke="#5b21b6" stroke-width="14"/><circle cx="0" cy="0" r="16" fill="#1e1b4b"/><circle cx="0" cy="0" r="8" fill="#ede9fe"/></g><circle cx="260" cy="260" r="215" fill="none" stroke="#ede9fe" stroke-width="5" stroke-dasharray="8 22"/></svg>`
+  },
+  {
+    name: '☕ Kaffehaus Zürich',
+    accent: '#b45309', accentDeep: '#92400e',
+    accent2: '#0d9488', accent2Soft: '#ccfbf1',
+    bg: '#fffbf0',
+    brandMark: 'KZ', brandName: 'Kaffehaus Zürich',
+    kicker: 'Specialty Coffee & Küche',
+    heroTitle: 'Dein Lieblingsplatz für Kaffee, Frühstück und Mittagessen.',
+    heroText: 'Das Kaffehaus Zürich — frisch gerösteter Kaffee, hausgemachte Snacks und eine entspannte Atmosphäre direkt im Herzen der Stadt.',
+    heroBadge: 'Täglich frisch',
+    heroHighlights: ['Specialty Coffee aus eigener Röstung', 'Frühstück bis 14:00 Uhr', 'Vegane & vegetarische Optionen'],
+    heroNoteTitle: 'Heute im Angebot', heroNoteText: 'Avocado Toast + Flat White für CHF 18',
+    navCta: 'Tisch reservieren',
+    sectionKicker: 'Speisekarte', sectionTitle: 'Unsere Favoriten',
+    sectionCopy: 'Alles frisch zubereitet — von morgens bis nachmittags.',
+    items: [
+      { tag: 'Beliebt', name: 'Avocado Toast', desc: 'Sauerteig, Avocado, Cherrytomaten und Feta.', price: 'CHF 14.50', accent: true },
+      { tag: 'Klassiker', name: 'Eggs Benedict', desc: 'Toast, Schinken, pochiertes Ei und Hollandaise.', price: 'CHF 16.90' },
+      { tag: 'Vegan', name: 'Acai Bowl', desc: 'Acai, Banane, Granola und frische Beeren.', price: 'CHF 13.50' },
+      { tag: 'Herzhaft', name: 'Club Sandwich', desc: 'Drei-Schicht mit Hähnchen, Speck und Ei.', price: 'CHF 17.90' },
+      { tag: 'Süss', name: 'Banana Pancakes', desc: 'Fluffige Pancakes mit Ahornsirup.', price: 'CHF 12.50' },
+    ],
+    hours: [{ days: 'Mo – Fr', time: '07:00 – 18:00' }, { days: 'Sa – So', time: '08:00 – 17:00' }],
+    hoursKicker: 'Öffnungszeiten', hoursTitle: 'Früh aufstehen lohnt sich.',
+    contactKicker: 'Finde uns', contactTitle: 'Wir freuen uns auf dich.',
+    contactAddress: 'Niederdorfstrasse 12, 8001 Zürich', contactPhone: '+41 44 321 98 76', contactEmail: 'hallo@kaffehaus-demo.ch',
+    reservationTitle: 'Reserviere deinen Tisch in wenigen Sekunden.',
+    footer: '© 2026 Kaffehaus Zürich',
+    svg: `<svg viewBox="0 0 520 520" style="width:100%;height:auto;display:block;margin:18px 0 10px"><circle cx="260" cy="260" r="220" fill="#fff8e8" opacity=".9"/><path d="M155,195 L178,368 Q184,395 222,398 L298,398 Q336,395 342,368 L365,195 Z" fill="#b45309"/><path d="M161,195 L180,350 Q184,378 222,380 L298,380 Q336,378 340,350 L359,195 Z" fill="#d97706"/><ellipse cx="260" cy="195" rx="102" ry="22" fill="#92400e"/><ellipse cx="260" cy="195" rx="90" ry="15" fill="#b45309"/><ellipse cx="257" cy="193" rx="62" ry="9" fill="#d97706" opacity=".55"/><path d="M365,238 Q425,238 425,288 Q425,338 365,338" fill="none" stroke="#b45309" stroke-width="24" stroke-linecap="round"/><ellipse cx="260" cy="412" rx="132" ry="20" fill="#92400e" opacity=".55"/><circle cx="260" cy="260" r="215" fill="none" stroke="#fef3c7" stroke-width="5" stroke-dasharray="8 22"/></svg>`
+  }
+];
+
+let currentIdx = 0;
+let autoTimer = null;
+const DURATION = 10000;
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function hexToRgb(hex) {
+  return [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)).join(',');
+}
+
+function applyTheme(t) {
+  const root = document.documentElement;
+  root.style.setProperty('--red', t.accent);
+  root.style.setProperty('--red-deep', t.accentDeep);
+  root.style.setProperty('--green', t.accent2);
+  root.style.setProperty('--green-soft', t.accent2Soft);
+
+  document.body.style.background = `
+    radial-gradient(circle at top left, ${t.accent}38, transparent 28%),
+    radial-gradient(circle at bottom right, ${t.accent2}2e, transparent 24%),
+    linear-gradient(180deg, ${t.bg} 0%, ${t.bg} 60%, #fffdf9 100%)`;
+
+  const hdr = document.querySelector('.site-header');
+  if (hdr) hdr.style.background = `rgba(${hexToRgb(t.bg)}, 0.88)`;
+
+  const gl = document.querySelectorAll('.page-glow');
+  if (gl[0]) gl[0].style.background = t.accent + '28';
+  if (gl[1]) gl[1].style.background = t.accent2 + '28';
+
+  set('brandMark', t.brandMark); set('brandName', t.brandName);
+  set('heroKicker', t.kicker); set('heroTitle', t.heroTitle);
+  set('heroText', t.heroText); set('heroBadge', t.heroBadge);
+  set('heroNoteTitle', t.heroNoteTitle); set('heroNoteText', t.heroNoteText);
+  set('navCtaBtn', t.navCta); set('heroBtn2', t.navCta);
+  set('sectionKicker', t.sectionKicker); set('sectionTitle', t.sectionTitle);
+  set('sectionCopy', t.sectionCopy);
+  set('hoursKicker', t.hoursKicker); set('hoursTitle', t.hoursTitle);
+  set('contactKicker', t.contactKicker); set('contactTitle', t.contactTitle);
+  set('contactAddress', t.contactAddress); set('contactPhone', t.contactPhone);
+  set('contactEmail', t.contactEmail);
+  set('reservationTitle', t.reservationTitle);
+  set('footerText', t.footer);
+  set('themeBarName', t.name);
+
+  document.getElementById('heroHighlights').innerHTML = t.heroHighlights.map(h => `<li>${h}</li>`).join('');
+  document.getElementById('heroIllustration').innerHTML = t.svg;
+  document.getElementById('menuGrid').innerHTML = t.items.map(item =>
+    `<article class="menu-card${item.accent ? ' menu-card-accent' : ''}">
+      <div class="menu-card-tag">${item.tag}</div>
+      <h3 class="menu-card-name">${item.name}</h3>
+      <p class="menu-card-desc">${item.desc}</p>
+      <div class="menu-card-footer">
+        <span class="menu-card-price">${item.price}</span>
+      </div>
+    </article>`).join('');
+  document.getElementById('hoursGrid').innerHTML = t.hours.map(h =>
+    `<div class="hours-row"><span class="hours-days">${h.days}</span><span class="hours-time">${h.time}</span></div>`).join('');
+
+  document.querySelectorAll('.theme-dot').forEach((d, i) => d.classList.toggle('is-active', i === currentIdx));
+
+  if (window.ChatbotWidget) window.ChatbotWidget.setAccentColor(t.accent);
+}
+
+function fadeTransition(nextIdx) {
+  const demo = document.getElementById('viewDemo');
+  demo.style.opacity = '0';
+  demo.style.transition = 'opacity 0.4s ease';
+  setTimeout(() => {
+    currentIdx = nextIdx;
+    applyTheme(THEMES[currentIdx]);
+    demo.style.opacity = '1';
+  }, 400);
+}
+
+function startProgress() {
+  const bar = document.getElementById('themeProgressFill');
+  if (!bar) return;
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  setTimeout(() => {
+    bar.style.transition = `width ${DURATION}ms linear`;
+    bar.style.width = '100%';
+  }, 30);
+}
+
+document.querySelectorAll('.theme-dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    clearInterval(autoTimer);
+    fadeTransition(+dot.dataset.idx);
+    startAutoRotate();
+  });
+});
+
+function startAutoRotate() {
+  clearInterval(autoTimer);
+  autoTimer = setInterval(() => {
+    fadeTransition((currentIdx + 1) % THEMES.length);
+    startProgress();
+  }, DURATION);
+  startProgress();
+}
+
+applyTheme(THEMES[0]);
+startAutoRotate();
+
+setTimeout(() => {
+  if (window.ChatbotWidget) window.ChatbotWidget.setAccentColor(THEMES[0].accent);
+}, 2000);
+</script>
+
+</body>
+</html>
