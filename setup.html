@@ -101,11 +101,13 @@
       justify-content: center;
       gap: 4px;
       padding: 12px 8px;
+      height: 60px;
       border: 2px solid #e2e8f0;
       border-radius: 10px;
       cursor: pointer;
       transition: all 0.15s;
       text-align: center;
+      box-sizing: border-box;
     }
     .tone-label:hover { border-color: #a5b4fc; }
     .tone-option:checked + .tone-label {
@@ -113,8 +115,8 @@
       background: #eef2ff;
       color: #4338ca;
     }
-    .tone-label .name { font-size: 13px; font-weight: 600; }
-    .tone-label .desc { font-size: 11px; color: #94a3b8; }
+    .tone-label .name { font-size: 13px; font-weight: 600; line-height: 1; }
+    .tone-label .desc { font-size: 10px; color: #94a3b8; line-height: 1; }
     .tone-option:checked + .tone-label .desc { color: #818cf8; }
 
     .plan-options {
