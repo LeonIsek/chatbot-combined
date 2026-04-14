@@ -1250,10 +1250,21 @@ console.log("WIDGET STARTET");
       };
 
       // Add message to chat
+      // Safe HTML escape for use inside innerHTML templates
+      const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
       const addMessage = (sender, text) => {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
-        messageDiv.innerHTML = `<div class="message-content">${text}</div>`;
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        // Use textContent per line + <br> — prevents XSS from any source
+        String(text).split('\n').forEach((line, i) => {
+          if (i > 0) content.appendChild(document.createElement('br'));
+          content.appendChild(document.createTextNode(line));
+        });
+        messageDiv.appendChild(content);
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
       };
@@ -1265,11 +1276,11 @@ console.log("WIDGET STARTET");
         messageDiv.innerHTML = `
           <div class="message-content" style="max-width:90%;">
             <strong>📋 Reservierungsübersicht</strong><br><br>
-            <strong>${clientData.businessName}</strong><br>
-            👥 Personen: ${reservationState.people}<br>
-            📅 Datum: ${formatDateForDisplay(reservationState.date)}<br>
-            🕐 Uhrzeit: ${reservationState.time}<br>
-            ✉️ E-Mail: ${reservationState.email}<br><br>
+            <strong>${esc(clientData.businessName)}</strong><br>
+            👥 Personen: ${esc(reservationState.people)}<br>
+            📅 Datum: ${esc(formatDateForDisplay(reservationState.date))}<br>
+            🕐 Uhrzeit: ${esc(reservationState.time)}<br>
+            ✉️ E-Mail: ${esc(reservationState.email)}<br><br>
             <button id="res-confirm-btn" style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">✅ Bestätigen</button>
             <div style="display:flex;gap:8px;">
               <button id="res-edit-btn" style="flex:1;padding:9px;background:#e9ecef;color:#333;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;">✏️ Bearbeiten</button>
