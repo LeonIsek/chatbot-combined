@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chatbot einrichten — ChatBot Widget</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    nav {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { font-weight: 700; font-size: 18px; color: #1e293b; text-decoration: none; }
+    .logo span { color: #6366f1; }
+
+    .page {
+      max-width: 600px;
+      margin: 48px auto;
+      padding: 0 24px 80px;
+    }
+
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { color: #64748b; font-size: 15px; line-height: 1.6; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 16px;
+      margin-top: 28px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .field label .req { color: #ef4444; margin-left: 2px; }
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1e293b;
+      background: #fff;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+    .field textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+    .field .hint { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+
+    .tone-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .tone-option { display: none; }
+    .tone-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 8px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .tone-label:hover { border-color: #a5b4fc; }
+    .tone-option:checked + .tone-label {
+      border-color: #6366f1;
+      background: #eef2ff;
+      color: #4338ca;
+    }
+    .tone-label .emoji { font-size: 22px; }
+    .tone-label .name { font-size: 13px; font-weight: 600; }
+    .tone-label .desc { font-size: 11px; color: #94a3b8; }
+    .tone-option:checked + .tone-label .desc { color: #818cf8; }
+
+    .plan-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .plan-option { display: none; }
+    .plan-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 14px 8px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .plan-label:hover { border-color: #a5b4fc; }
+    .plan-option:checked + .plan-label {
+      border-color: #6366f1;
+      background: #eef2ff;
+    }
+    .plan-label .plan-name { font-size: 14px; font-weight: 700; color: #1e293b; }
+    .plan-label .plan-price { font-size: 18px; font-weight: 800; color: #6366f1; }
+    .plan-label .plan-sub { font-size: 11px; color: #94a3b8; }
+    .plan-option:checked + .plan-label .plan-name,
+    .plan-option:checked + .plan-label .plan-price { color: #4338ca; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 28px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .submit-btn:hover { background: #4f46e5; }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    .error-msg {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Success State */
+    .success-view {
+      display: none;
+      text-align: center;
+    }
+    .success-view.visible { display: block; }
+    .form-view.hidden { display: none; }
+
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      background: #d1fae5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 36px;
+    }
+    .success-view h2 { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+    .success-view p { color: #64748b; margin-bottom: 24px; line-height: 1.6; }
+
+    .script-box {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: left;
+      margin: 20px 0;
+    }
+    .script-box code {
+      color: #7dd3fc;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .copy-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: #4f46e5; }
+    .copy-btn.copied { background: #10b981; }
+
+    .info-box {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 14px;
+      color: #0369a1;
+      line-height: 1.6;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">💬 ChatBot<span>Widget</span></a>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Chatbot einrichten</h1>
+    <p>Füll das Formular aus — dein Chatbot wird innerhalb von 24 Stunden aktiviert. Du bekommst per Email deinen Script-Tag zum Einbinden.</p>
+  </div>
+
+  <div class="card">
+
+    <!-- Form -->
+    <div class="form-view" id="formView">
+      <form id="onboardForm" novalidate>
+        <!-- Honeypot: unsichtbar für Menschen, Bots füllen es aus -->
+        <input type="text" name="_hp" id="_hp" style="display:none;position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+        <p class="section-title">Dein Business</p>
+
+        <div class="field">
+          <label for="businessName">Firmenname <span class="req">*</span></label>
+          <input type="text" id="businessName" name="businessName" placeholder="z.B. Pizzeria Bella Napoli" required/>
+        </div>
+
+        <div class="field">
+          <label for="email">Email-Adresse <span class="req">*</span></label>
+          <input type="email" id="email" name="email" placeholder="deine@email.ch" required/>
+          <p class="hint">Hierhin kommen neue Reservierungen + dein Script-Tag</p>
+        </div>
+
+        <div class="field">
+          <label for="phone">Telefon</label>
+          <input type="tel" id="phone" name="phone" placeholder="+41 44 123 45 67"/>
+        </div>
+
+        <div class="field">
+          <label for="website">Website <span class="req">*</span></label>
+          <input type="url" id="website" name="website" placeholder="https://deine-website.ch" required/>
+          <p class="hint">🤖 Wir analysieren deine Website automatisch — Infos, Farben und Logo werden übernommen</p>
+        </div>
+
+        <div class="field">
+          <label for="address">Adresse</label>
+          <input type="text" id="address" name="address" placeholder="Bahnhofstrasse 1, 8001 Zürich"/>
+        </div>
+
+        <p class="section-title">Bot-Konfiguration</p>
+
+        <div class="field">
+          <label for="openingHours">Öffnungszeiten</label>
+          <textarea id="openingHours" name="openingHours" placeholder="Mo-Fr 08:00-18:00&#10;Sa 09:00-16:00&#10;So geschlossen"></textarea>
+          <p class="hint">Optional — wir versuchen das von deiner Website zu lesen</p>
+        </div>
+
+        <div class="field">
+          <label for="prices">Preise / Angebote</label>
+          <textarea id="prices" name="prices" placeholder="Pizza ab CHF 18, Pasta ab CHF 16..."></textarea>
+          <p class="hint">Der Bot kann diese Infos in Gesprächen verwenden</p>
+        </div>
+
+        <div class="field">
+          <label>Tonfall des Bots</label>
+          <div class="tone-options">
+            <div>
+              <input class="tone-option" type="radio" name="tone" id="toneFormal" value="formal"/>
+              <label class="tone-label" for="toneFormal">
+                <span class="emoji">🤝</span>
+                <span class="name">Formell</span>
+                <span class="desc">Sie-Form, professionell</span>
+              </label>
+            </div>
+            <div>
+              <input class="tone-option" type="radio" name="tone" id="toneFriendly" value="friendly" checked/>
+              <label class="tone-label" for="toneFriendly">
+                <span class="emoji">😊</span>
+                <span class="name">Freundlich</span>
+                <span class="desc">Natürlich, klar</span>
+              </label>
+            </div>
+            <div>
+              <input class="tone-option" type="radio" name="tone" id="toneCasual" value="casual"/>
+              <label class="tone-label" for="toneCasual">
+                <span class="emoji">😎</span>
+                <span class="name">Locker</span>
+                <span class="desc">Du-Form, entspannt</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <p class="section-title">Preis</p>
+
+        <div class="field">
+          <div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;">
+            <div style="flex:1;text-align:center;">
+              <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Einrichtung</div>
+              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 295</div>
+              <div style="font-size:12px;color:#94a3b8;">einmalig</div>
+            </div>
+            <div style="font-size:24px;color:#cbd5e1;font-weight:300;">+</div>
+            <div style="flex:1;text-align:center;">
+              <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Monatlich</div>
+              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 149</div>
+              <div style="font-size:12px;color:#94a3b8;">pro Monat</div>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:10px;">Zahlung per Banküberweisung oder Twint — du kriegst eine Rechnung von uns.</p>
+        </div>
+
+        <div id="errorMsg" class="error-msg"></div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Chatbot einrichten →
+        </button>
+
+      </form>
+    </div>
+
+    <!-- Success -->
+    <div class="success-view" id="successView">
+      <div class="success-icon">✅</div>
+      <h2>Fast fertig!</h2>
+      <p>Dein Chatbot wurde registriert. <strong>Leon aktiviert ihn innerhalb von 24 Stunden.</strong><br>Du hast auch eine Email mit deinem Script-Tag bekommen.</p>
+
+      <div class="script-box">
+        <code id="scriptTagDisplay"></code>
+      </div>
+      <button class="copy-btn" id="copyBtn" onclick="copyScript()">Script-Tag kopieren</button>
+
+      <div class="info-box">
+        <strong>So bindest du den Bot ein:</strong><br>
+        Kopiere den Script-Tag oben und füge ihn auf deiner Website ein — kurz vor dem <code>&lt;/body&gt;</code> Tag. Fertig.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
+  let currentScriptTag = '';
+
+  document.getElementById('onboardForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn = document.getElementById('submitBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.classList.remove('visible');
+
+    const businessName = document.getElementById('businessName').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const website = document.getElementById('website').value.trim();
+    const openingHours = document.getElementById('openingHours').value.trim();
+
+    if (!businessName || !email || !website) {
+      errorMsg.textContent = 'Bitte Firmenname, Email und Website-URL ausfüllen.';
+      errorMsg.classList.add('visible');
+      return;
+    }
+
+    const tone = document.querySelector('input[name="tone"]:checked')?.value || 'friendly';
+    const monthlyPrice = 149;
+
+    btn.disabled = true;
+    btn.textContent = 'Wird eingerichtet...';
+
+    try {
+      const res = await fetch(`${BACKEND}/api/onboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName,
+          email,
+          phone: document.getElementById('phone').value.trim() || null,
+          website: document.getElementById('website').value.trim() || null,
+          address: document.getElementById('address').value.trim() || null,
+          openingHours,
+          prices: document.getElementById('prices').value.trim() || null,
+          tone,
+          monthlyPrice,
+          _hp: document.getElementById('_hp').value
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Fehler ${res.status}`);
+      }
+
+      currentScriptTag = data.scriptTag;
+      document.getElementById('scriptTagDisplay').textContent = data.scriptTag;
+      document.getElementById('formView').classList.add('hidden');
+      document.getElementById('successView').classList.add('visible');
+
+    } catch (err) {
+      errorMsg.textContent = err.message || 'Unbekannter Fehler. Bitte versuche es nochmal.';
+      errorMsg.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Chatbot einrichten →';
+    }
+  });
+
+  function copyScript() {
+    navigator.clipboard.writeText(currentScriptTag).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Kopiert!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Script-Tag kopieren';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>
