@@ -102,9 +102,20 @@ console.log("WIDGET STARTET");
 
     .header-content .status {
       margin: 0;
-      font-size: 12px;
-      opacity: 0.9;
+      font-size: 11px;
+      opacity: 0.75;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-online { background: #4ade80; }
+    .status-offline { background: #f87171; }
 
     .close-btn {
       background: none;
@@ -1152,7 +1163,7 @@ console.log("WIDGET STARTET");
           <!-- Chat Bubble -->
           <div id="chat-bubble" class="chat-bubble">
             <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2c5.522 0 10 3.59 10 8 0 4.41-4.478 8-10 8-1.54 0-3-.32-4.28-.93L4.1 21.86c-.4 1.02-1.59 1.36-2.35.74L0 20c-1.05-1.05-.53-2.8.81-3.32 3.77-1.64 5.88-4.36 5.88-8.68 0-4.41-4.478-8-10-8z"/>
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
           </div>
 
@@ -1162,7 +1173,7 @@ console.log("WIDGET STARTET");
             <div class="chat-header">
               <div class="header-content">
                 <h3>${clientData.businessName}</h3>
-                <p class="status">Online</p>
+                <p class="status"><span class="status-dot status-online"></span>Online</p>
               </div>
               <button class="close-btn" id="close-btn">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -1229,9 +1240,9 @@ console.log("WIDGET STARTET");
           // Show welcome message if empty
           if (chatMessages.children.length === 0) {
             addMessage('bot', t(
-              `Hallo bei ${clientData.businessName}! 👋\nWie kann ich dir helfen?\n\nIch beantworte Fragen zu:\n💰 Preisen\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`,
-              `Guten Tag! Willkommen bei ${clientData.businessName}.\nWomit kann ich Ihnen behilflich sein?\n\nIch informiere Sie gerne zu:\n💰 Preisen\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`,
-              `Hey, willkommen bei ${clientData.businessName}! 👋\nWas kann ich für dich tun?\n\nIch kenn mich aus mit:\n💰 Preisen\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`
+              `Hallo! 👋 Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\n💰 Preise\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`,
+              `Hallo! 👋 Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\n💰 Preise\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`,
+              `Hallo! 👋 Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\n💰 Preise\n🕐 Öffnungszeiten\n📍 Standort\n📞 Kontakt`
             ));
           }
         }
