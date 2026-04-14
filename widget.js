@@ -92,16 +92,20 @@ console.log("WIDGET STARTET");
       align-items: center;
       flex-shrink: 0;
       border-radius: 12px 12px 0 0;
+      position: relative;
     }
 
     .header-content h3 {
       margin: 0;
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 20px;
+      font-weight: 700;
     }
 
     .header-content .status {
-      margin: 0 0 4px 0;
+      position: absolute;
+      top: 8px;
+      left: 20px;
+      margin: 0;
       font-size: 10px;
       font-weight: 700;
       color: #4ade80;
