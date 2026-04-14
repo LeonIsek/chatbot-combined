@@ -224,6 +224,7 @@ console.log("WIDGET STARTET");
     /* ====== Chat Input ====== */
     .chat-input-container {
       display: flex;
+      align-items: center;
       gap: 8px;
       padding: 16px;
       background: white;
