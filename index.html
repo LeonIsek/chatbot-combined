@@ -81,6 +81,13 @@
     }
     .top-cta:hover { background: #4f46e5; }
 
+    @media (max-width: 600px) {
+      .top-nav { padding: env(safe-area-inset-top) 12px 0; }
+      .top-logo { font-size: 14px; margin-right: 8px; }
+      .tab-btn { font-size: 12px; padding: 6px 10px; }
+      .top-cta { display: none; }
+    }
+
     /* ====== TAB PANELS ====== */
     .panel { display: none; }
     .panel.active { display: block; }
