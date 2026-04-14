@@ -355,6 +355,49 @@
           </div>
         </div>
 
+        <p class="section-title">Reservierungen</p>
+
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:14px;">
+            <input type="checkbox" id="reservationsEnabled" name="reservationsEnabled" style="width:18px;height:18px;cursor:pointer;accent-color:#6366f1;">
+            Ich nehme Reservierungen entgegen
+          </label>
+        </div>
+
+        <div id="reservationFields" style="display:none">
+          <div class="field">
+            <label for="reservationType">Typ</label>
+            <select id="reservationType" name="reservationType">
+              <option value="restaurant">Restaurant / Café / Bar</option>
+              <option value="salon">Friseursalon / Barbershop</option>
+              <option value="sport">Sportstätte / Court</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="capacity">Gesamtkapazität (Personen)</label>
+            <input type="number" id="capacity" name="capacity" placeholder="z.B. 20" min="1"/>
+          </div>
+
+          <div class="field">
+            <label for="tableConfig">Tisch- / Platzkonfiguration</label>
+            <textarea id="tableConfig" name="tableConfig" placeholder="z.B. 10 Zweiertische und 5 Vierertische. Zwei Zweiertische können zu einem Vierertisch zusammengestellt werden."></textarea>
+            <p class="hint">Freitext — beschreibe wie deine Plätze aufgeteilt sind. Der Bot liest das automatisch.</p>
+          </div>
+
+          <div class="field">
+            <label for="slotDuration">Wie lange dauert eine Reservierung?</label>
+            <select id="slotDuration" name="slotDuration">
+              <option value="30">30 Minuten</option>
+              <option value="60">60 Minuten</option>
+              <option value="90" selected>90 Minuten</option>
+              <option value="120">120 Minuten</option>
+              <option value="custom">Andere</option>
+            </select>
+          </div>
+        </div>
+
         <p class="section-title">Preis</p>
 
         <div class="field">
@@ -407,6 +450,10 @@
   const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
   let currentScriptTag = '';
 
+  document.getElementById('reservationsEnabled').addEventListener('change', function() {
+    document.getElementById('reservationFields').style.display = this.checked ? 'block' : 'none';
+  });
+
   document.getElementById('onboardForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -450,6 +497,11 @@
           openingHours,
           prices: document.getElementById('prices').value.trim() || null,
           tone,
+          reservationsEnabled: document.getElementById('reservationsEnabled').checked,
+          reservationType: document.getElementById('reservationType').value || null,
+          capacity: document.getElementById('capacity').value || null,
+          tableConfig: document.getElementById('tableConfig').value.trim() || null,
+          slotDuration: document.getElementById('slotDuration').value || null,
           monthlyPrice,
           _hp: document.getElementById('_hp').value
         })
