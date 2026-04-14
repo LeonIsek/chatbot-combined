@@ -103,7 +103,7 @@ console.log("WIDGET STARTET");
 
     .header-content .status {
       position: absolute;
-      top: 10px;
+      top: 5px;
       left: 10px;
       margin: 0;
       font-size: 8px;
