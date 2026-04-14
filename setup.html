@@ -98,14 +98,13 @@
       display: flex;
       flex-direction: row;
       align-items: center;
+      justify-content: center;
       gap: 6px;
       padding: 10px 8px;
       border: 2px solid #e2e8f0;
       border-radius: 10px;
       cursor: pointer;
       transition: all 0.15s;
-      text-align: left;
-      overflow: hidden;
     }
     .tone-label:hover { border-color: #a5b4fc; }
     .tone-option:checked + .tone-label {
@@ -333,22 +332,19 @@
             <div>
               <input class="tone-option" type="radio" name="tone" id="toneFormal" value="formal"/>
               <label class="tone-label" for="toneFormal">
-                <span class="emoji">🤝</span>
-                <span class="text-wrap"><span class="name">Formell</span><span class="desc">Immer siezen</span></span>
+                <span class="emoji">🤝</span><span class="name">Formell</span>
               </label>
             </div>
             <div>
               <input class="tone-option" type="radio" name="tone" id="toneFriendly" value="friendly" checked/>
               <label class="tone-label" for="toneFriendly">
-                <span class="emoji">😊</span>
-                <span class="text-wrap"><span class="name">Freundlich</span><span class="desc">Passt sich an Person an</span></span>
+                <span class="emoji">😊</span><span class="name">Freundlich</span>
               </label>
             </div>
             <div>
               <input class="tone-option" type="radio" name="tone" id="toneCasual" value="casual"/>
               <label class="tone-label" for="toneCasual">
-                <span class="emoji">😎</span>
-                <span class="text-wrap"><span class="name">Locker</span><span class="desc">Immer per Du</span></span>
+                <span class="emoji">😎</span><span class="name">Locker</span>
               </label>
             </div>
           </div>
