@@ -366,16 +366,6 @@
 
         <div id="reservationFields" style="display:none">
           <div class="field">
-            <label for="reservationType">Typ</label>
-            <select id="reservationType" name="reservationType">
-              <option value="restaurant">Restaurant / Café / Bar</option>
-              <option value="salon">Friseursalon / Barbershop</option>
-              <option value="sport">Sportstätte / Court</option>
-              <option value="other">Sonstiges</option>
-            </select>
-          </div>
-
-          <div class="field">
             <label for="capacity">Gesamtkapazität (Personen)</label>
             <input type="number" id="capacity" name="capacity" placeholder="z.B. 20" min="1"/>
           </div>
@@ -395,6 +385,10 @@
               <option value="120">120 Minuten</option>
               <option value="custom">Andere</option>
             </select>
+          </div>
+          <div class="field" id="slotDurationCustomField" style="display:none">
+            <label for="slotDurationCustom">Dauer in Minuten</label>
+            <input type="number" id="slotDurationCustom" name="slotDurationCustom" placeholder="z.B. 45" min="5" max="480"/>
           </div>
         </div>
 
@@ -452,6 +446,10 @@
 
   document.getElementById('reservationsEnabled').addEventListener('change', function() {
     document.getElementById('reservationFields').style.display = this.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('slotDuration').addEventListener('change', function() {
+    document.getElementById('slotDurationCustomField').style.display = this.value === 'custom' ? 'block' : 'none';
   });
 
   document.getElementById('onboardForm').addEventListener('submit', async (e) => {
