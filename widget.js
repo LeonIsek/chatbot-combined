@@ -1189,10 +1189,11 @@ console.log("WIDGET STARTET");
             <div class="chat-input-container">
               <input 
                 type="text" 
-                id="chat-input" 
-                class="chat-input" 
+                id="chat-input"
+                class="chat-input"
                 placeholder="Schreib eine Nachricht..."
                 autocomplete="off"
+                maxlength="500"
               />
               <button id="send-btn" class="send-btn">
                 <svg viewBox="0 0 24 24" fill="currentColor">
