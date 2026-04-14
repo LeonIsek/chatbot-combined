@@ -319,7 +319,7 @@
         <div class="field">
           <label for="openingHours">Öffnungszeiten</label>
           <textarea id="openingHours" name="openingHours" placeholder="Mo-Fr 08:00-18:00&#10;Sa 09:00-16:00&#10;So geschlossen"></textarea>
-          <p class="hint">Optional — wir versuchen das von deiner Website zu lesen</p>
+          <p class="hint">Optional — falls auf deiner Website vorhanden, lesen wir das automatisch.</p>
         </div>
 
         <div class="field">
@@ -411,6 +411,12 @@
           <p class="hint" style="margin-top:10px;">Zahlung per Banküberweisung oder Twint — du kriegst eine Rechnung von uns.</p>
         </div>
 
+        <div class="field">
+          <label for="extraInfo">Weitere Infos für den Bot</label>
+          <textarea id="extraInfo" name="extraInfo" placeholder="z.B. Wir haben einen Aussenbereich. Hunde sind willkommen. Bei Gruppen ab 8 Personen bitte telefonisch anmelden..."></textarea>
+          <p class="hint">Alles was der Bot über dein Business wissen soll — der Bot merkt sich das.</p>
+        </div>
+
         <div id="errorMsg" class="error-msg"></div>
 
         <button type="submit" class="submit-btn" id="submitBtn">
@@ -499,7 +505,10 @@
           reservationType: document.getElementById('reservationType').value || null,
           capacity: document.getElementById('capacity').value || null,
           tableConfig: document.getElementById('tableConfig').value.trim() || null,
-          slotDuration: document.getElementById('slotDuration').value || null,
+          slotDuration: document.getElementById('slotDuration').value === 'custom'
+            ? (document.getElementById('slotDurationCustom').value || null)
+            : (document.getElementById('slotDuration').value || null),
+          extraInfo: document.getElementById('extraInfo').value.trim() || null,
           monthlyPrice,
           _hp: document.getElementById('_hp').value
         })
