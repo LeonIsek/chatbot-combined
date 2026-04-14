@@ -495,60 +495,6 @@
     </div>
   </section>
 
-  <section class="lp-demo-section">
-    <div class="lp-container">
-      <h2 class="lp-section-title">Sieh es live in Aktion</h2>
-      <p>3 verschiedene Business-Typen — schau wie der Bot für jeden anders reagiert.</p>
-      <button onclick="switchTab('demo')" class="btn-lp btn-lp-primary btn-lp-lg">Demo öffnen →</button>
-    </div>
-  </section>
-
-  <section class="lp-pricing">
-    <div class="lp-container">
-      <h2 class="lp-section-title">Einfache Preise</h2>
-      <p class="lp-section-sub">Keine Einrichtungsgebühr. Monatlich kündbar.</p>
-      <div class="lp-pricing-grid">
-        <div class="lp-pricing-card">
-          <p class="lp-plan-name">Starter</p>
-          <p class="lp-plan-price">CHF 99<span>/Monat</span></p>
-          <ul class="lp-plan-features">
-            <li>✓ Chatbot auf deiner Website</li>
-            <li>✓ Reservierungen entgegennehmen</li>
-            <li>✓ Email-Benachrichtigungen</li>
-            <li>✓ Fragen beantworten</li>
-            <li>✓ Support per Email</li>
-          </ul>
-          <a href="mailto:leon@isek.ch?subject=Chatbot Starter" class="btn-lp btn-lp-outline">Jetzt starten</a>
-        </div>
-        <div class="lp-pricing-card lp-pricing-card--featured">
-          <p class="lp-plan-badge">Beliebt</p>
-          <p class="lp-plan-name">Pro</p>
-          <p class="lp-plan-price">CHF 199<span>/Monat</span></p>
-          <ul class="lp-plan-features">
-            <li>✓ Alles aus Starter</li>
-            <li>✓ WhatsApp Integration</li>
-            <li>✓ Eigenes Branding</li>
-            <li>✓ Mehrere Standorte</li>
-            <li>✓ Priority Support</li>
-          </ul>
-          <a href="mailto:leon@isek.ch?subject=Chatbot Pro" class="btn-lp btn-lp-primary">Jetzt starten</a>
-        </div>
-        <div class="lp-pricing-card">
-          <p class="lp-plan-name">Enterprise</p>
-          <p class="lp-plan-price">CHF 299<span>/Monat</span></p>
-          <ul class="lp-plan-features">
-            <li>✓ Alles aus Pro</li>
-            <li>✓ Instagram &amp; Facebook</li>
-            <li>✓ Individuelle Anpassungen</li>
-            <li>✓ Onboarding-Call</li>
-            <li>✓ Dedizierter Support</li>
-          </ul>
-          <a href="mailto:leon@isek.ch?subject=Chatbot Enterprise" class="btn-lp btn-lp-outline">Kontakt aufnehmen</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="lp-cta">
     <div class="lp-container">
       <h2 class="lp-section-title">Bereit loszulegen?</h2>
@@ -826,6 +772,8 @@ function switchTab(tab) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
+  const widget = document.getElementById('chatbot-widget');
+  if (widget) widget.style.display = tab === 'landing' ? 'none' : '';
   if (tab === 'landing') { window.scrollTo(0, 0); return; }
   document.querySelectorAll('.tab-btn').forEach(b => {
     if (b.textContent.toLowerCase().startsWith(tab === 'anleitung' ? 'anl' : tab === 'preise' ? 'prei' : 'demo')) {
@@ -834,6 +782,16 @@ function switchTab(tab) {
   });
   window.scrollTo(0, 0);
 }
+
+/* Hide widget on landing (initial load) */
+const _widgetHideObserver = new MutationObserver(() => {
+  const w = document.getElementById('chatbot-widget');
+  if (w && document.getElementById('panel-landing').classList.contains('active')) {
+    w.style.display = 'none';
+    _widgetHideObserver.disconnect();
+  }
+});
+_widgetHideObserver.observe(document.body, { childList: true, subtree: true });
 
 /* ====== ROTATING THEMES ====== */
 const THEMES = [
