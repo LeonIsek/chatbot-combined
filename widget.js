@@ -95,15 +95,16 @@ console.log("WIDGET STARTET");
     }
 
     .header-content h3 {
-      margin: 0 0 4px 0;
+      margin: 0;
       font-size: 16px;
       font-weight: 600;
     }
 
     .header-content .status {
-      margin: 0;
-      font-size: 11px;
-      opacity: 0.75;
+      margin: 0 0 4px 0;
+      font-size: 10px;
+      font-weight: 700;
+      color: #4ade80;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -1172,8 +1173,8 @@ console.log("WIDGET STARTET");
             <!-- Header -->
             <div class="chat-header">
               <div class="header-content">
-                <h3>${clientData.businessName}</h3>
                 <p class="status"><span class="status-dot status-online"></span>Online</p>
+                <h3>Teste mich hier! 💬</h3>
               </div>
               <button class="close-btn" id="close-btn">
                 <svg viewBox="0 0 24 24" fill="currentColor">
