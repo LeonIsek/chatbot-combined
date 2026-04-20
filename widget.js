@@ -13,7 +13,11 @@ console.log("WIDGET STARTET");
     #chatbot-widget {
       --cw-a: #667eea;
       --cw-b: #764ba2;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      /* Visual V1: font-family defaults to inherit so the widget picks up the host
+         page font. An explicit --cw-font (set via setCustomFont or Supabase override)
+         wins over the inherit default. */
+      --cw-font: inherit;
+      font-family: var(--cw-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
       position: fixed;
       bottom: 0;
       right: 0;
@@ -449,7 +453,7 @@ console.log("WIDGET STARTET");
 
       const { data, error } = await supabase
         .from('clients')
-        .select('active, business_name, phone, email, address, opening_hours, prices, tone, capacity_per_slot, slot_interval, default_duration_minutes')
+        .select('active, business_name, phone, email, address, opening_hours, prices, tone, capacity_per_slot, slot_interval, default_duration_minutes, primary_color, secondary_color, reservations_enabled, note')
         .eq('id', CLIENT_ID)
         .single();
 
@@ -459,6 +463,22 @@ console.log("WIDGET STARTET");
       }
 
       if (!data || !data.active) return null;
+
+      // Optional forward-compat columns queried separately so the widget keeps working
+      // even if the Supabase columns have not been migrated yet.
+      let businessType = null;
+      let fontFamily = null;
+      try {
+        const { data: extra } = await supabase
+          .from('clients')
+          .select('business_type, font_family')
+          .eq('id', CLIENT_ID)
+          .single();
+        if (extra) {
+          if (extra.business_type) businessType = extra.business_type;
+          if (extra.font_family) fontFamily = extra.font_family;
+        }
+      } catch (_e) { /* columns missing — widget falls back to inheritance + heuristic */ }
 
       return {
         businessName: data.business_name,
@@ -470,7 +490,13 @@ console.log("WIDGET STARTET");
         tone: data.tone,
         capacityPerSlot: data.capacity_per_slot,
         slotInterval: data.slot_interval,
-        defaultDurationMinutes: data.default_duration_minutes
+        defaultDurationMinutes: data.default_duration_minutes,
+        primaryColor: data.primary_color,
+        secondaryColor: data.secondary_color,
+        businessType,
+        reservationsEnabled: data.reservations_enabled,
+        note: data.note,
+        fontFamily
       };
     } catch (error) {
       console.error('ChatBot Widget Supabase Error:', error);
@@ -522,6 +548,14 @@ console.log("WIDGET STARTET");
       (_hasPersonCount && _hasPersonWord);
 
     if (hasReservationIntent) {
+      // Businesses mit reservations_enabled=false nehmen keine Chat-Reservierungen entgegen (z.B. Blumenladen)
+      if (clientData && clientData.reservationsEnabled === false) {
+        return ft(
+          `Wir nehmen Reservierungen nicht über den Chat entgegen — ruf uns gern an${clientData.phone ? ' unter ' + clientData.phone : ''} oder schreib uns eine Email!`,
+          `Reservierungen nehmen wir nicht über den Chat entgegen. Bitte kontaktieren Sie uns telefonisch${clientData.phone ? ' unter ' + clientData.phone : ''} oder per E-Mail.`,
+          `Reservierungen gehen bei uns nur per Anruf${clientData.phone ? ' (' + clientData.phone + ')' : ''} oder Email! 😊`
+        );
+      }
       return '__START_RESERVATION__';
     }
 
@@ -592,9 +626,11 @@ console.log("WIDGET STARTET");
       /wann\s+macht\s+ihr\s+auf/.test(messageWithoutFillers)
     ) {
       if (clientData.openingHours) {
-        const today = new Date().toLocaleDateString('de-DE', { weekday: 'long' }).toLowerCase();
-        const hours = clientData.openingHours[today] || 'Information nicht verfügbar';
-        return ft(`Heute sind wir ${hours} geöffnet.\n\nWeitere Öffnungszeiten gerne auf Anfrage.`, `Heute haben wir von ${hours} geöffnet.\n\nFür weitere Öffnungszeiten stehen wir Ihnen gerne zur Verfügung.`, `Wir haben heute ${hours} auf.\n\nBei Fragen einfach melden!`);
+        // opening_hours kommt als Free-Text-String aus Supabase — einfach raw anzeigen
+        const raw = typeof clientData.openingHours === 'string'
+          ? clientData.openingHours
+          : Object.entries(clientData.openingHours).map(([d,h]) => `${d}: ${h}`).join('\n');
+        return ft(`Unsere Öffnungszeiten:\n${raw}`, `Unsere Öffnungszeiten:\n${raw}`, `Unsere Öffnungszeiten:\n${raw}`);
       }
       return ft('Öffnungszeiten findest du auf unserer Website.', 'Unsere Öffnungszeiten finden Sie auf unserer Website.', 'Schau mal auf unsere Website für die Öffnungszeiten!');
     }
@@ -674,8 +710,38 @@ console.log("WIDGET STARTET");
       people: null,
       date: null,
       time: null,
-      email: null
+      email: null,
+      urgency: null, // 'priority' wenn User Dringlichkeits-Keywords nutzt (jetzt/sofort/Schmerzen)
+      showAllSlots: false // Flag: hat User "weitere Zeiten" geklickt?
     };
+
+    // Medical-Urgency-Detection: Schmerz/Notfall-Keywords erkennen (nur medical business_type)
+    // Ausgelöst ausserhalb einer laufenden Reservation als empathischer Notfall-Trigger.
+    const MEDICAL_URGENCY_RE = /\b(weh|schmerz|schmerzen|akut|dringend|notfall|kaputt|abgebroch|entzund|entzünd|pocht|blutet|blutung|eitert|eiter|nagt|autsch|aua|emergency|urgent)\b/i;
+    const isMedicalUrgency = (txt) => inferBusinessType() === 'medical' && MEDICAL_URGENCY_RE.test(String(txt || ''));
+
+    // Zeit-Urgency: explizite Sofort-Wünsche
+    const TIME_URGENCY_RE = /\b(jetzt|sofort|gleich|direkt|asap|so\s+bald|so\s*schnell\s*wie|gleich\s*vorbei|heute\s+noch)\b/i;
+    const isTimeUrgent = (txt) => TIME_URGENCY_RE.test(String(txt || ''));
+
+    // Business-Type-Detection: primär aus Supabase-Spalte business_type,
+    // Legacy-Fallback für die 5 Demo-Clients falls die Spalte noch nicht migriert ist.
+    const inferBusinessType = () => {
+      if (clientData && clientData.businessType) return clientData.businessType;
+      const legacyMap = {
+        'demo-zahnarzt':   'medical',
+        'demo-coiffeur':   'beauty',
+        'demo-pizzeria':   'restaurant',
+        'demo-cafe':       'cafe',
+        'demo-blumenladen':'retail'
+      };
+      return legacyMap[CLIENT_ID] || 'other';
+    };
+    // Service-Businesses (medical/beauty/service) buchen Einzeltermine — nie "für wie viele Personen" fragen.
+    const SERVICE_BUSINESS_TYPES = ['medical', 'beauty', 'service'];
+    const isServiceBusiness = () => SERVICE_BUSINESS_TYPES.indexOf(inferBusinessType()) !== -1;
+    // Reservations-Enabled: wenn Supabase-Spalte explizit false ist, nimmt der Bot keine Reservierungen entgegen.
+    const reservationsAreEnabled = () => clientData && clientData.reservationsEnabled !== false;
 
     const toMinutes = (timeText) => {
       const m = String(timeText).match(/^(\d{1,2}):(\d{2})/);
@@ -695,7 +761,7 @@ console.log("WIDGET STARTET");
       today.setHours(0, 0, 0, 0);
       const value = String(dateText || '').toLowerCase();
 
-      if (value === 'heute' || /^heut[a-z]{0,2}$/.test(value)) return toISODate(today);
+      if (value === 'heute' || /^heut[a-z]{0,2}$/.test(value) || value === 'jetzt' || value === 'sofort' || value === 'gleich') return toISODate(today);
       if (value === 'morgen' || /^(morgn|morgrn|moren|moreg|morgeen|morgnm|mogren|mogen|mogn)$/.test(value) || /^morg[a-z]{1,3}$/.test(value)) {
         const d = new Date(today);
         d.setDate(d.getDate() + 1);
@@ -756,16 +822,70 @@ console.log("WIDGET STARTET");
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
-    // Returns { start, end } in minutes, or null if the restaurant is closed that day.
-    // Returns a fallback window only when opening hours are entirely unconfigured.
-    const getDayWindow = (dateLabel) => {
-      const openingHours = clientData.openingHours;
-      if (!openingHours || typeof openingHours !== 'object') {
-        return { start: 17 * 60, end: 22 * 60 }; // No hours configured at all → safe fallback
+    // Parse free-text opening_hours string from Supabase into a day-keyed map of ranges.
+    // Handles: Day abbreviations (Mo/Di/Mi/Do/Fr/Sa/So) + full names, day ranges (Mo–Fr, Di–Do),
+    // multiple ranges per day separated by "&"/"und"/"," (e.g. "11:30-14:00 & 17:30-22:00"),
+    // closed markers (Geschlossen/Ruhetag/closed/-), and parenthetical notes (ignored).
+    // Returns: { montag: [{start, end}], ..., sonntag: [] } — all 7 weekdays always present.
+    const parseOpeningHours = (str) => {
+      const DAY_NAMES = ['montag','dienstag','mittwoch','donnerstag','freitag','samstag','sonntag'];
+      const IDX = { mo:0, montag:0, di:1, dienstag:1, mi:2, mittwoch:2, do:3, donnerstag:3, fr:4, freitag:4, sa:5, samstag:5, so:6, sonntag:6 };
+      const result = {};
+      for (const d of DAY_NAMES) result[d] = [];
+      if (!str || typeof str !== 'string') return result;
+
+      const lines = str.split(/\r?\n/);
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) continue;
+        const colonSplit = line.match(/^([^:]+?):\s*(.+)$/);
+        if (!colonSplit) continue;
+        const dayPart = colonSplit[1].trim().toLowerCase();
+        let hoursPart = colonSplit[2].trim().toLowerCase();
+        // Strip parenthetical notes: "(nur nach Vereinbarung)"
+        hoursPart = hoursPart.replace(/\([^)]*\)/g, '').trim();
+
+        const days = [];
+        const rangeMatch = dayPart.match(/^(mo|di|mi|do|fr|sa|so|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\s*[-–—]\s*(mo|di|mi|do|fr|sa|so|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)$/);
+        if (rangeMatch) {
+          const a = IDX[rangeMatch[1]], b = IDX[rangeMatch[2]];
+          if (a !== undefined && b !== undefined) {
+            if (a <= b) { for (let i = a; i <= b; i++) days.push(DAY_NAMES[i]); }
+            else { for (let i = a; i <= 6; i++) days.push(DAY_NAMES[i]); for (let i = 0; i <= b; i++) days.push(DAY_NAMES[i]); }
+          }
+        } else {
+          const tokens = dayPart.split(/[,\s/]+/).filter(Boolean);
+          for (const t of tokens) { if (IDX[t] !== undefined) days.push(DAY_NAMES[IDX[t]]); }
+        }
+        if (days.length === 0) continue;
+
+        if (/^(geschlossen|ruhetag|closed|-|\s*)$/.test(hoursPart)) continue;
+
+        const rangeRegex = /(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})/g;
+        const ranges = [];
+        let m;
+        while ((m = rangeRegex.exec(hoursPart)) !== null) {
+          const start = parseInt(m[1],10)*60 + parseInt(m[2],10);
+          const end = parseInt(m[3],10)*60 + parseInt(m[4],10);
+          if (end > start) ranges.push({ start, end });
+        }
+        for (const d of days) result[d].push(...ranges);
       }
+      return result;
+    };
+
+    // Returns an array of {start, end} ranges in minutes for the given day label,
+    // or null if the business is closed / day cannot be resolved.
+    const getDayRanges = (dateLabel) => {
+      const openingHours = clientData.openingHours;
+      const parsed = (typeof openingHours === 'string')
+        ? parseOpeningHours(openingHours)
+        : (openingHours && typeof openingHours === 'object' ? openingHours : null);
+
+      if (!parsed) return null;
 
       let key = String(dateLabel || '').toLowerCase();
-      if (key === 'heute' || key === 'morgen') {
+      if (key === 'heute' || key === 'morgen' || key === 'jetzt' || key === 'sofort' || key === 'gleich') {
         const d = new Date();
         if (key === 'morgen') d.setDate(d.getDate() + 1);
         key = d.toLocaleDateString('de-DE', { weekday: 'long' }).toLowerCase();
@@ -778,29 +898,27 @@ console.log("WIDGET STARTET");
         if (!Number.isNaN(_dd.getTime())) key = _dd.toLocaleDateString('de-DE', { weekday: 'long' }).toLowerCase();
       }
 
-      // Day not listed in opening hours → closed
-      if (!Object.prototype.hasOwnProperty.call(openingHours, key)) {
-        return null;
-      }
+      const dayRanges = parsed[key];
+      if (!Array.isArray(dayRanges) || dayRanges.length === 0) return null;
+      return dayRanges;
+    };
 
-      const text = String(openingHours[key]).toLowerCase().trim();
+    // Legacy-compat helper: returns first {start, end} union wrapper for single-range usage.
+    // Used by code paths that only need to know IF the business has any opening, not the details.
+    const getDayWindow = (dateLabel) => {
+      const ranges = getDayRanges(dateLabel);
+      if (!ranges || ranges.length === 0) return null;
+      return { start: ranges[0].start, end: ranges[ranges.length - 1].end };
+    };
 
-      // Explicitly closed
-      if (!text || text === 'closed' || text === 'geschlossen' || text === '-') {
-        return null;
+    // True if the given minute-of-day falls inside ANY opening range on the given day.
+    const isTimeWithinOpeningHours = (dateLabel, minutes) => {
+      const ranges = getDayRanges(dateLabel);
+      if (!ranges) return false;
+      for (const r of ranges) {
+        if (minutes >= r.start && minutes < r.end) return true;
       }
-
-      const ranges = text.match(/(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})/);
-      if (!ranges) {
-        return null; // Text present but no parseable time range → treat as closed
-      }
-
-      const start = (parseInt(ranges[1], 10) * 60) + parseInt(ranges[2], 10);
-      const end = (parseInt(ranges[3], 10) * 60) + parseInt(ranges[4], 10);
-      if (end <= start) {
-        return null; // Invalid range
-      }
-      return { start, end };
+      return false;
     };
 
     const getSlotAvailabilityForCurrentReservation = async () => {
@@ -814,15 +932,17 @@ console.log("WIDGET STARTET");
         return null;
       }
 
-      const windowRange = getDayWindow(reservationState.date);
-      if (!windowRange) return { closed: true };
+      const dayRanges = getDayRanges(reservationState.date);
+      if (!dayRanges) return { closed: true };
 
       // If capacity is not configured, show all slots as free without a Supabase query
       if (!hasCapacity) {
-        const latestStart = windowRange.end - defaultDuration;
         const slots = [];
-        for (let start = windowRange.start; start <= latestStart; start += slotInterval) {
-          slots.push({ time: formatMinutesToTime(start), isFree: true });
+        for (const range of dayRanges) {
+          const latestStart = range.end - defaultDuration;
+          for (let start = range.start; start <= latestStart; start += slotInterval) {
+            slots.push({ time: formatMinutesToTime(start), isFree: true });
+          }
         }
         return slots;
       }
@@ -842,10 +962,11 @@ console.log("WIDGET STARTET");
         return null;
       }
 
-      const latestStart = windowRange.end - defaultDuration;
       const slots = [];
 
-      for (let start = windowRange.start; start <= latestStart; start += slotInterval) {
+      for (const range of dayRanges) {
+        const latestStart = range.end - defaultDuration;
+        for (let start = range.start; start <= latestStart; start += slotInterval) {
         const newSlots = buildSlots(start, defaultDuration, slotInterval);
         let isFree = true;
 
@@ -874,6 +995,7 @@ console.log("WIDGET STARTET");
           time: formatMinutesToTime(start),
           isFree
         });
+        }
       }
 
       return slots;
@@ -892,8 +1014,8 @@ console.log("WIDGET STARTET");
       }
 
       // Bug 3: reject reservations on closed days
-      const windowRange = getDayWindow(reservationState.date);
-      if (!windowRange) {
+      const dayRanges = getDayRanges(reservationState.date);
+      if (!dayRanges) {
         return t(
           'An diesem Tag haben wir leider geschlossen. Bitte wähle ein anderes Datum.',
           'An diesem Tag ist unser Restaurant geschlossen. Bitte wählen Sie ein anderes Datum.',
@@ -901,14 +1023,13 @@ console.log("WIDGET STARTET");
         );
       }
 
-      // Bug 4: reject times outside opening hours
-      if (newStart < windowRange.start || newStart >= windowRange.end) {
-        const open = formatMinutesToTime(windowRange.start);
-        const close = formatMinutesToTime(windowRange.end);
+      // Bug 4: reject times outside opening hours (inclusive of split hours like 11:30-14:00 & 17:30-22:00)
+      if (!isTimeWithinOpeningHours(reservationState.date, newStart)) {
+        const hoursText = dayRanges.map(r => `${formatMinutesToTime(r.start)}–${formatMinutesToTime(r.end)}`).join(' & ');
         return t(
-          `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${open}–${close} Uhr). Bitte wähle eine andere Zeit.`,
-          `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${open}–${close} Uhr). Bitte wählen Sie eine andere Zeit.`,
-          `Außerhalb unserer Öffnungszeiten! Wir haben ${open}–${close} Uhr auf. Andere Zeit? 😊`
+          `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${hoursText} Uhr). Bitte wähle eine andere Zeit.`,
+          `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${hoursText} Uhr). Bitte wählen Sie eine andere Zeit.`,
+          `Außerhalb unserer Öffnungszeiten! Wir haben ${hoursText} Uhr auf. Andere Zeit? 😊`
         );
       }
 
@@ -980,6 +1101,8 @@ console.log("WIDGET STARTET");
         reservationState.date = null;
         reservationState.time = null;
         reservationState.email = null;
+        reservationState.urgency = null;
+        reservationState.showAllSlots = false;
         return `Reservierung bestätigt. Wir melden uns per E-Mail unter ${email}.`;
       } catch (error) {
         console.error('ChatBot Widget Supabase Error:', error);
@@ -1034,7 +1157,9 @@ console.log("WIDGET STARTET");
         .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
       let date = null;
-      if (/\b(morgen|morgn|morgrn|moren|moreg|morgeen|morgnm|mogren|mogen|mogn)\b/.test(norm) || /\bmorg[a-z]{0,3}\b/.test(norm)) {
+      if (/\b(jetzt|sofort|gleich|direkt|asap)\b/.test(norm)) {
+        date = 'heute';
+      } else if (/\b(morgen|morgn|morgrn|moren|moreg|morgeen|morgnm|mogren|mogen|mogn)\b/.test(norm) || /\bmorg[a-z]{0,3}\b/.test(norm)) {
         date = 'morgen';
       } else if (/\b(heute|heite|heut|hete)\b/.test(norm) || /\bheut[a-z]{0,2}\b/.test(norm)) {
         date = 'heute';
@@ -1046,14 +1171,23 @@ console.log("WIDGET STARTET");
       }
 
       let people = null;
-      const peopleMatch =
-        norm.match(/\bfur\s+(\d{1,2})\b/) ||
-        norm.match(/\b(\d{1,2})\s*(?:leute|personen?|person)\b/) ||
-        norm.match(/\b(\d{1,2})\b/);
-      if (peopleMatch) {
-        people = parseInt(peopleMatch[1], 10);
-      } else if (/\bzu\s*zweit\b/.test(norm)) {
-        people = 2;
+      // "nur ich" / "allein" / "mich allein" → 1 Person (vor dem generischen Zahl-Match!)
+      if (/\b(nur\s+ich|nur\s+mich|mich\s+allein|allein|alleine|selber|einzeln|individuell)\b/.test(norm)) {
+        people = 1;
+      } else {
+        const peopleMatch =
+          norm.match(/\bfur\s+(\d{1,2})\b/) ||
+          norm.match(/\b(\d{1,2})\s*(?:leute|personen?|person)\b/) ||
+          norm.match(/\b(\d{1,2})\b/);
+        if (peopleMatch) {
+          people = parseInt(peopleMatch[1], 10);
+        } else if (/\bzu\s*zweit\b/.test(norm)) {
+          people = 2;
+        } else if (/\bzu\s*dritt\b/.test(norm)) {
+          people = 3;
+        } else if (/\bzu\s*viert\b/.test(norm)) {
+          people = 4;
+        }
       }
 
       return { date, people };
@@ -1067,6 +1201,9 @@ console.log("WIDGET STARTET");
 
       if (!reservationState.date && facts.date) reservationState.date = formatDateForDisplay(facts.date) || facts.date;
       if (!reservationState.people && facts.people) reservationState.people = facts.people;
+
+      // Service-Business: niemals nach Personenzahl fragen, immer 1 (Einzeltermin)
+      if (isServiceBusiness() && !reservationState.people) reservationState.people = 1;
 
       // If date and people are both known but no time yet, show available slots
       if (
@@ -1107,17 +1244,16 @@ console.log("WIDGET STARTET");
         }
         if (!result.text) return '__SHOW_TIME_SLOTS__';
 
-        // Bug 4: validate typed time against opening hours
-        const windowRange = getDayWindow(reservationState.date);
-        if (windowRange) {
+        // Bug 4: validate typed time against opening hours (supports split hours like lunch + dinner)
+        const dayRanges = getDayRanges(reservationState.date);
+        if (dayRanges) {
           const inputMinutes = toMinutes(result.text);
-          if (inputMinutes !== null && (inputMinutes < windowRange.start || inputMinutes >= windowRange.end)) {
-            const open = formatMinutesToTime(windowRange.start);
-            const close = formatMinutesToTime(windowRange.end);
+          if (inputMinutes !== null && !isTimeWithinOpeningHours(reservationState.date, inputMinutes)) {
+            const hoursText = dayRanges.map(r => `${formatMinutesToTime(r.start)}–${formatMinutesToTime(r.end)}`).join(' & ');
             return t(
-              `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${open}–${close} Uhr). Bitte wähle eine andere Zeit.`,
-              `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${open}–${close} Uhr). Bitte wählen Sie eine andere Zeit.`,
-              `Außerhalb unserer Öffnungszeiten! Wir haben ${open}–${close} Uhr auf. Andere Zeit? 😊`
+              `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${hoursText} Uhr). Bitte wähle eine andere Zeit.`,
+              `Diese Uhrzeit liegt außerhalb unserer Öffnungszeiten (${hoursText} Uhr). Bitte wählen Sie eine andere Zeit.`,
+              `Außerhalb unserer Öffnungszeiten! Wir haben ${hoursText} Uhr auf. Andere Zeit? 😊`
             );
           }
         }
@@ -1154,6 +1290,8 @@ console.log("WIDGET STARTET");
           reservationState.date = null;
           reservationState.time = null;
           reservationState.email = null;
+          reservationState.urgency = null;
+          reservationState.showAllSlots = false;
           return t('Die Reservierung wurde abgebrochen. Falls du es dir anders überlegst, einfach wieder schreiben! 👋', 'Die Reservierung wurde abgebrochen. Falls Sie es sich anders überlegen, stehen wir Ihnen gerne zur Verfügung.', 'Reservierung abgebrochen! Falls du\'s dir anders überlegst – einfach nochmal schreiben. 👋');
         }
         return '__SHOW_SUMMARY__';
@@ -1162,15 +1300,32 @@ console.log("WIDGET STARTET");
       return null;
     };
 
+    // Branchenspezifisches Bot-Icon pro Demo-Client
+    // (Fallback: generisches Personen-Icon für nicht-demo-Clients)
+    const getBotIconSVG = () => {
+      const icons = {
+        // Zahn
+        'demo-zahnarzt':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.5 2 5 4.5 5 8.5c0 2.4.9 4 1.8 5.8.8 1.6 1.7 3.4 1.7 5.7 0 1.1.6 2 1.5 2s1.5-.9 1.5-2c0-1.5.3-2.7.5-3.5.3 .8.5 2 .5 3.5 0 1.1.6 2 1.5 2s1.5-.9 1.5-2c0-2.3.9-4.1 1.7-5.7.9-1.8 1.8-3.4 1.8-5.8C19 4.5 15.5 2 12 2z"/></svg>',
+        // Blume
+        'demo-blumenladen':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c-.6 0-1-.4-1-1v-3.1c-2.3-.5-4-2.5-4-4.9 0-1 .3-1.9.8-2.7C7.3 9.8 7 8.9 7 8c0-2.8 2.2-5 5-5s5 2.2 5 5c0 .9-.3 1.8-.8 2.5.5.8.8 1.7.8 2.7 0 2.4-1.7 4.4-4 4.9V21c0 .6-.4 1-1 1zm0-16c-1.1 0-2 .9-2 2 0 .5.2.9.4 1.3-.1 0-.3 0-.4 0-1.7 0-3 1.3-3 3s1.3 3 3 3c.4 0 .7-.1 1-.2V13c0 .6.4 1 1 1s1-.4 1-1v-.9c.3.1.6.2 1 .2 1.7 0 3-1.3 3-3s-1.3-3-3-3c-.1 0-.3 0-.4 0 .2-.4.4-.8.4-1.3 0-1.1-.9-2-2-2zm0 5.5c.8 0 1.5.7 1.5 1.5S12.8 14.5 12 14.5s-1.5-.7-1.5-1.5.7-1.5 1.5-1.5z"/></svg>',
+        // Kaffeetasse
+        'demo-cafe':       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-2h2a3 3 0 000-6V3zm0 5v2a1 1 0 010-2zM2 21h18v-2H2v2z"/></svg>',
+        // Pizza-Slice
+        'demo-pizzeria':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 5l6.5 13h-13L12 7zm-2.5 6a1 1 0 110 2 1 1 0 010-2zm5 1a1 1 0 110 2 1 1 0 010-2zm-3 3a1 1 0 110 2 1 1 0 010-2z"/></svg>',
+        // Schere
+        'demo-coiffeur':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.6 7.6c.3-.5.4-1.1.4-1.6 0-2.2-1.8-4-4-4S2 3.8 2 6s1.8 4 4 4c.6 0 1.1-.1 1.6-.4L10 12l-2.4 2.4C7.1 14.1 6.6 14 6 14c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4c0-.6-.1-1.1-.4-1.6L12 14l7 7h3v-1L9.6 7.6zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM19 3l-6 6 2 2 7-7V3z"/></svg>'
+      };
+      // Fallback for real customer client IDs: the classic chat-bubble icon (same as pre-icon-map prod UI)
+      return icons[CLIENT_ID] || '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.522 0 10 3.59 10 8 0 4.41-4.478 8-10 8-1.54 0-3-.32-4.28-.93L4.1 21.86c-.4 1.02-1.59 1.36-2.35.74L0 20c-1.05-1.05-.53-2.8.81-3.32 3.77-1.64 5.88-4.36 5.88-8.68 0-4.41-4.478-8-10-8z"/></svg>';
+    };
+
     // Create widget HTML
     const createWidgetHTML = () => {
       return `
         <div id="chatbot-widget" class="chatbot-widget">
           <!-- Chat Bubble -->
           <div id="chat-bubble" class="chat-bubble">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-            </svg>
+            ${getBotIconSVG()}
           </div>
 
           <!-- Chat Window -->
@@ -1179,7 +1334,7 @@ console.log("WIDGET STARTET");
             <div class="chat-header">
               <div class="header-content">
                 <p class="status"><span class="status-dot status-online"></span>Online</p>
-                <h3>Teste mich hier! 💬</h3>
+                <h3>${clientData.businessName || 'Chat'} 💬</h3>
               </div>
               <button class="close-btn" id="close-btn">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -1229,6 +1384,26 @@ console.log("WIDGET STARTET");
       const widgetContainer = document.createElement('div');
       widgetContainer.innerHTML = createWidgetHTML();
       document.body.appendChild(widgetContainer);
+
+      // Apply client brand colors + font to widget
+      const w = document.getElementById('chatbot-widget');
+      if (w) {
+        if (clientData.primaryColor && clientData.primaryColor !== '#667eea') {
+          w.style.setProperty('--cw-a', clientData.primaryColor);
+          w.style.setProperty('--cw-b', clientData.secondaryColor || clientData.primaryColor);
+        }
+        // Visual V1: apply font override if Supabase has a font_family column value for this client
+        if (clientData.fontFamily) {
+          w.style.setProperty('--cw-font', clientData.fontFamily);
+          // If the font looks like a Google Font (single quoted family name, not a system font),
+          // lazy-load it so it actually renders
+          const firstFamily = String(clientData.fontFamily).split(',')[0].trim().replace(/^['"]|['"]$/g, '');
+          const systemFonts = ['serif', 'sans-serif', 'monospace', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'Helvetica', 'Times', 'Courier', 'Georgia', 'Verdana'];
+          if (firstFamily && !systemFonts.includes(firstFamily) && window.ChatbotWidget && window.ChatbotWidget.loadGoogleFont) {
+            window.ChatbotWidget.loadGoogleFont(firstFamily, [400, 500, 600, 700]);
+          }
+        }
+      }
 
       // Get DOM elements
       const chatBubble = document.getElementById('chat-bubble');
@@ -1319,20 +1494,65 @@ console.log("WIDGET STARTET");
           return;
         }
 
+        // Smart-Slots-Filter: wenn Datum heute ist, Slots die bereits in Vergangenheit liegen
+        // (inkl. 15-Min-Buffer für Puffer/Anfahrt) ausblenden.
+        let filteredSlots = slots;
+        const todayIso = toISODate(new Date());
+        if (reservationState.date === todayIso) {
+          const now = new Date();
+          const nowMin = now.getHours() * 60 + now.getMinutes() + 15; // 15-Min-Buffer
+          filteredSlots = slots.filter(s => {
+            const [h, m] = String(s.time).split(':').map(Number);
+            return (h * 60 + m) >= nowMin;
+          });
+          if (filteredSlots.length === 0) {
+            reservationState.date = null;
+            reservationState.step = 'date';
+            addMessage('bot', t(
+              'Für heute sind alle Zeiten schon vorbei. Probier\'s mit einem anderen Tag?',
+              'Für heute sind leider alle Zeiten bereits vergangen. Bitte wählen Sie einen anderen Tag.',
+              'Für heute ist der Zug leider abgefahren. Welcher andere Tag passt? 😊'
+            ));
+            return;
+          }
+        }
+
+        // Limit setzen: urgency=2, default=6, "alle anzeigen"=unbegrenzt
+        const urgency = reservationState.urgency === 'priority';
+        const LIMIT_DEFAULT = urgency ? 2 : 6;
+        const showAll = reservationState.showAllSlots;
+
+        // Nur freie Slots zuerst, dann zeige ggf. belegte dazwischen chronologisch.
+        const freeOnly = filteredSlots.filter(s => s.isFree);
+        const displaySlots = showAll ? filteredSlots : freeOnly.slice(0, LIMIT_DEFAULT);
+        const remainingCount = freeOnly.length - displaySlots.filter(s => s.isFree).length;
+
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message bot';
 
-        const buttonsHtml = slots.map((slot, index) => {
+        const buttonsHtml = displaySlots.map((slot, index) => {
           if (slot.isFree) {
-            return `<button type="button" data-slot-time="${slot.time}" data-slot-index="${index}" style="padding:8px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-size:13px;cursor:pointer;">${slot.time}</button>`;
+            const highlight = urgency && index === 0 && !showAll
+              ? 'background:linear-gradient(135deg,#10b981 0%,#059669 100%);box-shadow:0 0 0 2px rgba(16,185,129,0.3);'
+              : 'background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);';
+            const label = urgency && index === 0 && !showAll ? `${slot.time} · nächster freier` : slot.time;
+            return `<button type="button" data-slot-time="${slot.time}" data-slot-index="${index}" style="padding:8px 10px;border:none;border-radius:10px;${highlight}color:#fff;font-size:13px;cursor:pointer;">${label}</button>`;
           }
           return `<button type="button" disabled data-slot-index="${index}" style="padding:8px 10px;border:none;border-radius:10px;background:#dee2e6;color:#6c757d;font-size:13px;cursor:not-allowed;">${slot.time} Voll</button>`;
         }).join('');
 
+        const moreBtnHtml = (!showAll && remainingCount > 0)
+          ? `<button type="button" data-slot-action="more" style="padding:8px 12px;border:1px solid #667eea;border-radius:10px;background:transparent;color:#667eea;font-size:12px;cursor:pointer;">+ weitere Zeiten (${remainingCount})</button>`
+          : '';
+
+        const header = urgency
+          ? t('Hier ist der nächstverfügbare Termin:', 'Hier sehen Sie den nächstverfügbaren Termin:', 'Der nächste freie Slot:')
+          : t('Diese Zeiten sind verfügbar:', 'Folgende Zeiten sind verfügbar:', 'Diese Zeiten sind frei:');
+
         messageDiv.innerHTML = `
           <div class="message-content" style="max-width:90%;">
-            ${t('Diese Zeiten sind verfügbar:', 'Folgende Zeiten sind verfügbar:', 'Diese Zeiten sind frei:')}<br><br>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">${buttonsHtml}</div>
+            ${header}<br><br>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">${buttonsHtml}${moreBtnHtml}</div>
           </div>`;
 
         chatMessages.appendChild(messageDiv);
@@ -1347,11 +1567,52 @@ console.log("WIDGET STARTET");
             await processMessage(slotTime);
           });
         });
+
+        const moreBtn = messageDiv.querySelector('button[data-slot-action="more"]');
+        if (moreBtn) {
+          moreBtn.addEventListener('click', async () => {
+            reservationState.showAllSlots = true;
+            await showTimeSlotOptions();
+          });
+        }
       };
 
       // Central message processor (shared by sendMessage and button handlers)
       const processMessage = async (text) => {
+        // Urgency-Flag setzen (persistiert bis zum Reservierungs-Ende/Cancel).
+        // Wichtig: VOR der reservationState.active-Branch, damit auch die Initial-Message greift.
+        if (!reservationState.urgency && (isMedicalUrgency(text) || isTimeUrgent(text))) {
+          reservationState.urgency = 'priority';
+        }
+
         if (reservationState.active) {
+          // Kontext-Switch während Reservierung: wenn User off-topic fragt (Preis, Menü, Adresse etc.),
+          // kurz über /api/chat beantworten und dann zum aktuellen Reservierungs-Schritt zurückkehren.
+          // Plain-number/date/time/email gehen direkt in handleReservationStep.
+          const looksLikeOffTopic = /\?|kostet|preis|menu|menü|karte|adresse|standort|wo\s+seid|wo\s+befind|kontakt|telefon|email|mail|parkplatz|wlan|hund|vegetar|vegan|glutenfrei|allerg/i.test(text);
+          if (looksLikeOffTopic) {
+            const chatResult = await callChatAPI(text, {
+              guests: reservationState.people, date: reservationState.date,
+              time: reservationState.time, email: reservationState.email
+            }, tone);
+            if (chatResult && chatResult.response) {
+              addMessage('bot', chatResult.response);
+              // Reservierung fortsetzen — Erinnerung je nach aktuellem Schritt
+              const step = reservationState.step;
+              const resumeMsg = step === 'people'
+                ? t('Zurück zur Reservierung — für wie viele Personen?', 'Zurück zur Reservierung — für wie viele Personen?', 'Zurück zur Reservierung — wie viele Leute?')
+                : step === 'date'
+                ? t('Zurück zur Reservierung — an welchem Tag?', 'Zurück zur Reservierung — an welchem Tag?', 'Zurück zur Reservierung — welcher Tag?')
+                : step === 'time'
+                ? t('Zurück zur Reservierung — für welche Uhrzeit?', 'Zurück zur Reservierung — für welche Uhrzeit?', 'Zurück zur Reservierung — welche Uhrzeit?')
+                : step === 'email'
+                ? t('Zurück zur Reservierung — an welche E-Mail soll die Bestätigung?', 'Zurück zur Reservierung — an welche E-Mail soll die Bestätigung?', 'Zurück zur Reservierung — deine E-Mail?')
+                : null;
+              if (resumeMsg) addMessage('bot', resumeMsg);
+              return;
+            }
+            // Wenn /api/chat fehlschlägt, weiter mit normaler Reservierungs-Logik
+          }
           const result = await handleReservationStep(text);
           if (result === '__SHOW_SUMMARY__') {
             showReservationSummary();
@@ -1396,6 +1657,8 @@ console.log("WIDGET STARTET");
 
           if (chatResult.intent === 'reservation') {
             reservationState.active = true;
+            // Service-Business: automatisch 1 Person (Einzeltermin), nie die "Personen"-Frage stellen
+            if (isServiceBusiness() && !reservationState.people) reservationState.people = 1;
             // Show the AI's natural language response
             addMessage('bot', chatResult.response);
             // Determine next step based on what's still missing
@@ -1429,6 +1692,8 @@ console.log("WIDGET STARTET");
           } else if (!reservationState.people && localFacts2.people) {
             reservationState.people = localFacts2.people;
           }
+          // Service-Business: automatisch 1 Person
+          if (isServiceBusiness() && !reservationState.people) reservationState.people = 1;
 
           if (aiResult.date_text) {
             reservationState.date = formatDateForDisplay(aiResult.date_text) || aiResult.date_text;
@@ -1470,6 +1735,8 @@ console.log("WIDGET STARTET");
           const facts = extractReservationFacts(text);
           reservationState.people = facts.people || null;
           reservationState.date = facts.date ? (formatDateForDisplay(facts.date) || facts.date) : null;
+          // Service-Business: automatisch 1 Person
+          if (isServiceBusiness() && !reservationState.people) reservationState.people = 1;
 
           if (reservationState.people && reservationState.date) {
             reservationState.step = 'time';
@@ -1538,14 +1805,37 @@ console.log("WIDGET STARTET");
     initWidget(CLIENT_ID);
   };
 
-  // Public theming API — demo page calls this to sync widget color with theme
+  // Public theming API — demo page / rotating-theme JS calls this to sync widget look
   window.ChatbotWidget = {
-    setAccentColor: function(hex) {
+    setAccentColor: function(hex, secondary) {
       const w = document.getElementById('chatbot-widget');
       if (w) {
         w.style.setProperty('--cw-a', hex);
-        w.style.setProperty('--cw-b', hex);
+        w.style.setProperty('--cw-b', secondary || hex);
       }
+    },
+    // Visual V1: override the font-family. Pass a CSS font-family string like
+    // "Fraunces, serif". Pass null to fall back to host-page inheritance.
+    setCustomFont: function(family) {
+      const w = document.getElementById('chatbot-widget');
+      if (!w) return;
+      if (family) {
+        w.style.setProperty('--cw-font', family);
+      } else {
+        w.style.removeProperty('--cw-font');
+      }
+    },
+    // Async Google-Fonts loader — injects the link tag if not already present.
+    // Example: loadGoogleFont("Fraunces", [600, 700]).
+    loadGoogleFont: function(family, weights) {
+      const weightStr = (weights && weights.length) ? ':wght@' + weights.join(';') : '';
+      const href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(family).replace(/%20/g, '+') + weightStr + '&display=swap';
+      if (document.querySelector('link[data-cw-font="' + family + '"]')) return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.setAttribute('data-cw-font', family);
+      document.head.appendChild(link);
     }
   };
 
