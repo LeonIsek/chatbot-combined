@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard · BotSwiss</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #FAFAFA; --surface: #FFFFFF; --text: #0A0A0A; --muted: #737373;
+      --border: #E5E5E5; --accent: #0A0A0A; --success: #10B981; --danger: #EF4444; --warn: #F59E0B;
+      --radius: 12px; --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    header {
+      background: var(--text); color: #fff; padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+    header .right { display: flex; gap: 12px; align-items: center; font-size: 13px; color: #A3A3A3; }
+    header button { background: transparent; border: 1px solid #2A2A2A; color: #fff;
+      padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    header button:hover { background: #1A1A1A; }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .hidden { display: none !important; }
+
+    /* ====== Login ====== */
+    .login-card {
+      max-width: 440px; margin: 80px auto; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 36px; box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    }
+    .login-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .login-card p.hint { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+    .login-card input { width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; font-family: inherit; }
+    .login-card input:focus { outline: none; border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .login-card button { width: 100%; margin-top: 14px; padding: 12px; background: var(--accent);
+      color: #fff; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; }
+    .login-card button:hover { opacity: 0.9; }
+    .login-card .msg { margin-top: 12px; font-size: 13px; padding: 10px 12px; border-radius: 8px; display: none; }
+    .login-card .msg.visible { display: block; }
+    .login-card .msg.success { background: rgba(16,185,129,0.08); color: #047857; }
+    .login-card .msg.error   { background: rgba(239,68,68,0.08); color: #991B1B; }
+
+    /* ====== Tabs ====== */
+    .tabs {
+      display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 4px; margin-bottom: 20px; overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 8px 14px; background: transparent; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer;
+      font-family: inherit; white-space: nowrap; transition: all 120ms;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(0,0,0,0.03); }
+    .tab-btn.active { background: var(--text); color: #fff; }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 24px; margin-bottom: 16px; }
+    .panel h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .panel p.section-hint { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted);
+      margin-bottom: 6px; letter-spacing: 0.02em; text-transform: uppercase; }
+    .field input[type="text"], .field input[type="email"], .field input[type="tel"],
+    .field input[type="url"], .field input[type="number"], .field input[type="color"],
+    .field textarea, .field select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: 14px; font-family: inherit; color: var(--text); background: var(--surface);
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none; border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+    .field textarea { min-height: 80px; resize: vertical; }
+    .field .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
+
+    .btn { padding: 9px 14px; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: var(--radius); font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: all 120ms; }
+    .btn:hover { background: rgba(0,0,0,0.03); }
+    .btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+    .btn.primary:hover { opacity: 0.9; }
+    .btn.danger { color: var(--danger); border-color: #FCA5A5; }
+    .btn.danger:hover { background: rgba(239,68,68,0.06); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .save-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border);
+    }
+    .save-status { font-size: 12px; color: var(--muted); }
+    .save-status.saved { color: var(--success); }
+    .save-status.error { color: var(--danger); }
+
+    /* Reservations-Table */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    th { background: var(--bg); color: var(--muted); font-weight: 500; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:hover td { background: rgba(0,0,0,0.02); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+    .badge-confirmed { background: rgba(16,185,129,0.12); color: #047857; }
+    .badge-cancelled { background: rgba(239,68,68,0.10); color: #991B1B; }
+    .badge-completed { background: rgba(115,115,115,0.12); color: var(--muted); }
+    .badge-no_show   { background: rgba(245,158,11,0.12); color: #B45309; }
+
+    .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    /* Website/Crawl */
+    .crawl-status {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; margin-bottom: 14px;
+    }
+    .crawl-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+    .crawl-row span.label { color: var(--muted); font-size: 12px; }
+
+    .color-preview {
+      display: inline-block; width: 28px; height: 28px; border-radius: 6px;
+      border: 1px solid var(--border); vertical-align: middle; margin-left: 8px;
+    }
+
+    /* Widget-Preview */
+    .widget-preview {
+      background: #F3F4F6; border-radius: var(--radius); padding: 40px 20px;
+      margin-top: 16px; position: relative; min-height: 200px; text-align: center;
+    }
+    .widget-preview .bubble {
+      position: absolute; bottom: 20px; right: 20px; width: 56px; height: 56px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); overflow: hidden;
+    }
+    .widget-preview .bubble img { width: 70%; height: 70%; object-fit: contain; }
+    .widget-preview p { color: var(--muted); font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="header-title">BotSwiss Dashboard</h1>
+    <div class="right hidden" id="header-user">
+      <span id="header-user-email"></span>
+      <button id="logout-btn">Abmelden</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LOGIN -->
+    <div class="login-card" id="login-box">
+      <h2>Dashboard-Login</h2>
+      <p class="hint">Gib deine Email ein. Wir schicken dir einen Login-Link (keine Passwörter nötig).</p>
+      <input type="email" id="login-email" placeholder="deine@email.ch" autocomplete="email" autofocus/>
+      <button id="login-request-btn">Login-Link senden</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="hidden" id="dashboard-box">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="home">🏠 Übersicht</button>
+        <button class="tab-btn" data-tab="reservations">📅 Reservierungen</button>
+        <button class="tab-btn" data-tab="botinfo">💬 Bot-Infos</button>
+        <button class="tab-btn" data-tab="website">🌐 Website</button>
+        <button class="tab-btn" data-tab="branding">🎨 Branding</button>
+        <button class="tab-btn" data-tab="tables">🪑 Tische</button>
+      </div>
+
+      <!-- Tab: Home / Business-Info -->
+      <div class="tab-content" data-tab-content="home">
+        <div class="panel">
+          <h3>Business-Informationen</h3>
+          <p class="section-hint">Diese Angaben nutzt der Bot wenn Gäste fragen. Änderungen sind sofort wirksam.</p>
+
+          <div class="field"><label>Firmenname</label><input type="text" data-field="business_name"/></div>
+          <div class="field-row">
+            <div class="field"><label>Email</label><input type="email" data-field="email" disabled/><div class="sub">Kann aktuell nicht geändert werden — ist dein Login.</div></div>
+            <div class="field"><label>Telefon</label><input type="tel" data-field="phone"/></div>
+          </div>
+          <div class="field"><label>Adresse</label><input type="text" data-field="address"/></div>
+          <div class="field"><label>Website</label><input type="url" data-field="website"/></div>
+          <div class="field"><label>Öffnungszeiten</label><textarea data-field="opening_hours" placeholder="Mo Ruhetag&#10;Di-Do 11:30-14:00 & 17:30-22:00&#10;..."></textarea></div>
+          <div class="field"><label>Preise / Angebote</label><textarea data-field="prices"></textarea></div>
+          <div class="field"><label>Allgemeine Notizen</label><textarea data-field="note"></textarea><div class="sub">Für dich als Erinnerung. Bot nutzt das Feld "Bot-Infos" separat.</div></div>
+
+          <div class="save-bar">
+            <span class="save-status" id="home-save-status"></span>
+            <button class="btn primary" data-save="home">Speichern</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Reservations -->
+      <div class="tab-content hidden" data-tab-content="reservations">
+        <div class="panel" id="res-enabled-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div><h3 style="display:inline;">Reservierungen</h3><span class="section-hint" style="margin-left:12px;" id="res-count"></span></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn" id="res-export-btn">CSV exportieren</button>
+              <button class="btn" id="res-refresh-btn">Aktualisieren</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Eingegangen</th><th>Datum</th><th>Zeit</th><th>Personen</th>
+                  <th>Email</th><th>Status</th><th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="res-rows"></tbody>
+            </table>
+          </div>
+          <div class="empty hidden" id="res-empty">Noch keine Reservierungen. Sobald der Bot welche entgegennimmt, erscheinen sie hier.</div>
+        </div>
+        <div class="panel hidden" id="res-disabled-panel">
+          <h3>Reservierungen deaktiviert</h3>
+          <p class="section-hint">Dieses Feature ist für deinen Account ausgeschaltet. Im Tab "Übersicht" kannst du "Reservierungen entgegennehmen" aktivieren.</p>
+        </div>
+      </div>
+
+      <!-- Tab: Bot-Infos -->
+      <div class="tab-content hidden" data-tab-content="botinfo">
+        <div class="panel">
+          <h3>Tonfall des Bots</h3>
+          <p class="section-hint">Wie soll der Bot mit Gästen reden?</p>
+          <div class="field">
+            <select data-field="tone">
+              <option value="friendly">Freundlich (passt sich an Person an)</option>
+              <option value="formal">Formell (immer "Sie")</option>
+              <option value="casual">Locker (immer "du", mit Emoji)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Zusätzliche Infos für den Bot</h3>
+          <p class="section-hint">Was soll der Bot wissen über deinen Betrieb? Je konkreter, desto besser die Antworten. Beispiele:</p>
+          <div style="background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--muted); font-family: monospace;">
+            • Freitag Abend kein Kindermenü<br/>
+            • Hund im Garten OK, nicht im Innenraum<br/>
+            • Für 10+ Personen bitte mindestens 3 Tage vorher reservieren<br/>
+            • Wir haben vegan/vegetarisch (Menü auf Anfrage)<br/>
+            • Parkplatz: 5 Plätze direkt am Haus, sonst Pilatus-Parkhaus (200m)
+          </div>
+          <div class="field">
+            <textarea data-field="custom_info" rows="10" placeholder="Hier schreiben..."></textarea>
+            <div class="sub">Bot berücksichtigt das ab der nächsten Nachricht. Keine Deployment-Wartezeit.</div>
+          </div>
+          <div class="save-bar">
+            <span class="save-status" id="botinfo-save-status"></span>
+            <button class="btn primary" data-save="botinfo">Speichern</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Website -->
+      <div class="tab-content hidden" data-tab-content="website">
+        <div class="panel">
+          <h3>Website-Scan</h3>
+          <p class="section-hint">Der Bot liest automatisch deine Website, damit er Gäste-Fragen beantworten kann. Wenn du deine Website änderst, scanne neu.</p>
+
+          <div class="crawl-status">
+            <div class="crawl-row"><span class="label">Aktuelle URL</span><span id="crawl-url">—</span></div>
+            <div class="crawl-row"><span class="label">Letzter Scan</span><span id="crawl-last">noch nie</span></div>
+            <div class="crawl-row"><span class="label">Seiten gefunden</span><span id="crawl-pages">0</span></div>
+            <div class="crawl-row"><span class="label">Infos gespeichert</span><span id="crawl-chunks">0 Wissensblöcke</span></div>
+            <div class="crawl-row"><span class="label">Status</span><span id="crawl-state">—</span></div>
+          </div>
+
+          <button class="btn primary" id="recrawl-btn">🔄 Website jetzt neu scannen</button>
+          <div class="sub" style="margin-top:8px;color:var(--muted);font-size:12px;">Max 1× pro Tag. Scan läuft im Hintergrund, dauert 1–2 Minuten.</div>
+          <div class="msg" id="recrawl-msg" style="margin-top:12px;display:none;padding:10px;border-radius:8px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Branding -->
+      <div class="tab-content hidden" data-tab-content="branding">
+        <div class="panel">
+          <h3>Widget-Aussehen</h3>
+          <p class="section-hint">Passt die Chat-Bubble an dein Branding an. Alles andere (Chat-Fenster, Typografie) bleibt konsistent schwarz/weiss.</p>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Bubble-Farbe</label>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <input type="color" data-field="bubble_color" style="width:60px;height:40px;padding:2px;cursor:pointer;"/>
+                <input type="text" data-field="bubble_color_text" placeholder="#0A0A0A" style="flex:1;"/>
+              </div>
+            </div>
+            <div class="field">
+              <label>Logo-URL (für Bubble + Header)</label>
+              <input type="url" data-field="bubble_icon_url" placeholder="https://deine-seite.ch/logo.svg"/>
+              <div class="sub">Optional. SVG oder PNG, quadratisch empfohlen.</div>
+            </div>
+          </div>
+
+          <div class="widget-preview">
+            <p>Preview — so sieht die Chat-Bubble auf deiner Website aus</p>
+            <div class="bubble" id="bubble-preview" style="background:#0A0A0A;">
+              <span id="bubble-preview-svg">💬</span>
+            </div>
+          </div>
+
+          <div class="save-bar">
+            <span class="save-status" id="branding-save-status"></span>
+            <button class="btn primary" data-save="branding">Speichern</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Tische & Ressourcen (Phase ζ v1) -->
+      <div class="tab-content hidden" data-tab-content="tables">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div>
+              <h3 style="display:inline;">Tische &amp; Ressourcen</h3>
+              <span class="section-hint" style="margin-left:12px;" id="res-resource-count"></span>
+            </div>
+            <button class="btn primary" id="resource-add-btn">+ Neu anlegen</button>
+          </div>
+          <p class="section-hint">Hier verwaltest du deine Tische / Stühle / Behandlungszimmer. Die Kapazität bestimmt wie viele Personen gleichzeitig dort Platz haben.</p>
+          <div style="overflow-x:auto;margin-top:12px;">
+            <table>
+              <thead>
+                <tr><th>Bezeichnung</th><th>Typ</th><th>Kapazität</th><th>Aktion</th></tr>
+              </thead>
+              <tbody id="resource-rows"></tbody>
+            </table>
+          </div>
+          <div class="empty hidden" id="resource-empty">Noch keine Ressourcen angelegt. Klick "+ Neu anlegen" um zu starten.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
+    const TOKEN_KEY = 'bs_customer_token';
+    const $ = (id) => document.getElementById(id);
+    const get = (s) => document.querySelector(s);
+    const getAll = (s) => Array.from(document.querySelectorAll(s));
+    const getToken = () => localStorage.getItem(TOKEN_KEY);
+    const setToken = (t) => t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+
+    let clientData = null;
+
+    async function api(path, opts = {}) {
+      const headers = opts.headers || {};
+      if (getToken()) headers['Authorization'] = 'Bearer ' + getToken();
+      if (opts.body) headers['Content-Type'] = 'application/json';
+      const res = await fetch(BACKEND + path, { ...opts, headers });
+      if (res.status === 401) { setToken(null); showLogin(); throw new Error('Unauthorized'); }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Fehler');
+      return data;
+    }
+
+    // ============ Login-Flow ============
+    function showLogin() {
+      $('login-box').classList.remove('hidden');
+      $('dashboard-box').classList.add('hidden');
+      $('header-user').classList.add('hidden');
+    }
+    function showDashboard() {
+      $('login-box').classList.add('hidden');
+      $('dashboard-box').classList.remove('hidden');
+      $('header-user').classList.remove('hidden');
+    }
+
+    async function requestLoginEmail() {
+      const email = $('login-email').value.trim();
+      const msg = $('login-msg');
+      msg.classList.remove('visible', 'success', 'error');
+      if (!email || !email.includes('@')) {
+        msg.textContent = 'Bitte gültige Email eingeben.';
+        msg.classList.add('visible', 'error');
+        return;
+      }
+      try {
+        const r = await fetch(BACKEND + '/api/customer/request-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Fehler');
+        msg.textContent = '✉️ Check deine Emails! Link ist 15 Minuten gültig.';
+        msg.classList.add('visible', 'success');
+      } catch (e) {
+        msg.textContent = e.message;
+        msg.classList.add('visible', 'error');
+      }
+    }
+
+    async function completeLogin(token) {
+      try {
+        const r = await fetch(BACKEND + '/api/customer/complete-login?token=' + encodeURIComponent(token));
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Login fehlgeschlagen');
+        setToken(data.token);
+        window.history.replaceState({}, '', window.location.pathname);
+        await loadAll();
+        showDashboard();
+      } catch (e) {
+        const msg = $('login-msg');
+        msg.textContent = e.message + ' — Bitte nochmal Email anfordern.';
+        msg.classList.add('visible', 'error');
+      }
+    }
+
+    // ============ Load Data ============
+    async function loadAll() {
+      try {
+        const { client } = await api('/api/customer/client');
+        clientData = client;
+        fillForm();
+        $('header-title').textContent = 'Dashboard · ' + client.business_name;
+        $('header-user-email').textContent = client.email;
+        // Reservations-Tab toggle
+        if (client.reservations_enabled === false) {
+          $('res-enabled-panel').classList.add('hidden');
+          $('res-disabled-panel').classList.remove('hidden');
+        } else {
+          $('res-enabled-panel').classList.remove('hidden');
+          $('res-disabled-panel').classList.add('hidden');
+          await loadReservations();
+        }
+        await loadCrawlStatus();
+        updateBubblePreview();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function fillForm() {
+      const fields = ['business_name','email','phone','address','website','opening_hours','prices','note','tone','custom_info','bubble_color','bubble_icon_url'];
+      for (const f of fields) {
+        const els = getAll(`[data-field="${f}"]`);
+        els.forEach(el => { el.value = clientData[f] ?? ''; });
+      }
+      // color text mirror
+      const colorText = get('[data-field="bubble_color_text"]');
+      if (colorText) colorText.value = clientData.bubble_color || '#0A0A0A';
+    }
+
+    async function loadReservations() {
+      try {
+        const { reservations } = await api('/api/customer/reservations');
+        const tbody = $('res-rows');
+        tbody.innerHTML = '';
+        $('res-count').textContent = '(' + reservations.length + ')';
+        if (reservations.length === 0) {
+          $('res-empty').classList.remove('hidden');
+          return;
+        }
+        $('res-empty').classList.add('hidden');
+        reservations.forEach(r => tbody.appendChild(buildReservationRow(r)));
+      } catch (e) { console.warn(e); }
+    }
+
+    function buildReservationRow(r) {
+      const tr = document.createElement('tr');
+      const created = new Date(r.created_at);
+      const dateStr = r.date || '—';
+      const timeStr = r.start_time ? String(r.start_time).slice(0,5) : '—';
+      const status = r.status || 'offen';
+      const badgeCls = 'badge-' + status;
+      tr.innerHTML = `
+        <td>${created.toLocaleDateString('de-CH')} ${created.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${escapeHtml(dateStr)}</td>
+        <td>${escapeHtml(timeStr)}</td>
+        <td>${r.guests ?? '—'}</td>
+        <td>${escapeHtml(r.email || '—')}</td>
+        <td><span class="badge ${badgeCls}">${escapeHtml(status)}</span></td>
+        <td>
+          <select data-res-action="${r.id}" style="font-size:12px;padding:4px 6px;">
+            <option value="">—</option>
+            <option value="confirmed">bestätigt</option>
+            <option value="completed">erledigt</option>
+            <option value="cancelled">abgesagt</option>
+            <option value="no_show">nicht erschienen</option>
+          </select>
+        </td>
+      `;
+      tr.querySelector('select').addEventListener('change', async (e) => {
+        const newStatus = e.target.value;
+        if (!newStatus) return;
+        try {
+          await api('/api/customer/reservations/' + r.id, {
+            method: 'PATCH', body: JSON.stringify({ status: newStatus })
+          });
+          await loadReservations();
+        } catch (err) { alert('Fehler: ' + err.message); }
+      });
+      return tr;
+    }
+
+    async function loadCrawlStatus() {
+      try {
+        const s = await api('/api/customer/crawl-status');
+        $('crawl-url').textContent = clientData?.website || '—';
+        $('crawl-last').textContent = s.last_crawl_at ? new Date(s.last_crawl_at).toLocaleString('de-CH') : 'noch nie';
+        $('crawl-pages').textContent = s.pages_crawled;
+        $('crawl-chunks').textContent = (s.chunks_total || 0) + ' Wissensblöcke';
+        $('crawl-state').textContent = s.status || '—';
+      } catch (e) {}
+    }
+
+    async function doRecrawl() {
+      const btn = $('recrawl-btn');
+      const msg = $('recrawl-msg');
+      btn.disabled = true;
+      msg.style.display = 'block'; msg.style.background = 'rgba(245,158,11,0.08)';
+      msg.style.color = '#B45309'; msg.textContent = 'Scan gestartet...';
+      try {
+        const r = await api('/api/customer/recrawl', { method: 'POST', body: '{}' });
+        msg.style.background = 'rgba(16,185,129,0.08)';
+        msg.style.color = '#047857';
+        msg.textContent = r.message;
+        setTimeout(loadCrawlStatus, 30000);
+        setTimeout(loadCrawlStatus, 90000);
+      } catch (e) {
+        msg.style.background = 'rgba(239,68,68,0.08)';
+        msg.style.color = '#991B1B';
+        msg.textContent = e.message;
+      } finally {
+        setTimeout(() => { btn.disabled = false; }, 3000);
+      }
+    }
+
+    // ============ Save ============
+    async function saveSection(section) {
+      const mapping = {
+        home:     ['business_name','phone','address','website','opening_hours','prices','note'],
+        botinfo:  ['tone','custom_info'],
+        branding: ['bubble_color','bubble_icon_url']
+      };
+      const payload = {};
+      for (const f of mapping[section]) {
+        const el = get(`[data-field="${f}"]`);
+        if (el) payload[f] = el.value;
+      }
+      const statusEl = $(section + '-save-status');
+      statusEl.textContent = 'Speichere...';
+      statusEl.className = 'save-status';
+      try {
+        await api('/api/customer/client', { method: 'PATCH', body: JSON.stringify(payload) });
+        statusEl.textContent = '✓ Gespeichert';
+        statusEl.className = 'save-status saved';
+        Object.assign(clientData, payload);
+        if (section === 'branding') updateBubblePreview();
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } catch (e) {
+        statusEl.textContent = '✗ ' + e.message;
+        statusEl.className = 'save-status error';
+      }
+    }
+
+    // ============ Resources (Tische/Stuehle/Zimmer) ============
+    const RESOURCE_TYPES = {
+      table: 'Tisch',
+      chair: 'Stuhl',
+      room: 'Zimmer',
+      booth: 'Kabine'
+    };
+
+    async function loadResources() {
+      try {
+        const { resources } = await api('/api/customer/resources');
+        const tbody = $('resource-rows');
+        tbody.innerHTML = '';
+        $('res-resource-count').textContent = '(' + resources.length + ')';
+        if (resources.length === 0) {
+          $('resource-empty').classList.remove('hidden');
+          return;
+        }
+        $('resource-empty').classList.add('hidden');
+        resources.forEach(r => tbody.appendChild(buildResourceRow(r)));
+      } catch (e) { console.warn('[resources] load failed:', e); }
+    }
+
+    function buildResourceRow(r) {
+      const tr = document.createElement('tr');
+      const typeOptions = Object.entries(RESOURCE_TYPES)
+        .map(([k, v]) => `<option value="${k}"${k === r.resource_type ? ' selected' : ''}>${v}</option>`)
+        .join('');
+      tr.innerHTML = `
+        <td><input type="text" data-res-field="label" value="${escapeHtml(r.label || '')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;"/></td>
+        <td><select data-res-field="resource_type" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">${typeOptions}</select></td>
+        <td><input type="number" data-res-field="capacity" value="${Number(r.capacity) || 1}" min="1" max="50" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;"/></td>
+        <td style="white-space:nowrap;">
+          <button class="btn" data-res-save="${r.id}" style="font-size:12px;padding:4px 10px;">Speichern</button>
+          <button class="btn" data-res-del="${r.id}" style="font-size:12px;padding:4px 10px;color:var(--danger);border-color:var(--danger);">Löschen</button>
+        </td>
+      `;
+      tr.querySelector('[data-res-save]').addEventListener('click', async () => {
+        const payload = {
+          label: tr.querySelector('[data-res-field="label"]').value.trim(),
+          resource_type: tr.querySelector('[data-res-field="resource_type"]').value,
+          capacity: parseInt(tr.querySelector('[data-res-field="capacity"]').value, 10) || 1
+        };
+        if (!payload.label) { alert('Bezeichnung darf nicht leer sein'); return; }
+        try {
+          await api('/api/customer/resources/' + r.id, { method: 'PATCH', body: JSON.stringify(payload) });
+          await loadResources();
+        } catch (e) { alert('Fehler: ' + e.message); }
+      });
+      tr.querySelector('[data-res-del]').addEventListener('click', async () => {
+        if (!confirm('Wirklich löschen? (' + r.label + ')')) return;
+        try {
+          await api('/api/customer/resources/' + r.id, { method: 'DELETE' });
+          await loadResources();
+        } catch (e) { alert('Fehler: ' + e.message); }
+      });
+      return tr;
+    }
+
+    async function addResource() {
+      const defaults = { label: 'Neuer Tisch', capacity: 2, resource_type: 'table', x: 60, y: 60 };
+      try {
+        await api('/api/customer/resources', { method: 'POST', body: JSON.stringify(defaults) });
+        await loadResources();
+      } catch (e) { alert('Fehler: ' + e.message); }
+    }
+
+    // ============ Branding Preview ============
+    function updateBubblePreview() {
+      const color = get('[data-field="bubble_color"]').value || '#0A0A0A';
+      const logo = get('[data-field="bubble_icon_url"]').value;
+      const bubble = $('bubble-preview');
+      bubble.style.background = color;
+      if (logo) bubble.innerHTML = `<img src="${escapeHtml(logo)}" alt="" onerror="this.parentElement.innerHTML='💬'"/>`;
+      else bubble.innerHTML = '<span>💬</span>';
+    }
+
+    // ============ Util ============
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    function exportCSV() {
+      const rows = Array.from(document.querySelectorAll('#res-rows tr'));
+      if (rows.length === 0) return;
+      const header = ['Eingegangen','Datum','Zeit','Personen','Email','Status'];
+      const csv = [header.join(',')].concat(rows.map(tr => {
+        const cells = Array.from(tr.querySelectorAll('td')).slice(0,6);
+        return cells.map(c => '"' + c.textContent.trim().replace(/"/g,'""') + '"').join(',');
+      })).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'reservierungen-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ============ Wiring ============
+    $('login-request-btn').addEventListener('click', requestLoginEmail);
+    $('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') requestLoginEmail(); });
+    $('logout-btn').addEventListener('click', () => { setToken(null); showLogin(); });
+
+    getAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+      getAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      getAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      get('[data-tab-content="' + btn.dataset.tab + '"]').classList.remove('hidden');
+      // Lazy-load Tab-Content (v1: nur Resources)
+      if (btn.dataset.tab === 'tables') loadResources();
+    }));
+
+    // Resources-Add
+    const resAddBtn = $('resource-add-btn');
+    if (resAddBtn) resAddBtn.addEventListener('click', addResource);
+
+    getAll('[data-save]').forEach(btn => btn.addEventListener('click', () => saveSection(btn.dataset.save)));
+    $('res-refresh-btn').addEventListener('click', loadReservations);
+    $('res-export-btn').addEventListener('click', exportCSV);
+    $('recrawl-btn').addEventListener('click', doRecrawl);
+
+    // Branding color sync
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('[data-field="bubble_color"]')) {
+        get('[data-field="bubble_color_text"]').value = e.target.value;
+        updateBubblePreview();
+      } else if (e.target.matches('[data-field="bubble_color_text"]')) {
+        get('[data-field="bubble_color"]').value = e.target.value;
+        updateBubblePreview();
+      } else if (e.target.matches('[data-field="bubble_icon_url"]')) {
+        updateBubblePreview();
+      }
+    });
+
+    // Init: entweder token aus URL (Magic-Link) oder existing
+    (async () => {
+      const urlToken = new URLSearchParams(window.location.search).get('token');
+      if (urlToken) {
+        await completeLogin(urlToken);
+      } else if (getToken()) {
+        try { await loadAll(); showDashboard(); } catch (e) { showLogin(); }
+      } else {
+        showLogin();
+      }
+    })();
+  </script>
+</body>
+</html>
