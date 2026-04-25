@@ -3,151 +3,242 @@ console.log("WIDGET STARTET");
 (function() {
   'use strict';
 
+  // Pivot 2026-04-21 — auto-contrast Helper fuer --cw-bubble-contrast
+  // Berechnet Luminanz und gibt weiss oder schwarz fuer Text auf dem Bubble zurueck.
+  function pickReadableContrast(hex) {
+    try {
+      const clean = String(hex || '').replace('#', '');
+      const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+      if (full.length !== 6) return '#FFFFFF';
+      const r = parseInt(full.slice(0, 2), 16) / 255;
+      const g = parseInt(full.slice(2, 4), 16) / 255;
+      const b = parseInt(full.slice(4, 6), 16) / 255;
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return lum > 0.55 ? '#0A0A0A' : '#FFFFFF';
+    } catch (_e) {
+      return '#FFFFFF';
+    }
+  }
+
   // Embedded CSS Styles
   const WIDGET_CSS = `
-    /* ====== ChatBot Widget CSS ====== */
-    * {
+    /* ChatBot Widget — Minimal Schwarz/Weiss (2026-04-21 Rewrite)
+       Einzige Customization: --cw-bubble (Bubble-Farbe) + Logo via bubble_icon_url.
+       Design fix: weiss-basiert, Inter-font, subtile Schatten, konsistent ueberall. */
+
+    #chatbot-widget *,
+    #chatbot-widget *::before,
+    #chatbot-widget *::after {
       box-sizing: border-box;
     }
 
     #chatbot-widget {
-      --cw-a: #667eea;
-      --cw-b: #764ba2;
-      /* Visual V1: font-family defaults to inherit so the widget picks up the host
-         page font. An explicit --cw-font (set via setCustomFont or Supabase override)
-         wins over the inherit default. */
-      --cw-font: inherit;
-      font-family: var(--cw-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+      --cw-bubble: #0A0A0A;
+      --cw-bubble-contrast: #FFFFFF;
+      --cw-bg: #FFFFFF;
+      --cw-surface: #F5F5F5;
+      --cw-text: #0A0A0A;
+      --cw-text-muted: #737373;
+      --cw-border: #E5E5E5;
+      --cw-ring: rgba(10, 10, 10, 0.08);
+      --cw-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --cw-radius: 14px;
+      --cw-radius-sm: 10px;
+      --cw-radius-lg: 20px;
+      --cw-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 16px 48px rgba(0, 0, 0, 0.10);
+      --cw-ease: cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: var(--cw-font);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--cw-text);
       position: fixed;
       bottom: 0;
       right: 0;
-      z-index: 9999;
+      z-index: 2147483000;
       pointer-events: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ====== Chat Bubble ====== */
+    /* ====== Chat Bubble (floating button) ====== */
     .chat-bubble {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, var(--cw-a) 0%, var(--cw-b) 100%);
+      bottom: 24px;
+      right: 24px;
+      width: 58px;
+      height: 58px;
+      background: var(--cw-bubble);
       border-radius: 50%;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.08);
+      transition: transform 180ms var(--cw-ease), box-shadow 180ms var(--cw-ease);
       pointer-events: auto;
-      color: white;
+      color: var(--cw-bubble-contrast);
+      overflow: hidden;
     }
 
     .chat-bubble:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 12px 32px rgba(0, 0, 0, 0.12);
     }
 
     .chat-bubble:active {
-      transform: scale(0.95);
+      transform: scale(0.97);
     }
 
     .chat-bubble svg {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
+      fill: currentColor;
+    }
+
+    .chat-bubble img {
+      width: 68%;
+      height: 68%;
+      object-fit: contain;
+      border-radius: 50%;
     }
 
     /* ====== Chat Window ====== */
     .chat-window {
       position: fixed;
-      bottom: 90px;
-      right: 20px;
-      width: 380px;
-      height: 600px;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 5px 40px rgba(0, 0, 0, 0.16);
+      bottom: 96px;
+      right: 24px;
+      width: 384px;
+      height: 620px;
+      max-height: calc(100vh - 120px);
+      background: var(--cw-bg);
+      border: 1px solid var(--cw-border);
+      border-radius: var(--cw-radius-lg);
+      box-shadow: var(--cw-shadow);
       display: flex;
       flex-direction: column;
       overflow: hidden;
       pointer-events: auto;
-      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: cwSlideUp 240ms var(--cw-ease);
     }
 
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    @keyframes cwSlideUp {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ====== Chat Header ====== */
+    /* ====== Chat Header — Logo + Name DEFINITIV gleiche Höhe + vertikal mittig ====== */
+    /* Strategie: EIN flex-row container, BEIDE children (logo + text) exakt 40px hoch,
+       align-items:center, padding oben=unten → kein Versatz moeglich. */
     .chat-header {
-      background: linear-gradient(135deg, var(--cw-a) 0%, var(--cw-b) 100%);
-      color: white;
-      padding: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-      border-radius: 12px 12px 0 0;
       position: relative;
+      padding: 16px 48px 16px 18px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 64px;
+      border-bottom: 1px solid #000;
+      background: #0A0A0A;
+      color: #FFFFFF;
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+
+    .header-content {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+      height: 32px;
     }
 
     .header-content h3 {
       margin: 0;
-      font-size: 20px;
+      padding: 0;
+      font-size: 17px;
+      line-height: 32px;
       font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      height: 32px;
     }
 
-    .header-content .status {
+    .header-content h3 span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+      line-height: 32px;
+      height: 32px;
+    }
+
+    .cw-header-logo {
+      height: 32px;
+      width: auto;
+      max-width: 90px;
+      object-fit: contain;
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    .header-status-corner {
       position: absolute;
-      top: 5px;
-      left: 10px;
-      margin: 0;
-      font-size: 8px;
-      font-weight: 700;
-      color: #4ade80;
+      bottom: 5px;
+      right: 12px;
       display: flex;
       align-items: center;
       gap: 4px;
+      font-size: 9px;
+      font-weight: 500;
+      color: #A3A3A3;
+      letter-spacing: 0.03em;
+      opacity: 0.8;
     }
+
     .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .status-online { background: #4ade80; }
-    .status-offline { background: #f87171; }
+    .status-online { background: #10B981; }
+    .status-offline { background: #EF4444; }
 
     .close-btn {
-      background: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
       border: none;
-      color: white;
+      color: #A3A3A3;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 4px;
-      border-radius: 50%;
-      transition: all 0.2s;
-      opacity: 0.8;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      transition: background 160ms var(--cw-ease), color 160ms var(--cw-ease);
+      flex-shrink: 0;
+      z-index: 2;
     }
 
     .close-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      opacity: 1;
+      background: #1F1F1F;
+      color: #FFFFFF;
     }
 
     .close-btn svg {
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
     }
 
     /* ====== Chat Messages ====== */
@@ -157,186 +248,164 @@ console.log("WIDGET STARTET");
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      background: #f8f9fa;
+      gap: 10px;
+      background: var(--cw-bg);
+      scroll-behavior: smooth;
     }
 
     .message {
       display: flex;
-      animation: fadeIn 0.3s ease-in;
+      animation: cwFadeIn 220ms var(--cw-ease);
     }
 
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    @keyframes cwFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .message.user {
-      justify-content: flex-end;
-    }
-
-    .message.bot {
-      justify-content: flex-start;
-    }
+    .message.user  { justify-content: flex-end; }
+    .message.bot   { justify-content: flex-start; }
 
     .message-content {
-      max-width: 70%;
+      max-width: 78%;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: var(--cw-radius);
       font-size: 14px;
-      line-height: 1.4;
+      line-height: 1.45;
       word-wrap: break-word;
       white-space: pre-wrap;
     }
 
     .message.user .message-content {
-      background: linear-gradient(135deg, var(--cw-a) 0%, var(--cw-b) 100%);
-      color: white;
+      background: var(--cw-text);
+      color: var(--cw-bg);
       border-bottom-right-radius: 4px;
     }
 
     .message.bot .message-content {
-      background: #e9ecef;
-      color: #333;
+      background: var(--cw-surface);
+      color: var(--cw-text);
       border-bottom-left-radius: 4px;
     }
 
-    /* Scrollbar styling */
-    .chat-messages::-webkit-scrollbar {
+    /* Typing indicator */
+    .cw-typing {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 14px;
+      background: var(--cw-surface);
+      border-radius: var(--cw-radius);
+      border-bottom-left-radius: 4px;
+    }
+    .cw-typing span {
       width: 6px;
+      height: 6px;
+      background: var(--cw-text-muted);
+      border-radius: 50%;
+      animation: cwTyping 1200ms ease-in-out infinite;
+    }
+    .cw-typing span:nth-child(2) { animation-delay: 150ms; }
+    .cw-typing span:nth-child(3) { animation-delay: 300ms; }
+    @keyframes cwTyping {
+      0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+      30%           { opacity: 1;   transform: translateY(-3px); }
     }
 
-    .chat-messages::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
+    /* Scrollbar */
+    .chat-messages::-webkit-scrollbar { width: 6px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
     .chat-messages::-webkit-scrollbar-thumb {
-      background: #cbd5e0;
+      background: var(--cw-border);
       border-radius: 3px;
     }
-
     .chat-messages::-webkit-scrollbar-thumb:hover {
-      background: #a0aec0;
+      background: var(--cw-text-muted);
     }
 
-    /* ====== Chat Input ====== */
+    /* Message buttons (slot-picker, date-picker etc) */
+    .chat-messages button {
+      font-family: inherit;
+      font-weight: 500;
+      transition: transform 120ms var(--cw-ease), opacity 120ms var(--cw-ease);
+    }
+    .chat-messages button:hover:not(:disabled) { transform: translateY(-1px); }
+    .chat-messages button:active:not(:disabled) { transform: translateY(0); }
+
+    /* ====== Chat Input (weiss, nahtlos mit chat-messages, kein Trennstreifen) ====== */
     .chat-input-container {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 16px;
-      background: white;
-      border-top: 1px solid #e9ecef;
+      padding: 14px 16px;
+      background: var(--cw-bg);
+      border-top: none;
       flex-shrink: 0;
     }
 
     .chat-input {
       flex: 1;
-      border: 1px solid #cbd5e0;
-      border-radius: 24px;
-      padding: 10px 16px;
+      border: 1px solid var(--cw-border);
+      border-radius: 12px;
+      padding: 10px 14px;
       font-size: 14px;
       font-family: inherit;
+      color: var(--cw-text);
+      background: var(--cw-bg);
       outline: none;
-      transition: all 0.2s;
-      resize: none;
+      transition: border-color 160ms var(--cw-ease), box-shadow 160ms var(--cw-ease);
+    }
+
+    .chat-input::placeholder {
+      color: var(--cw-text-muted);
     }
 
     .chat-input:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: var(--cw-text);
+      box-shadow: 0 0 0 3px var(--cw-ring);
     }
 
     .send-btn {
-      background: linear-gradient(135deg, var(--cw-a) 0%, var(--cw-b) 100%);
-      color: white;
+      background: #0A0A0A;
+      color: #FFFFFF;
       border: none;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
+      transition: transform 120ms var(--cw-ease), opacity 120ms var(--cw-ease);
       flex-shrink: 0;
     }
 
-    .send-btn:hover {
-      transform: scale(1.05);
-    }
-
-    .send-btn:active {
-      transform: scale(0.95);
-    }
+    .send-btn:hover { transform: scale(1.04); }
+    .send-btn:active { transform: scale(0.95); }
 
     .send-btn svg {
       width: 18px;
       height: 18px;
     }
 
-    /* ====== Responsive Design ====== */
+    /* ====== Mobile ====== */
     @media (max-width: 480px) {
       .chat-window {
-        width: calc(100vw - 20px);
+        width: calc(100vw - 16px);
         height: calc(100vh - 100px);
-        max-height: 600px;
-        bottom: 80px;
-        right: 10px;
+        max-height: calc(100dvh - 100px);
+        bottom: 88px;
+        right: 8px;
+        left: 8px;
       }
-
-      .message-content {
-        max-width: 85%;
-      }
-
+      .message-content { max-width: 88%; }
       .chat-bubble {
-        width: 50px;
-        height: 50px;
-        bottom: 16px;
-        right: 16px;
+        width: 54px;
+        height: 54px;
+        bottom: 18px;
+        right: 18px;
       }
-
-      .chat-bubble svg {
-        width: 24px;
-        height: 24px;
-      }
-    }
-
-    /* ====== Dark Mode Support ====== */
-    @media (prefers-color-scheme: dark) {
-      .chat-window {
-        background: #1a1a1a;
-      }
-
-      .chat-messages {
-        background: #0f0f0f;
-      }
-
-      .message.bot .message-content {
-        background: #2d2d2d;
-        color: #e0e0e0;
-      }
-
-      .chat-input {
-        background: #2d2d2d;
-        border-color: #404040;
-        color: #e0e0e0;
-      }
-
-      .chat-input::placeholder {
-        color: #888;
-      }
-
-      .chat-input-container {
-        background: #1a1a1a;
-        border-top-color: #404040;
-      }
+      .chat-bubble svg { width: 24px; height: 24px; }
     }
   `;
 
@@ -373,6 +442,28 @@ console.log("WIDGET STARTET");
 
   // Backend proxy URL for full chat (response text + extracted data)
   const CHAT_PROXY_URL = `${BACKEND_BASE}/api/chat`;
+  const CHAT_V2_URL = `${BACKEND_BASE}/api/chat-v2`;
+
+  // Sprint 3d — Feature-Flag fuer Intent-Graph-Backend (/api/chat-v2).
+  // Aktiviert via: window.CHATBOT_USE_V2 = true, URL-Hash #chatv2, oder localStorage.CHATBOT_USE_V2='true'
+  const USE_CHAT_V2 = (typeof window !== 'undefined' && (
+    window.CHATBOT_USE_V2 === true ||
+    (window.location && window.location.hash && window.location.hash.indexOf('chatv2') >= 0) ||
+    (window.localStorage && window.localStorage.getItem('CHATBOT_USE_V2') === 'true')
+  ));
+
+  // Session-ID (stable fuer conversation_log)
+  const SESSION_ID = (function() {
+    try {
+      const k = 'cw_session_id';
+      let s = window.sessionStorage && window.sessionStorage.getItem(k);
+      if (!s) {
+        s = 'cw-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+        if (window.sessionStorage) window.sessionStorage.setItem(k, s);
+      }
+      return s;
+    } catch (_e) { return 'cw-fallback-' + Date.now(); }
+  })();
 
   // Calls /api/chat — returns { intent, response, data } or null on failure
   const callChatAPI = async (userMessage, state, tone) => {
@@ -389,6 +480,27 @@ console.log("WIDGET STARTET");
       return parsed;
     } catch (e) {
       console.warn('ChatBot Widget /api/chat error (falling back):', e);
+      return null;
+    }
+  };
+
+  // Sprint 3d — /api/chat-v2 Caller (Intent-Graph-Backend)
+  // Returned: { response, attachments, state, uiAction, _intent, _confidence, _rag_used, ... }
+  const callChatV2 = async (userMessage, state, tone) => {
+    try {
+      const consent = (function() {
+        try { return window.localStorage && window.localStorage.getItem('CHATBOT_CONSENT') === 'true'; }
+        catch(_e) { return false; }
+      })();
+      const res = await fetch(CHAT_V2_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage, state, tone, client_id: CLIENT_ID, session_id: SESSION_ID, consent })
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      console.warn('ChatBot Widget /api/chat-v2 error:', e);
       return null;
     }
   };
@@ -464,21 +576,24 @@ console.log("WIDGET STARTET");
 
       if (!data || !data.active) return null;
 
-      // Optional forward-compat columns queried separately so the widget keeps working
-      // even if the Supabase columns have not been migrated yet.
+      // business_type bleibt (wird von Backend gelesen, nicht Widget).
+      // Pivot 2026-04-21: nur noch bubble_color + bubble_icon_url als Customization,
+      // alles andere (font_family, theme_preset, design_dna) obsolet + ignoriert.
       let businessType = null;
-      let fontFamily = null;
+      let bubbleColor = null;
+      let bubbleIconUrl = null;
       try {
         const { data: extra } = await supabase
           .from('clients')
-          .select('business_type, font_family')
+          .select('business_type, bubble_color, bubble_icon_url')
           .eq('id', CLIENT_ID)
           .single();
         if (extra) {
           if (extra.business_type) businessType = extra.business_type;
-          if (extra.font_family) fontFamily = extra.font_family;
+          if (extra.bubble_color) bubbleColor = extra.bubble_color;
+          if (extra.bubble_icon_url) bubbleIconUrl = extra.bubble_icon_url;
         }
-      } catch (_e) { /* columns missing — widget falls back to inheritance + heuristic */ }
+      } catch (_e) { /* columns missing — widget falls back to black bubble */ }
 
       return {
         businessName: data.business_name,
@@ -491,12 +606,11 @@ console.log("WIDGET STARTET");
         capacityPerSlot: data.capacity_per_slot,
         slotInterval: data.slot_interval,
         defaultDurationMinutes: data.default_duration_minutes,
-        primaryColor: data.primary_color,
-        secondaryColor: data.secondary_color,
         businessType,
         reservationsEnabled: data.reservations_enabled,
         note: data.note,
-        fontFamily
+        bubbleColor,
+        bubbleIconUrl
       };
     } catch (error) {
       console.error('ChatBot Widget Supabase Error:', error);
@@ -712,7 +826,30 @@ console.log("WIDGET STARTET");
       time: null,
       email: null,
       urgency: null, // 'priority' wenn User Dringlichkeits-Keywords nutzt (jetzt/sofort/Schmerzen)
-      showAllSlots: false // Flag: hat User "weitere Zeiten" geklickt?
+      showAllSlots: false, // Flag: hat User "weitere Zeiten" geklickt?
+      language: 'de' // Backend setzt die via state.language — de/en/fr/it
+    };
+
+    // Widget-UI-Uebersetzungen — Backend liefert state.language, Widget localisiert Chrome
+    const UI_STRINGS = {
+      placeholder: { de: 'Schreib eine Nachricht...', en: 'Write a message...', fr: 'Écrivez un message...', it: 'Scrivi un messaggio...' },
+      summaryTitle: { de: '📋 Reservierungsübersicht', en: '📋 Booking summary', fr: '📋 Récapitulatif', it: '📋 Riepilogo prenotazione' },
+      labelPeople: { de: '👥 Personen', en: '👥 People', fr: '👥 Personnes', it: '👥 Persone' },
+      labelDate: { de: '📅 Datum', en: '📅 Date', fr: '📅 Date', it: '📅 Data' },
+      labelTime: { de: '🕐 Uhrzeit', en: '🕐 Time', fr: '🕐 Heure', it: '🕐 Ora' },
+      labelEmail: { de: '✉️ E-Mail', en: '✉️ Email', fr: '✉️ E-mail', it: '✉️ Email' },
+      btnConfirm: { de: '✅ Bestätigen', en: '✅ Confirm', fr: '✅ Confirmer', it: '✅ Conferma' },
+      btnEdit: { de: '✏️ Bearbeiten', en: '✏️ Edit', fr: '✏️ Modifier', it: '✏️ Modifica' },
+      btnCancel: { de: '❌ Abbrechen', en: '❌ Cancel', fr: '❌ Annuler', it: '❌ Annulla' },
+      slotsAvailable: { de: 'Diese Zeiten sind verfügbar:', en: 'These times are available:', fr: 'Ces heures sont disponibles:', it: 'Questi orari sono disponibili:' },
+      moreTimes: { de: '+ weitere Zeiten', en: '+ more times', fr: '+ plus d\'horaires', it: '+ altri orari' },
+      closedOtherDate: { de: 'An diesem Tag haben wir leider geschlossen. Bitte wähle ein anderes Datum.', en: 'We\'re closed that day. Please choose another date.', fr: 'Nous sommes fermés ce jour-là. Veuillez choisir une autre date.', it: 'Siamo chiusi quel giorno. Scegli un\'altra data.' }
+    };
+    const uiT = (key) => {
+      const variants = UI_STRINGS[key];
+      if (!variants) return '';
+      const lang = reservationState.language || 'de';
+      return variants[lang] || variants.de;
     };
 
     // Medical-Urgency-Detection: Schmerz/Notfall-Keywords erkennen (nur medical business_type)
@@ -1103,6 +1240,7 @@ console.log("WIDGET STARTET");
         reservationState.email = null;
         reservationState.urgency = null;
         reservationState.showAllSlots = false;
+        reservationState.displayedSlotTimes = null;
         return `Reservierung bestätigt. Wir melden uns per E-Mail unter ${email}.`;
       } catch (error) {
         console.error('ChatBot Widget Supabase Error:', error);
@@ -1237,8 +1375,36 @@ console.log("WIDGET STARTET");
       }
 
       if (reservationState.step === 'time') {
-        const result = extractTime(userInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+        const normalizedInput = userInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        // 11:30-Bug-Fix: Wenn User exakt eine Slot-Zeit tippt die wir gerade angezeigt haben
+        // → direkt akzeptieren. Keine Ambiguity-Frage, weil der User sieht die Buttons und waehlt konkret.
+        const colonMatch = normalizedInput.match(/^(\d{1,2}):(\d{2})$/);
+        if (colonMatch && Array.isArray(reservationState.displayedSlotTimes)) {
+          const candidate = `${colonMatch[1].padStart(2, '0')}:${colonMatch[2]}`;
+          if (reservationState.displayedSlotTimes.includes(candidate)) {
+            reservationState.time = candidate;
+            reservationState.step = 'email';
+            return t('Auf welche E-Mail soll ich die Bestätigung schicken?', 'An welche E-Mail-Adresse soll ich die Bestätigung senden?', 'Deine E-Mail-Adresse?');
+          }
+        }
+
+        const result = extractTime(normalizedInput);
         if (result.ambiguous !== null) {
+          // Zweite Verteidigungs-Linie: Wenn HH:MM Format getippt UND innerhalb Oeffnungszeiten → kein Ambiguity-Prompt.
+          // User die "11:30" tippen meinen quasi immer 11:30 Uhr morgens, nicht 23:30.
+          const explicitColon = normalizedInput.match(/^(\d{1,2}):(\d{2})$/);
+          if (explicitColon) {
+            const h = parseInt(explicitColon[1], 10);
+            const m = parseInt(explicitColon[2], 10);
+            const candidate = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            const inputMinutes = h * 60 + m;
+            if (isTimeWithinOpeningHours(reservationState.date, inputMinutes)) {
+              reservationState.time = candidate;
+              reservationState.step = 'email';
+              return t('Auf welche E-Mail soll ich die Bestätigung schicken?', 'An welche E-Mail-Adresse soll ich die Bestätigung senden?', 'Deine E-Mail-Adresse?');
+            }
+          }
           const pm = result.ambiguous + 12;
           return `Meinst du ${String(pm).padStart(2, '0')}:00 Uhr oder ${String(result.ambiguous).padStart(2, '0')}:00 Uhr?`;
         }
@@ -1292,6 +1458,7 @@ console.log("WIDGET STARTET");
           reservationState.email = null;
           reservationState.urgency = null;
           reservationState.showAllSlots = false;
+          reservationState.displayedSlotTimes = null;
           return t('Die Reservierung wurde abgebrochen. Falls du es dir anders überlegst, einfach wieder schreiben! 👋', 'Die Reservierung wurde abgebrochen. Falls Sie es sich anders überlegen, stehen wir Ihnen gerne zur Verfügung.', 'Reservierung abgebrochen! Falls du\'s dir anders überlegst – einfach nochmal schreiben. 👋');
         }
         return '__SHOW_SUMMARY__';
@@ -1300,23 +1467,23 @@ console.log("WIDGET STARTET");
       return null;
     };
 
-    // Branchenspezifisches Bot-Icon pro Demo-Client
-    // (Fallback: generisches Personen-Icon für nicht-demo-Clients)
+    // Pivot 2026-04-21 — Bot-Icon im Chat-Bubble.
+    // Prioritaet: bubbleIconUrl (vom Kunden) > generisches Chat-Bubble-SVG
     const getBotIconSVG = () => {
-      const icons = {
-        // Zahn
-        'demo-zahnarzt':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.5 2 5 4.5 5 8.5c0 2.4.9 4 1.8 5.8.8 1.6 1.7 3.4 1.7 5.7 0 1.1.6 2 1.5 2s1.5-.9 1.5-2c0-1.5.3-2.7.5-3.5.3 .8.5 2 .5 3.5 0 1.1.6 2 1.5 2s1.5-.9 1.5-2c0-2.3.9-4.1 1.7-5.7.9-1.8 1.8-3.4 1.8-5.8C19 4.5 15.5 2 12 2z"/></svg>',
-        // Blume
-        'demo-blumenladen':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c-.6 0-1-.4-1-1v-3.1c-2.3-.5-4-2.5-4-4.9 0-1 .3-1.9.8-2.7C7.3 9.8 7 8.9 7 8c0-2.8 2.2-5 5-5s5 2.2 5 5c0 .9-.3 1.8-.8 2.5.5.8.8 1.7.8 2.7 0 2.4-1.7 4.4-4 4.9V21c0 .6-.4 1-1 1zm0-16c-1.1 0-2 .9-2 2 0 .5.2.9.4 1.3-.1 0-.3 0-.4 0-1.7 0-3 1.3-3 3s1.3 3 3 3c.4 0 .7-.1 1-.2V13c0 .6.4 1 1 1s1-.4 1-1v-.9c.3.1.6.2 1 .2 1.7 0 3-1.3 3-3s-1.3-3-3-3c-.1 0-.3 0-.4 0 .2-.4.4-.8.4-1.3 0-1.1-.9-2-2-2zm0 5.5c.8 0 1.5.7 1.5 1.5S12.8 14.5 12 14.5s-1.5-.7-1.5-1.5.7-1.5 1.5-1.5z"/></svg>',
-        // Kaffeetasse
-        'demo-cafe':       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-2h2a3 3 0 000-6V3zm0 5v2a1 1 0 010-2zM2 21h18v-2H2v2z"/></svg>',
-        // Pizza-Slice
-        'demo-pizzeria':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 5l6.5 13h-13L12 7zm-2.5 6a1 1 0 110 2 1 1 0 010-2zm5 1a1 1 0 110 2 1 1 0 010-2zm-3 3a1 1 0 110 2 1 1 0 010-2z"/></svg>',
-        // Schere
-        'demo-coiffeur':   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.6 7.6c.3-.5.4-1.1.4-1.6 0-2.2-1.8-4-4-4S2 3.8 2 6s1.8 4 4 4c.6 0 1.1-.1 1.6-.4L10 12l-2.4 2.4C7.1 14.1 6.6 14 6 14c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4c0-.6-.1-1.1-.4-1.6L12 14l7 7h3v-1L9.6 7.6zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM19 3l-6 6 2 2 7-7V3z"/></svg>'
-      };
-      // Fallback for real customer client IDs: the classic chat-bubble icon (same as pre-icon-map prod UI)
-      return icons[CLIENT_ID] || '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.522 0 10 3.59 10 8 0 4.41-4.478 8-10 8-1.54 0-3-.32-4.28-.93L4.1 21.86c-.4 1.02-1.59 1.36-2.35.74L0 20c-1.05-1.05-.53-2.8.81-3.32 3.77-1.64 5.88-4.36 5.88-8.68 0-4.41-4.478-8-10-8z"/></svg>';
+      const icon = clientData.bubbleIconUrl;
+      if (icon) {
+        const alt = String(clientData.businessName || 'Logo').replace(/"/g, '&quot;');
+        return `<img src="${icon}" alt="${alt}" onerror="this.remove(); this.parentElement.insertAdjacentHTML('beforeend','<svg viewBox=\\'0 0 24 24\\' fill=\\'currentColor\\'><path d=\\'M12 2c5.522 0 10 3.59 10 8 0 4.41-4.478 8-10 8-1.54 0-3-.32-4.28-.93L4.1 21.86c-.4 1.02-1.59 1.36-2.35.74L0 20c-1.05-1.05-.53-2.8.81-3.32 3.77-1.64 5.88-4.36 5.88-8.68 0-4.41-4.478-8-10-8z\\'/></svg>')"/>`;
+      }
+      return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.522 0 10 3.59 10 8 0 4.41-4.478 8-10 8-1.54 0-3-.32-4.28-.93L4.1 21.86c-.4 1.02-1.59 1.36-2.35.74L0 20c-1.05-1.05-.53-2.8.81-3.32 3.77-1.64 5.88-4.36 5.88-8.68 0-4.41-4.478-8-10-8z"/></svg>';
+    };
+
+    // Chat-Header-Logo: Gleiches bubbleIconUrl-Icon, kompakt links vom Business-Namen
+    const getChatHeaderLogoHTML = () => {
+      const icon = clientData.bubbleIconUrl;
+      if (!icon) return '';
+      const alt = String(clientData.businessName || 'Logo').replace(/"/g, '&quot;');
+      return `<img class="cw-header-logo" src="${icon}" alt="${alt}" onerror="this.style.display='none'"/>`;
     };
 
     // Create widget HTML
@@ -1330,17 +1497,17 @@ console.log("WIDGET STARTET");
 
           <!-- Chat Window -->
           <div id="chat-window" class="chat-window" style="display: none;">
-            <!-- Header -->
+            <!-- Header: Status oben links (klein), Logo+Name mittig, Close oben rechts -->
             <div class="chat-header">
-              <div class="header-content">
-                <p class="status"><span class="status-dot status-online"></span>Online</p>
-                <h3>${clientData.businessName || 'Chat'} 💬</h3>
-              </div>
-              <button class="close-btn" id="close-btn">
+              <span class="header-status-corner"><span class="status-dot status-online"></span>Online</span>
+              <button class="close-btn" id="close-btn" aria-label="Schliessen">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                 </svg>
               </button>
+              <div class="header-content">
+                <h3>${getChatHeaderLogoHTML()}<span>${clientData.businessName || 'Chat'}</span></h3>
+              </div>
             </div>
 
             <!-- Messages -->
@@ -1353,12 +1520,14 @@ console.log("WIDGET STARTET");
                 id="chat-input"
                 class="chat-input"
                 placeholder="Schreib eine Nachricht..."
+                data-i18n-placeholder="placeholder"
                 autocomplete="off"
                 maxlength="500"
               />
-              <button id="send-btn" class="send-btn">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.9429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.01449775 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.97701575 L3.03521743,10.4180088 C3.03521743,10.5751061 3.34915502,10.5751061 3.50612381,10.5751061 L16.6915026,11.3605931 C16.6915026,11.3605931 17.1624089,11.3605931 17.1624089,11.8318852 L17.1624089,12.0034085 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/>
+              <button id="send-btn" class="send-btn" aria-label="Senden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/>
+                  <polyline points="5 12 12 5 19 12"/>
                 </svg>
               </button>
             </div>
@@ -1385,24 +1554,15 @@ console.log("WIDGET STARTET");
       widgetContainer.innerHTML = createWidgetHTML();
       document.body.appendChild(widgetContainer);
 
-      // Apply client brand colors + font to widget
+      // 2026-04-21 Pivot — Widget ist fix schwarz/weiss.
+      // Einzige Customization: bubble_color (Chat-Bubble + Send-Button-Farbe) + bubble_icon_url (Logo im Bubble).
+      // Design-DNA-Auto-Extraction wurde weggeworfen — User-Feedback: "hässlich und unkonsistent".
       const w = document.getElementById('chatbot-widget');
       if (w) {
-        if (clientData.primaryColor && clientData.primaryColor !== '#667eea') {
-          w.style.setProperty('--cw-a', clientData.primaryColor);
-          w.style.setProperty('--cw-b', clientData.secondaryColor || clientData.primaryColor);
-        }
-        // Visual V1: apply font override if Supabase has a font_family column value for this client
-        if (clientData.fontFamily) {
-          w.style.setProperty('--cw-font', clientData.fontFamily);
-          // If the font looks like a Google Font (single quoted family name, not a system font),
-          // lazy-load it so it actually renders
-          const firstFamily = String(clientData.fontFamily).split(',')[0].trim().replace(/^['"]|['"]$/g, '');
-          const systemFonts = ['serif', 'sans-serif', 'monospace', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'Helvetica', 'Times', 'Courier', 'Georgia', 'Verdana'];
-          if (firstFamily && !systemFonts.includes(firstFamily) && window.ChatbotWidget && window.ChatbotWidget.loadGoogleFont) {
-            window.ChatbotWidget.loadGoogleFont(firstFamily, [400, 500, 600, 700]);
-          }
-        }
+        const bubbleColor = clientData.bubbleColor || '#0A0A0A';
+        w.style.setProperty('--cw-bubble', bubbleColor);
+        // Kontrast-Farbe auto-berechnen: wenn Bubble hell → schwarzer Text, sonst weiss
+        w.style.setProperty('--cw-bubble-contrast', pickReadableContrast(bubbleColor));
       }
 
       // Get DOM elements
@@ -1435,7 +1595,20 @@ console.log("WIDGET STARTET");
       const esc = (s) => String(s == null ? '' : s)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-      const addMessage = (sender, text) => {
+      // Phase 2+ — Typing-Indicator (3 bouncing dots in bot-bubble) waehrend Bot-Response erwartet wird
+      const showTypingIndicator = () => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message bot cw-typing-msg';
+        msgDiv.innerHTML = '<div class="cw-typing"><span></span><span></span><span></span></div>';
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return msgDiv;
+      };
+      const removeTypingIndicator = (node) => {
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+      };
+
+      const addMessage = (sender, text, attachments) => {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
         const content = document.createElement('div');
@@ -1446,8 +1619,103 @@ console.log("WIDGET STARTET");
           content.appendChild(document.createTextNode(line));
         });
         messageDiv.appendChild(content);
+
+        // Sprint 4b — Multi-Modal Attachments (image/link/map)
+        if (Array.isArray(attachments) && attachments.length > 0) {
+          const attWrap = document.createElement('div');
+          attWrap.style.marginTop = '8px';
+          attWrap.style.display = 'flex';
+          attWrap.style.flexDirection = 'column';
+          attWrap.style.gap = '8px';
+          attachments.forEach(att => attWrap.appendChild(renderAttachment(att)));
+          messageDiv.appendChild(attWrap);
+        }
+
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+      };
+
+      // Sprint 4b — Render single attachment (safe: uses textContent/setAttribute, no innerHTML)
+      const renderAttachment = (att) => {
+        const wrap = document.createElement('div');
+        wrap.style.borderRadius = 'var(--cw-radius-md, 10px)';
+        wrap.style.overflow = 'hidden';
+        wrap.style.maxWidth = '280px';
+        if (!att || !att.type) { wrap.textContent = ''; return wrap; }
+        if (att.type === 'image' && att.url) {
+          const img = document.createElement('img');
+          img.src = att.url;
+          img.alt = att.caption || '';
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.display = 'block';
+          wrap.appendChild(img);
+          if (att.caption) {
+            const cap = document.createElement('div');
+            cap.style.padding = '6px 10px';
+            cap.style.fontSize = '12px';
+            cap.style.color = 'var(--cw-text, #555)';
+            cap.style.background = 'var(--cw-surface, #f8f8f8)';
+            cap.textContent = att.caption;
+            wrap.appendChild(cap);
+          }
+          return wrap;
+        }
+        if (att.type === 'link' && att.url) {
+          const a = document.createElement('a');
+          a.href = att.url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.style.display = 'block';
+          a.style.padding = '10px 12px';
+          a.style.background = 'var(--cw-surface, #f8fafc)';
+          a.style.border = '1px solid var(--cw-border, #e2e8f0)';
+          a.style.borderRadius = 'var(--cw-radius-md, 10px)';
+          a.style.color = 'var(--cw-text, #0f172a)';
+          a.style.textDecoration = 'none';
+          const title = document.createElement('div');
+          title.style.fontWeight = '600';
+          title.style.fontSize = '13px';
+          title.textContent = att.title || att.url;
+          a.appendChild(title);
+          if (att.description) {
+            const desc = document.createElement('div');
+            desc.style.fontSize = '12px';
+            desc.style.opacity = '0.75';
+            desc.style.marginTop = '2px';
+            desc.textContent = att.description;
+            a.appendChild(desc);
+          }
+          wrap.appendChild(a);
+          return wrap;
+        }
+        if (att.type === 'map' && att.address) {
+          const a = document.createElement('a');
+          a.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(att.address);
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.style.display = 'block';
+          a.style.padding = '10px 12px';
+          a.style.background = 'var(--cw-surface, #f8fafc)';
+          a.style.border = '1px solid var(--cw-border, #e2e8f0)';
+          a.style.borderRadius = 'var(--cw-radius-md, 10px)';
+          a.style.color = 'var(--cw-text, #0f172a)';
+          a.style.textDecoration = 'none';
+          const title = document.createElement('div');
+          title.style.fontWeight = '600';
+          title.style.fontSize = '13px';
+          title.textContent = '📍 ' + att.address;
+          a.appendChild(title);
+          const hint = document.createElement('div');
+          hint.style.fontSize = '12px';
+          hint.style.opacity = '0.75';
+          hint.textContent = 'Auf Karte öffnen';
+          a.appendChild(hint);
+          wrap.appendChild(a);
+          return wrap;
+        }
+        wrap.textContent = '';
+        return wrap;
       };
 
       // Show reservation summary with action buttons
@@ -1456,16 +1724,16 @@ console.log("WIDGET STARTET");
         messageDiv.className = 'message bot';
         messageDiv.innerHTML = `
           <div class="message-content" style="max-width:90%;">
-            <strong>📋 Reservierungsübersicht</strong><br><br>
+            <strong>${uiT('summaryTitle')}</strong><br><br>
             <strong>${esc(clientData.businessName)}</strong><br>
-            👥 Personen: ${esc(reservationState.people)}<br>
-            📅 Datum: ${esc(formatDateForDisplay(reservationState.date))}<br>
-            🕐 Uhrzeit: ${esc(reservationState.time)}<br>
-            ✉️ E-Mail: ${esc(reservationState.email)}<br><br>
-            <button id="res-confirm-btn" style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">✅ Bestätigen</button>
+            ${uiT('labelPeople')}: ${esc(reservationState.people)}<br>
+            ${uiT('labelDate')}: ${esc(formatDateForDisplay(reservationState.date))}<br>
+            ${uiT('labelTime')}: ${esc(reservationState.time)}<br>
+            ${uiT('labelEmail')}: ${esc(reservationState.email)}<br><br>
+            <button id="res-confirm-btn" style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">${uiT('btnConfirm')}</button>
             <div style="display:flex;gap:8px;">
-              <button id="res-edit-btn" style="flex:1;padding:9px;background:#e9ecef;color:#333;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;">✏️ Bearbeiten</button>
-              <button id="res-cancel-btn" style="flex:1;padding:9px;background:#e9ecef;color:#333;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;">❌ Abbrechen</button>
+              <button id="res-edit-btn" style="flex:1;padding:9px;background:#e9ecef;color:#333;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;">${uiT('btnEdit')}</button>
+              <button id="res-cancel-btn" style="flex:1;padding:9px;background:#e9ecef;color:#333;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;">${uiT('btnCancel')}</button>
             </div>
           </div>`;
         chatMessages.appendChild(messageDiv);
@@ -1473,6 +1741,25 @@ console.log("WIDGET STARTET");
         document.getElementById('res-confirm-btn').addEventListener('click', () => { processMessage('__confirm__'); });
         document.getElementById('res-edit-btn').addEventListener('click', () => { processMessage('__edit__'); });
         document.getElementById('res-cancel-btn').addEventListener('click', () => { processMessage('__cancel__'); });
+      };
+
+      // Default-Slot-Fallback wenn opening_hours/capacity fehlen. Branche-abhaengig.
+      const generateDefaultSlots = () => {
+        const bt = String(clientData.businessType || 'other').toLowerCase();
+        // Range in Minuten
+        let startMin, endMin, interval = 30;
+        if (bt === 'restaurant' || bt === 'cafe' || bt === 'pizzeria' || bt === 'bar') {
+          startMin = 17 * 60; endMin = 22 * 60 + 30;
+        } else if (bt === 'medical' || bt === 'beauty' || bt === 'service' || bt === 'salon' || bt === 'coiffeur') {
+          startMin = 9 * 60; endMin = 18 * 60; interval = 30;
+        } else {
+          startMin = 10 * 60; endMin = 20 * 60;
+        }
+        const slots = [];
+        for (let m = startMin; m <= endMin; m += interval) {
+          slots.push({ time: formatMinutesToTime(m), isFree: true });
+        }
+        return slots;
       };
 
       const showTimeSlotOptions = async () => {
@@ -1489,14 +1776,17 @@ console.log("WIDGET STARTET");
           return;
         }
 
-        if (!slots || slots.length === 0) {
-          addMessage('bot', t('Für welche Uhrzeit möchtest du reservieren?', 'Zu welcher Uhrzeit möchten Sie reservieren?', 'Wann soll es losgehen?'));
-          return;
+        // Wenn keine Slots aus Client-Daten berechenbar (opening_hours fehlt, capacity null, etc.),
+        // sensiblen Default aus businessType generieren — so sieht der User IMMER Chips.
+        // Kritisch fuer Demo-UX: Leon's Feedback 2026-04-22 "anstatt ne zeit zu schreiben ... kästchen".
+        let effectiveSlots = (slots && slots.length > 0) ? slots : null;
+        if (!effectiveSlots) {
+          effectiveSlots = generateDefaultSlots();
         }
 
         // Smart-Slots-Filter: wenn Datum heute ist, Slots die bereits in Vergangenheit liegen
         // (inkl. 15-Min-Buffer für Puffer/Anfahrt) ausblenden.
-        let filteredSlots = slots;
+        let filteredSlots = effectiveSlots;
         const todayIso = toISODate(new Date());
         if (reservationState.date === todayIso) {
           const now = new Date();
@@ -1519,13 +1809,19 @@ console.log("WIDGET STARTET");
 
         // Limit setzen: urgency=2, default=6, "alle anzeigen"=unbegrenzt
         const urgency = reservationState.urgency === 'priority';
-        const LIMIT_DEFAULT = urgency ? 2 : 6;
-        const showAll = reservationState.showAllSlots;
+        // Leon-Feedback 2026-04-22: "er soll wenn er die verfügbaren zeiten sieht
+        // das er nicht nur einen teil zeigt sondern alle." → Default zeigt ALLE Slots.
+        // Nur bei urgency-Mode wird auf 2 reduziert (Notfall-Flow bleibt unveraendert).
+        const LIMIT_DEFAULT = urgency ? 2 : 100;
+        const showAll = urgency ? reservationState.showAllSlots : true;
 
         // Nur freie Slots zuerst, dann zeige ggf. belegte dazwischen chronologisch.
         const freeOnly = filteredSlots.filter(s => s.isFree);
         const displaySlots = showAll ? filteredSlots : freeOnly.slice(0, LIMIT_DEFAULT);
         const remainingCount = freeOnly.length - displaySlots.filter(s => s.isFree).length;
+
+        // Merken welche Slots wir gerade anzeigen — wenn User nachher einen davon tippt, nicht ambiguity-fragen.
+        reservationState.displayedSlotTimes = freeOnly.map(s => s.time);
 
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message bot';
@@ -1547,7 +1843,7 @@ console.log("WIDGET STARTET");
 
         const header = urgency
           ? t('Hier ist der nächstverfügbare Termin:', 'Hier sehen Sie den nächstverfügbaren Termin:', 'Der nächste freie Slot:')
-          : t('Diese Zeiten sind verfügbar:', 'Folgende Zeiten sind verfügbar:', 'Diese Zeiten sind frei:');
+          : uiT('slotsAvailable');
 
         messageDiv.innerHTML = `
           <div class="message-content" style="max-width:90%;">
@@ -1577,8 +1873,86 @@ console.log("WIDGET STARTET");
         }
       };
 
+      // Sprint 3d — Intent-Graph-Backend-Pfad (/api/chat-v2). Aktiv via USE_CHAT_V2 Feature-Flag.
+      const processMessageV2 = async (text) => {
+        const v2State = {
+          step: reservationState.step || 'idle',
+          guests: reservationState.people || null,
+          date: reservationState.date || null,
+          time: reservationState.time || null,
+          email: reservationState.email || null,
+          service: reservationState.service || null,
+          urgency: reservationState.urgency || null
+        };
+        // Typing-Indicator waehrend Backend-Call (zeigt User "Bot schreibt...")
+        const typingNode = showTypingIndicator();
+        let result;
+        try {
+          result = await callChatV2(text, v2State, tone);
+        } finally {
+          removeTypingIndicator(typingNode);
+        }
+        if (!result) {
+          addMessage('bot', t('Kurze Netz-Pause — probier nochmal?', 'Die Verbindung ist kurz unterbrochen — bitte nochmal versuchen.'));
+          return;
+        }
+        // State uebernehmen
+        if (result.state) {
+          reservationState.step = result.state.step || reservationState.step;
+          reservationState.people = result.state.guests ?? reservationState.people;
+          // Bug-Fix 2026-04-21 Phase 1a: Backend liefert date als Freitext ("morgen", "samstag").
+          // Widget-Slot-Logic erwartet ISO (YYYY-MM-DD). resolveDateToISO konvertiert mit
+          // Deutsch-Schweizer-Kontext. Wenn bereits ISO, wird durchgereicht.
+          if (result.state.date) {
+            const isISO = /^\d{4}-\d{2}-\d{2}$/.test(result.state.date);
+            reservationState.date = isISO ? result.state.date : (resolveDateToISO(result.state.date) || result.state.date);
+          }
+          // Zeit normalisieren: "19 uhr"→"19:00", "1720"→"17:20", "19.30"→"19:30", "17:20"→"17:20"
+          if (result.state.time) {
+            const s = String(result.state.time).trim().toLowerCase().replace(/\s*(uhr|h)\s*$/i, '');
+            let m;
+            if ((m = s.match(/^(\d{1,2}):(\d{2})$/)))     reservationState.time = `${m[1].padStart(2,'0')}:${m[2]}`;
+            else if ((m = s.match(/^(\d{1,2})\.(\d{2})$/)))  reservationState.time = `${m[1].padStart(2,'0')}:${m[2]}`;
+            else if ((m = s.match(/^(\d{1,2})(\d{2})$/)))    reservationState.time = `${m[1].padStart(2,'0')}:${m[2]}`;
+            else if ((m = s.match(/^(\d{1,2})$/)))           reservationState.time = `${m[1].padStart(2,'0')}:00`;
+            else reservationState.time = result.state.time;
+          }
+          reservationState.email = result.state.email ?? reservationState.email;
+          reservationState.service = result.state.service ?? reservationState.service;
+          reservationState.urgency = result.state.urgency ?? reservationState.urgency;
+          if (result.state.language) reservationState.language = result.state.language;
+          reservationState.active = !['idle', 'complete', 'cancelled'].includes(result.state.step);
+          // Placeholder nachziehen falls Sprache gewechselt
+          const input = document.getElementById('chat-input');
+          if (input && input.dataset.i18nPlaceholder) input.placeholder = uiT(input.dataset.i18nPlaceholder);
+        }
+        // Text-Bubble + Attachments
+        if (result.response) addMessage('bot', result.response, result.attachments || []);
+        // uiAction auf existing UI mappen
+        switch (result.uiAction) {
+          case 'show_date_picker':
+            if (typeof showDateOptions === 'function') await showDateOptions();
+            break;
+          case 'show_time_slots':
+            if (typeof showTimeSlotOptions === 'function') await showTimeSlotOptions();
+            break;
+          case 'show_summary':
+            if (typeof showReservationSummary === 'function') showReservationSummary();
+            break;
+          case 'reset_state':
+            reservationState.active = false;
+            reservationState.step = null;
+            break;
+          default:
+            break;
+        }
+      };
+
       // Central message processor (shared by sendMessage and button handlers)
       const processMessage = async (text) => {
+        // Sprint 3d — Backend-authoritative Flow via /api/chat-v2 wenn Flag gesetzt
+        if (USE_CHAT_V2) return processMessageV2(text);
+
         // Urgency-Flag setzen (persistiert bis zum Reservierungs-Ende/Cancel).
         // Wichtig: VOR der reservationState.active-Branch, damit auch die Initial-Message greift.
         if (!reservationState.urgency && (isMedicalUrgency(text) || isTimeUrgent(text))) {

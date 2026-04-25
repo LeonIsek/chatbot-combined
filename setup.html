@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Chatbot einrichten — ChatBot Widget</title>
+  <title>Chatbot einrichten — BotSwiss</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -246,7 +246,7 @@
 <body>
 
 <nav>
-  <a href="index.html" class="logo">💬 ChatBot<span>Widget</span></a>
+  <a href="index.html" class="logo">💬 Bot<span>Swiss</span></a>
 </nav>
 
 <div class="page">
@@ -355,6 +355,23 @@
           </div>
         </div>
 
+        <div class="field">
+          <label for="themePreset">Design-Stil des Widgets (optional)</label>
+          <select id="themePreset" name="themePreset">
+            <option value="">Auto (an deine Website angepasst)</option>
+            <option value="modern_clean">Modern Clean — luftig, hell, tech</option>
+            <option value="luxury_dark">Luxury Dark — elegant, dunkel, edel</option>
+            <option value="playful_soft">Playful Soft — bunt, rund, freundlich</option>
+            <option value="minimal_sharp">Minimal Sharp — mono, scharf, editorial</option>
+            <option value="retro_warm">Retro Warm — warm, vintage, gemütlich</option>
+          </select>
+          <p class="hint">Auto = wir lesen Farben/Fonts automatisch von deiner Seite. Alternativ einen Preset wählen.</p>
+          <div id="themePresetPreview" style="display:none;margin-top:10px;padding:16px;border-radius:12px;transition:all 200ms;">
+            <div style="font-weight:600;margin-bottom:6px;" id="themePresetPreviewLabel"></div>
+            <div style="display:flex;gap:8px;" id="themePresetPreviewSwatches"></div>
+          </div>
+        </div>
+
         <p class="section-title">Reservierungen</p>
 
         <div class="field">
@@ -398,13 +415,13 @@
           <div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;">
             <div style="flex:1;text-align:center;">
               <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Einrichtung</div>
-              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 295</div>
+              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 100</div>
               <div style="font-size:12px;color:#94a3b8;">einmalig</div>
             </div>
             <div style="font-size:24px;color:#cbd5e1;font-weight:300;">+</div>
             <div style="flex:1;text-align:center;">
               <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Monatlich</div>
-              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 149</div>
+              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 99</div>
               <div style="font-size:12px;color:#94a3b8;">pro Monat</div>
             </div>
           </div>
@@ -458,6 +475,29 @@
     document.getElementById('slotDurationCustomField').style.display = this.value === 'custom' ? 'block' : 'none';
   });
 
+  // Sprint 4c — Theme-Preset Live-Preview
+  const PRESETS_PREVIEW = {
+    modern_clean:  { label: 'Modern Clean', bg: '#F8FAFC', text: '#0F172A', swatches: ['#4F46E5','#7C3AED','#06B6D4','#FFFFFF'] },
+    luxury_dark:   { label: 'Luxury Dark', bg: '#0F0F0F', text: '#F5F5F0', swatches: ['#D4A574','#A68055','#F4E4BC','#1A1A1A'] },
+    playful_soft:  { label: 'Playful Soft', bg: '#FEF3F2', text: '#831843', swatches: ['#EC4899','#F472B6','#FBBF24','#FFFFFF'] },
+    minimal_sharp: { label: 'Minimal Sharp', bg: '#FAFAFA', text: '#000000', swatches: ['#000000','#1F1F1F','#DC2626','#FFFFFF'] },
+    retro_warm:    { label: 'Retro Warm', bg: '#FFFBEB', text: '#451A03', swatches: ['#B45309','#92400E','#15803D','#FEF3C7'] }
+  };
+  document.getElementById('themePreset').addEventListener('change', function() {
+    const preview = document.getElementById('themePresetPreview');
+    const labelEl = document.getElementById('themePresetPreviewLabel');
+    const swatchEl = document.getElementById('themePresetPreviewSwatches');
+    const p = PRESETS_PREVIEW[this.value];
+    if (!p) { preview.style.display = 'none'; return; }
+    preview.style.background = p.bg;
+    preview.style.color = p.text;
+    labelEl.textContent = p.label;
+    swatchEl.innerHTML = p.swatches.map(c =>
+      '<span style="display:inline-block;width:24px;height:24px;border-radius:6px;background:' + c + ';border:1px solid rgba(0,0,0,0.1);"></span>'
+    ).join('');
+    preview.style.display = 'block';
+  });
+
   document.getElementById('onboardForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -480,7 +520,8 @@
     }
 
     const tone = document.querySelector('input[name="tone"]:checked')?.value || 'friendly';
-    const monthlyPrice = 149;
+    const themePreset = document.getElementById('themePreset').value || null;
+    const monthlyPrice = 99;
 
     btn.disabled = true;
     btn.textContent = 'Wird eingerichtet...';
@@ -509,6 +550,7 @@
             ? (document.getElementById('slotDurationCustom').value || null)
             : (document.getElementById('slotDuration').value || null),
           extraInfo: document.getElementById('extraInfo').value.trim() || null,
+          themePreset,
           monthlyPrice,
           _hp: document.getElementById('_hp').value
         })

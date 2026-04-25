@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin · Reservierungen · BotSwiss</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
+  <style>
+    :root {
+      --bg: #FAFAFA;
+      --surface: #FFFFFF;
+      --text: #0A0A0A;
+      --muted: #737373;
+      --border: #E5E5E5;
+      --accent: #0A0A0A;
+      --success: #10B981;
+      --danger: #EF4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    header .meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .login-card {
+      max-width: 420px;
+      margin: 80px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    }
+    .login-card h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color 160ms;
+    }
+    input:focus, select:focus { border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    button {
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform 120ms, opacity 120ms;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+    .error.visible { display: block; }
+    .hidden { display: none !important; }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar label { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .toolbar select { width: auto; min-width: 220px; }
+    .toolbar .count {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: rgba(0,0,0,0.02); }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge-success { background: rgba(16,185,129,0.12); color: #047857; }
+    .badge-muted   { background: rgba(115,115,115,0.12); color: var(--muted); }
+    .empty {
+      padding: 60px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    @media (max-width: 640px) {
+      th, td { padding: 10px 8px; font-size: 12px; }
+      .toolbar select { min-width: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Reservierungen · BotSwiss Admin</h1>
+    <div class="meta">
+      <span id="user-indicator" class="hidden"><button class="secondary" id="logout-btn" style="padding:6px 12px;font-size:12px;">Abmelden</button></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login -->
+    <div class="login-card" id="login-box">
+      <h2>Admin-Login</h2>
+      <input type="password" id="password" placeholder="Admin-Passwort" autofocus/>
+      <div class="error" id="login-error"></div>
+      <button id="login-btn" style="margin-top:14px;width:100%;">Anmelden</button>
+    </div>
+
+    <!-- Reservations-View (nach Login) -->
+    <div class="hidden" id="view-box">
+      <div class="toolbar">
+        <label for="client-filter">Kunde</label>
+        <select id="client-filter">
+          <option value="">Alle Kunden</option>
+        </select>
+        <button class="secondary" id="refresh-btn">Aktualisieren</button>
+        <div class="count" id="count"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Eingegangen</th>
+              <th>Kunde</th>
+              <th>Datum</th>
+              <th>Zeit</th>
+              <th>Personen</th>
+              <th>Email</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty hidden" id="empty">Keine Reservierungen für diesen Filter.</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
+    const TOKEN_KEY = 'bs_admin_token';
+
+    const $ = (id) => document.getElementById(id);
+    const getToken = () => localStorage.getItem(TOKEN_KEY);
+    const setToken = (t) => t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+
+    async function api(path, opts = {}) {
+      const headers = opts.headers || {};
+      if (getToken()) headers['Authorization'] = 'Bearer ' + getToken();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(BACKEND + path, { ...opts, headers });
+      if (res.status === 401) { setToken(null); showLogin(); throw new Error('Unauthorized'); }
+      return res.json();
+    }
+
+    function showLogin() {
+      $('login-box').classList.remove('hidden');
+      $('view-box').classList.add('hidden');
+      $('user-indicator').classList.add('hidden');
+      $('password').focus();
+    }
+    function showView() {
+      $('login-box').classList.add('hidden');
+      $('view-box').classList.remove('hidden');
+      $('user-indicator').classList.remove('hidden');
+    }
+
+    async function doLogin() {
+      $('login-error').classList.remove('visible');
+      const password = $('password').value;
+      if (!password) return;
+      try {
+        const res = await fetch(BACKEND + '/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login fehlgeschlagen');
+        setToken(data.token);
+        $('password').value = '';
+        showView();
+        await loadClients();
+        await loadReservations();
+      } catch (e) {
+        $('login-error').textContent = e.message;
+        $('login-error').classList.add('visible');
+      }
+    }
+
+    async function loadClients() {
+      try {
+        const data = await api('/api/admin/clients');
+        const select = $('client-filter');
+        select.innerHTML = '<option value="">Alle Kunden</option>';
+        (data.clients || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.business_name || c.id) + (c.active ? '' : ' (inaktiv)');
+          select.appendChild(opt);
+        });
+      } catch (e) { /* unauthorized handled already */ }
+    }
+
+    async function loadReservations() {
+      const clientId = $('client-filter').value;
+      const qs = clientId ? '?clientId=' + encodeURIComponent(clientId) : '';
+      try {
+        const data = await api('/api/admin/reservations' + qs);
+        renderRows(data.reservations || []);
+      } catch (e) { /* unauthorized handled already */ }
+    }
+
+    function renderRows(rows) {
+      const tbody = $('rows');
+      tbody.innerHTML = '';
+      $('count').textContent = rows.length + ' Reservierung' + (rows.length === 1 ? '' : 'en');
+      if (rows.length === 0) {
+        $('empty').classList.remove('hidden');
+        return;
+      }
+      $('empty').classList.add('hidden');
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        const created = new Date(r.created_at);
+        const dateStr = r.date ? r.date : '—';
+        const timeStr = r.start_time ? String(r.start_time).slice(0, 5) : '—';
+        const statusCls = r.status === 'confirmed' ? 'badge-success' : 'badge-muted';
+        tr.innerHTML = `
+          <td>${created.toLocaleDateString('de-CH')} ${created.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${escapeHtml(r.client_id)}</td>
+          <td>${escapeHtml(dateStr)}</td>
+          <td>${escapeHtml(timeStr)}</td>
+          <td>${r.guests || '—'}</td>
+          <td>${escapeHtml(r.email || '—')}</td>
+          <td><span class="badge ${statusCls}">${escapeHtml(r.status || 'offen')}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    // Event wiring
+    $('login-btn').addEventListener('click', doLogin);
+    $('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    $('client-filter').addEventListener('change', loadReservations);
+    $('refresh-btn').addEventListener('click', loadReservations);
+    $('logout-btn').addEventListener('click', () => { setToken(null); showLogin(); });
+
+    // Init
+    if (getToken()) {
+      showView();
+      loadClients().then(loadReservations);
+    } else {
+      showLogin();
+    }
+  </script>
+</body>
+</html>
