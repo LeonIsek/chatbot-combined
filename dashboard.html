@@ -7,6 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <style>
     :root {
       --bg: #FAFAFA; --surface: #FFFFFF; --text: #0A0A0A; --muted: #737373;
@@ -286,6 +287,21 @@
     .modal .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
     .modal-actions button { padding: 8px 14px; }
+    /* Lucide-Icons */
+    [data-lucide] { width: 16px; height: 16px; stroke-width: 2; vertical-align: -3px; }
+    .icon-lg [data-lucide], [data-lucide].icon-lg { width: 20px; height: 20px; }
+    .icon-sm [data-lucide], [data-lucide].icon-sm { width: 14px; height: 14px; }
+    button [data-lucide] { margin-right: 6px; }
+    /* Wand-Trash floating Button */
+    .wall-trash {
+      position: absolute; z-index: 20; display: none;
+      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      align-items: center; justify-content: center;
+    }
+    .wall-trash.visible { display: inline-flex; }
+    .wall-trash:hover { background: #fef2f2; border-color: var(--danger); color: var(--danger); }
+    .wall-trash [data-lucide] { width: 16px; height: 16px; margin: 0; }
   </style>
 </head>
 <body>
@@ -310,20 +326,20 @@
     <!-- DASHBOARD -->
     <div class="hidden" id="dashboard-box">
       <div class="tabs">
-        <button class="tab-btn active" data-tab="home">🏠 Übersicht</button>
-        <button class="tab-btn" data-tab="reservations">📅 Reservierungen</button>
-        <button class="tab-btn" data-tab="botinfo">💬 Bot-Infos</button>
-        <button class="tab-btn" data-tab="website">🌐 Website</button>
-        <button class="tab-btn" data-tab="branding">🎨 Branding</button>
-        <button class="tab-btn" data-tab="tables">🪑 Tische</button>
+        <button class="tab-btn active" data-tab="home"><i data-lucide="home"></i> Übersicht</button>
+        <button class="tab-btn" data-tab="reservations"><i data-lucide="calendar"></i> Reservierungen</button>
+        <button class="tab-btn" data-tab="botinfo"><i data-lucide="message-circle"></i> Bot-Infos</button>
+        <button class="tab-btn" data-tab="website"><i data-lucide="globe"></i> Website</button>
+        <button class="tab-btn" data-tab="branding"><i data-lucide="palette"></i> Branding</button>
+        <button class="tab-btn" data-tab="tables"><i data-lucide="armchair"></i> Tische</button>
       </div>
 
       <!-- Tab: Home / Business-Info -->
       <div class="tab-content" data-tab-content="home">
         <div class="panel" style="background: #fef9e7; border-color: #f4d35e;">
           <p style="margin:0;font-size:13px;color:#856404;">
-            💡 <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) trägst du im Tab
-            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="color:#856404;font-weight:600;">💬 Bot-Infos →</a>
+            <i data-lucide="lightbulb"></i> <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) trägst du im Tab
+            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="color:#856404;font-weight:600;"><i data-lucide="message-circle"></i> Bot-Infos <i data-lucide="arrow-right"></i></a>
             ein. Bot berücksichtigt das ab der nächsten Nachricht, kein Deploy nötig.
           </p>
         </div>
@@ -348,7 +364,7 @@
           <div class="field"><label>Website</label><input type="url" data-field="website"/></div>
           <div class="field"><label>Öffnungszeiten</label><textarea data-field="opening_hours" placeholder="Mo Ruhetag&#10;Di-Do 11:30-14:00 & 17:30-22:00&#10;..."></textarea></div>
           <div class="field"><label>Preise / Angebote</label><textarea data-field="prices"></textarea></div>
-          <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, gehört in den Tab 💬 Bot-Infos →</div></div>
+          <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, gehört in den Tab Bot-Infos.</div></div>
 
           <div class="save-bar">
             <span class="save-status" id="home-save-status"></span>
@@ -372,15 +388,18 @@
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
-            <button class="btn hidden" id="layout-wall-mode">🧱 Wand zeichnen</button>
+            <button class="btn hidden" id="layout-wall-mode"><i data-lucide="square"></i> Wand zeichnen</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
-            <button class="btn" id="layout-zoom-reset" title="Zoom zurücksetzen">⟲ Reset</button>
+            <button class="btn" id="layout-zoom-reset" title="Zoom zurücksetzen"><i data-lucide="rotate-ccw"></i> Reset</button>
             <span class="layout-status" id="layout-status"></span>
           </div>
 
           <div class="layout-grid">
             <div class="canvas-area" id="canvas-area">
               <div id="konva-container"></div>
+              <button type="button" id="wall-trash-btn" class="wall-trash" title="Wand löschen">
+                <i data-lucide="trash-2"></i>
+              </button>
               <div class="canvas-legend">
                 <span><span class="dot grey"></span>frei</span>
                 <span><span class="dot red"></span>besetzt</span>
@@ -455,7 +474,7 @@
             <div class="crawl-row"><span class="label">Status</span><span id="crawl-state">—</span></div>
           </div>
 
-          <button class="btn primary" id="recrawl-btn">🔄 Website jetzt neu scannen</button>
+          <button class="btn primary" id="recrawl-btn"><i data-lucide="refresh-cw"></i> Website jetzt neu scannen</button>
           <div class="sub" style="margin-top:8px;color:var(--muted);font-size:12px;">Max 1× pro Tag. Scan läuft im Hintergrund, dauert 1–2 Minuten.</div>
           <div class="msg" id="recrawl-msg" style="margin-top:12px;display:none;padding:10px;border-radius:8px;font-size:13px;"></div>
         </div>
@@ -485,7 +504,7 @@
           <div class="widget-preview">
             <p>Preview — so sieht die Chat-Bubble auf deiner Website aus</p>
             <div class="bubble" id="bubble-preview" style="background:#0A0A0A;">
-              <span id="bubble-preview-svg">💬</span>
+              <span id="bubble-preview-svg"><i data-lucide="message-circle" style="color:#fff;width:24px;height:24px;"></i></span>
             </div>
           </div>
 
@@ -641,7 +660,7 @@
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || 'Fehler');
-        msg.textContent = '✉️ Check deine Emails! Link ist 15 Minuten gültig.';
+        msg.textContent = 'Check deine Emails! Link ist 15 Minuten gültig.';
         msg.classList.add('visible', 'success');
       } catch (e) {
         msg.textContent = e.message;
@@ -717,6 +736,7 @@
     let LAYOUT_WALL_START = null;  // {x, y} Startpunkt waehrend Drag
     let LAYOUT_WALL_DRAWING = false; // true = aktuell wird gerade gezogen
     let LAYOUT_WALL_PREVIEW = null;  // Konva.Line Preview waehrend Drag
+    let LAYOUT_WALL_SELECTED_IDX = null; // index der selektierten Wand (oder null)
 
     async function loadReservations() {
       // Backward-compat: Init-Sequenz ruft das. Layout-Tab wird lazy initialisiert beim Tab-Switch.
@@ -754,6 +774,7 @@
           x: pointer.x - mousePointTo.x * newScale,
           y: pointer.y - mousePointTo.y * newScale,
         });
+        if (LAYOUT_WALL_SELECTED_IDX !== null) layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
       });
 
       // Stage-Drag: nur auf leerem Hintergrund (Konva handhabt automatisch — wenn Group draggable=true,
@@ -806,9 +827,29 @@
       LAYOUT_STAGE.on('mousedown touchstart', layoutHandleWallStart);
       LAYOUT_STAGE.on('mousemove touchmove', layoutHandleWallMove);
       LAYOUT_STAGE.on('mouseup touchend', layoutHandleWallEnd);
-      // Esc beendet Wand-Modus
+      // Trash-Button Click → selektierte Wand loeschen
+      $('wall-trash-btn').addEventListener('click', async () => {
+        const idx = LAYOUT_WALL_SELECTED_IDX;
+        if (idx === null) return;
+        LAYOUT_WALLS.splice(idx, 1);
+        layoutDeselectWall();
+        await layoutSaveWalls();
+        layoutDrawTables();
+        layoutStatus('Wand geloescht', 'success');
+      });
+      // Trash-Button bei Pan/Zoom mitbewegen
+      LAYOUT_STAGE.on('dragmove', () => {
+        if (LAYOUT_WALL_SELECTED_IDX !== null) layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
+      });
+      // Esc: zuerst deselect, dann Wand-Modus beenden
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && LAYOUT_WALL_MODE) layoutToggleWallMode();
+        if (e.key !== 'Escape') return;
+        if (LAYOUT_WALL_SELECTED_IDX !== null) {
+          layoutDeselectWall();
+          layoutDrawTables();
+          return;
+        }
+        if (LAYOUT_WALL_MODE) layoutToggleWallMode();
       });
 
       // Drop-Zone fuer Reservation-Drag
@@ -881,34 +922,98 @@
       // Wände zuerst rendern (damit Tische darüber liegen)
       LAYOUT_WALLS.forEach((w, i) => LAYOUT_LAYER.add(layoutBuildWallNode(w, i)));
       LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
+      // Handles fuer selektierte Wand zuletzt → liegen ueber allem
+      if (LAYOUT_WALL_SELECTED_IDX !== null && LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX]) {
+        LAYOUT_LAYER.add(layoutBuildWallHandles(LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX], LAYOUT_WALL_SELECTED_IDX));
+        layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
+      } else {
+        layoutPositionTrashBtn(null);
+      }
       LAYOUT_LAYER.draw();
     }
 
     function layoutBuildWallNode(wall, idx) {
+      const isSelected = LAYOUT_WALL_SELECTED_IDX === idx;
       const line = new Konva.Line({
         points: [wall.x1, wall.y1, wall.x2, wall.y2],
-        stroke: LAYOUT_WALL_MODE ? '#ef4444' : '#94a3b8',
-        strokeWidth: 6,
-        lineCap: 'round',
+        stroke: '#0a0a0a',
+        strokeWidth: isSelected ? 8 : 6,
+        lineCap: 'butt',
         id: 'wall-' + idx,
         name: 'wall',
-        hitStrokeWidth: 24,  // grosszuegiger Click-Bereich
+        hitStrokeWidth: 24,
         listening: true
       });
-      // Hover-Feedback nur im Wand-Mode
-      if (LAYOUT_WALL_MODE) {
+      // Hover-Feedback nur im Wand-Mode (aber wenig invasiv, da schwarz bleibt)
+      if (LAYOUT_WALL_MODE && !isSelected) {
         line.on('mouseenter', () => {
-          line.stroke('#dc2626'); line.strokeWidth(8);
+          line.strokeWidth(8);
           LAYOUT_LAYER.batchDraw();
           $('konva-container').style.cursor = 'pointer';
         });
         line.on('mouseleave', () => {
-          line.stroke('#ef4444'); line.strokeWidth(6);
+          line.strokeWidth(6);
           LAYOUT_LAYER.batchDraw();
           $('konva-container').style.cursor = 'crosshair';
         });
       }
       return line;
+    }
+
+    function layoutBuildWallHandles(wall, idx) {
+      const group = new Konva.Group({ id: 'wall-handles-' + idx, listening: true });
+      ['x1','y1','x2','y2'].length;
+      const mkHandle = (px, py, pointKey) => {
+        const h = new Konva.Circle({
+          x: px, y: py, radius: 7,
+          fill: '#ffffff', stroke: '#3b82f6', strokeWidth: 2,
+          draggable: true, name: 'wall-handle',
+          id: 'wall-handle-' + idx + '-' + pointKey
+        });
+        h.on('dragmove', () => {
+          const w = LAYOUT_WALLS[idx]; if (!w) return;
+          if (pointKey === 'a') { w.x1 = h.x(); w.y1 = h.y(); }
+          else                  { w.x2 = h.x(); w.y2 = h.y(); }
+          const wallNode = LAYOUT_LAYER.findOne('#wall-' + idx);
+          if (wallNode) wallNode.points([w.x1, w.y1, w.x2, w.y2]);
+          layoutPositionTrashBtn(idx);
+          LAYOUT_LAYER.batchDraw();
+        });
+        h.on('dragend', async () => { await layoutSaveWalls(); });
+        return h;
+      };
+      group.add(mkHandle(wall.x1, wall.y1, 'a'));
+      group.add(mkHandle(wall.x2, wall.y2, 'b'));
+      return group;
+    }
+
+    function layoutPositionTrashBtn(idx) {
+      const btn = $('wall-trash-btn');
+      if (!btn) return;
+      if (idx === null || idx === undefined || !LAYOUT_WALLS[idx] || !LAYOUT_STAGE) {
+        btn.classList.remove('visible');
+        return;
+      }
+      const wall = LAYOUT_WALLS[idx];
+      const cx = (wall.x1 + wall.x2) / 2;
+      const cy = (wall.y1 + wall.y2) / 2;
+      const scale = LAYOUT_STAGE.scaleX();
+      const screenX = cx * scale + LAYOUT_STAGE.x();
+      const screenY = cy * scale + LAYOUT_STAGE.y();
+      // Container hat Padding 14, dazu konva-container eigenes layout
+      const cont = $('konva-container');
+      const contRect = cont.getBoundingClientRect();
+      const areaRect = $('canvas-area').getBoundingClientRect();
+      const offX = contRect.left - areaRect.left;
+      const offY = contRect.top - areaRect.top;
+      btn.style.left = (offX + screenX - 16) + 'px';
+      btn.style.top = (offY + screenY - 40) + 'px';
+      btn.classList.add('visible');
+    }
+
+    function layoutDeselectWall() {
+      LAYOUT_WALL_SELECTED_IDX = null;
+      layoutPositionTrashBtn(null);
     }
 
     async function layoutSaveWalls() {
@@ -931,10 +1036,15 @@
         LAYOUT_WALL_PREVIEW.destroy();
         LAYOUT_WALL_PREVIEW = null;
       }
+      // Selection beim Verlassen Wand-Modus aufheben
+      if (!LAYOUT_WALL_MODE) layoutDeselectWall();
       const btn = $('layout-wall-mode');
       if (btn) {
-        btn.textContent = LAYOUT_WALL_MODE ? '✓ Wand-Modus (Esc zum Beenden)' : '🧱 Wand zeichnen';
+        btn.innerHTML = LAYOUT_WALL_MODE
+          ? '<i data-lucide="check"></i> Wand-Modus (Esc zum Beenden)'
+          : '<i data-lucide="square"></i> Wand zeichnen';
         btn.classList.toggle('primary', LAYOUT_WALL_MODE);
+        if (window.lucide) lucide.createIcons();
       }
       const cont = $('konva-container');
       cont.style.cursor = LAYOUT_WALL_MODE ? 'crosshair' : 'grab';
@@ -942,7 +1052,7 @@
       if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_MODE);
       // Hint-Text aktualisieren
       if (LAYOUT_WALL_MODE) {
-        layoutStatus('Drag im leeren Bereich = Wand zeichnen · Klick auf Wand = loeschen', 'success');
+        layoutStatus('Drag im leeren Bereich = Wand zeichnen · Klick auf Wand zum Auswaehlen', 'success');
       }
       layoutDrawTables();
     }
@@ -956,30 +1066,37 @@
 
     async function layoutHandleWallStart(e) {
       if (!LAYOUT_WALL_MODE) return;
-      // Klick auf existierende Wand → loeschen
       const tname = e.target?.name?.();
+      // Klick auf Handle → Konva uebernimmt Drag, nicht stoeren
+      if (tname === 'wall-handle') return;
+      // Klick auf Wand → selektieren (nicht loeschen)
       if (tname === 'wall') {
         e.cancelBubble = true;
         const tid = e.target.id() || '';
         const idx = parseInt(tid.replace('wall-', ''), 10);
         if (!isNaN(idx) && idx >= 0 && idx < LAYOUT_WALLS.length) {
-          LAYOUT_WALLS.splice(idx, 1);
-          await layoutSaveWalls();
+          LAYOUT_WALL_SELECTED_IDX = idx;
           layoutDrawTables();
-          layoutStatus('Wand geloescht', 'success');
         }
         return;
       }
       // Klick auf Tisch oder andere Shape → ignorieren
       if (e.target !== LAYOUT_STAGE) return;
-      // Stage-Klick → Wand-Drag starten
+      // Klick auf leeren Bereich
+      // 1. Wenn etwas selektiert war → deselect (Drag-to-Draw startet trotzdem,
+      //    aber ein purer Klick mit <20px Bewegung wird in End-Handler ignoriert)
+      if (LAYOUT_WALL_SELECTED_IDX !== null) {
+        layoutDeselectWall();
+        layoutDrawTables();
+      }
+      // 2. Wand-Drag starten
       const w = layoutWorldCoords();
       if (!w) return;
       LAYOUT_WALL_DRAWING = true;
       LAYOUT_WALL_START = w;
       LAYOUT_WALL_PREVIEW = new Konva.Line({
         points: [w.x, w.y, w.x, w.y],
-        stroke: '#475569', strokeWidth: 6, lineCap: 'round',
+        stroke: '#0a0a0a', strokeWidth: 6, lineCap: 'butt',
         dash: [10, 6], listening: false
       });
       LAYOUT_LAYER.add(LAYOUT_WALL_PREVIEW);
@@ -1098,6 +1215,7 @@
       const sorted = [...LAYOUT_RESERVATIONS].sort((a, b) =>
         (a.start_time || '').localeCompare(b.start_time || ''));
       sorted.forEach(r => list.appendChild(layoutBuildResvCard(r)));
+      if (window.lucide) lucide.createIcons();
     }
 
     function layoutBuildResvCard(r) {
@@ -1111,7 +1229,7 @@
       card.innerHTML = `
         <div class="res-card-time">${time} · ${r.guests || '?'} P</div>
         <div class="res-card-detail">${escapeHtml(r.email || 'kein Kontakt')}</div>
-        ${tableInfo ? `<div class="res-card-table">→ ${escapeHtml(tableInfo)}</div>` : ''}
+        ${tableInfo ? `<div class="res-card-table"><i data-lucide="arrow-right" class="icon-sm"></i> ${escapeHtml(tableInfo)}</div>` : ''}
         <div class="res-card-actions">
           ${r.assignedResources?.length > 0 ? '<button data-action="unassign">Tisch lösen</button>' : ''}
           <button data-action="delete" class="danger">Löschen</button>
@@ -1354,7 +1472,7 @@
       statusEl.className = 'save-status';
       try {
         await api('/api/customer/client', { method: 'PATCH', body: JSON.stringify(payload) });
-        statusEl.textContent = '✓ Gespeichert';
+        statusEl.textContent = 'Gespeichert';
         statusEl.className = 'save-status saved';
         Object.assign(clientData, payload);
         if (section === 'branding') updateBubblePreview();
@@ -1363,7 +1481,7 @@
         if (panel) panel.classList.add('readonly-mode');
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
       } catch (e) {
-        statusEl.textContent = '✗ ' + e.message;
+        statusEl.textContent = 'Fehler: ' + e.message;
         statusEl.className = 'save-status error';
       }
     }
@@ -1461,8 +1579,10 @@
       const logo = get('[data-field="bubble_icon_url"]').value;
       const bubble = $('bubble-preview');
       bubble.style.background = color;
-      if (logo) bubble.innerHTML = `<img src="${escapeHtml(logo)}" alt="" onerror="this.parentElement.innerHTML='💬'"/>`;
-      else bubble.innerHTML = '<span>💬</span>';
+      const fallbackIcon = '<i data-lucide="message-circle" style="color:#fff;width:24px;height:24px;"></i>';
+      if (logo) bubble.innerHTML = `<img src="${escapeHtml(logo)}" alt="" onerror="this.parentElement.innerHTML=&quot;${fallbackIcon.replace(/"/g,'&quot;')}&quot;; if(window.lucide) lucide.createIcons();"/>`;
+      else bubble.innerHTML = fallbackIcon;
+      if (window.lucide) lucide.createIcons();
     }
 
     // ============ Util ============
@@ -1546,6 +1666,9 @@
       }
     });
 
+    // Lucide-Icons initial rendern
+    if (window.lucide) lucide.createIcons();
+
     // Init: entweder token aus URL (Magic-Link) oder existing
     (async () => {
       const urlToken = new URLSearchParams(window.location.search).get('token');
@@ -1556,6 +1679,7 @@
       } else {
         showLogin();
       }
+      if (window.lucide) lucide.createIcons();
     })();
   </script>
 </body>
