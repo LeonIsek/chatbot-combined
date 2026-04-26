@@ -68,12 +68,16 @@
     }
 
     .top-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 38px;
       color: #cbd5e1;
       text-decoration: none;
       font-family: 'Manrope', sans-serif;
       font-size: 13px;
       font-weight: 600;
-      padding: 8px 14px;
+      padding: 0 14px;
       border-radius: 8px;
       white-space: nowrap;
       margin-right: 8px;
@@ -82,23 +86,29 @@
     }
     .top-live:hover { color: #fff; border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.04); }
     @media (max-width: 520px) {
-      .top-live { padding: 6px 10px; font-size: 12px; margin-right: 4px; }
+      .top-live { padding: 0 10px; font-size: 12px; margin-right: 4px; }
     }
 
     .top-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 38px;
       background: #6366f1;
       color: #fff;
       text-decoration: none;
       font-family: 'Manrope', sans-serif;
       font-size: 13px;
       font-weight: 700;
-      padding: 8px 18px;
+      padding: 0 18px;
       border-radius: 8px;
       white-space: nowrap;
       transition: background 0.15s;
       margin-left: auto;
     }
     .top-cta:hover { background: #4f46e5; }
+    .top-live [data-lucide],
+    .top-cta [data-lucide] { width: 14px; height: 14px; vertical-align: 0; }
 
     .top-login-circle {
       display: inline-flex;
@@ -7936,7 +7946,14 @@ function switchTab(tab) {
   }, true);
 })();
 
-if (window.lucide) lucide.createIcons();
+// Robustes Lucide-Render: wartet bis Lucide-CDN geladen ist
+function ensureLucide(retries) {
+  retries = retries == null ? 40 : retries;
+  if (window.lucide) { lucide.createIcons(); return; }
+  if (retries <= 0) return;
+  setTimeout(function(){ ensureLucide(retries - 1); }, 50);
+}
+ensureLucide();
 </script>
 
 </body>

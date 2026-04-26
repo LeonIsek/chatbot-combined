@@ -588,7 +588,13 @@
       }, 2000);
     });
   }
-  if (window.lucide) lucide.createIcons();
+  function ensureLucide(retries) {
+    retries = retries == null ? 40 : retries;
+    if (window.lucide) { lucide.createIcons(); return; }
+    if (retries <= 0) return;
+    setTimeout(function(){ ensureLucide(retries - 1); }, 50);
+  }
+  ensureLucide();
 </script>
 
 </body>
