@@ -145,6 +145,43 @@
     .widget-preview .bubble img { width: 70%; height: 70%; object-fit: contain; }
     .widget-preview p { color: var(--muted); font-size: 13px; font-style: italic; }
 
+    /* ============ READ-MODE für Tabs (Phase R+1) ============ */
+    .panel.readonly-mode input[type="text"],
+    .panel.readonly-mode input[type="email"],
+    .panel.readonly-mode input[type="tel"],
+    .panel.readonly-mode input[type="url"],
+    .panel.readonly-mode input[type="number"],
+    .panel.readonly-mode textarea,
+    .panel.readonly-mode select {
+      pointer-events: none;
+      background: transparent;
+      border: none;
+      padding: 4px 0;
+      font-size: 14px;
+      color: var(--text);
+      resize: none;
+    }
+    .panel.readonly-mode textarea {
+      min-height: auto;
+      overflow: hidden;
+    }
+    .panel.readonly-mode .field label {
+      color: var(--muted); font-size: 12px; font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .panel.readonly-mode .field { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .panel.readonly-mode .field:last-of-type { border-bottom: none; }
+    .panel.readonly-mode .sub { display: none; }
+    .panel.readonly-mode .save-bar { display: none; }
+    .panel.readonly-mode .edit-bar { display: flex !important; }
+    .edit-bar { display: none; justify-content: flex-end; padding-top: 12px; }
+    .panel-header-actions {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .panel-header-row {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    }
+
     /* ============ LAYOUT/RESERVATIONS Canvas (Phase R) ============ */
     .layout-toolbar {
       display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
@@ -286,9 +323,16 @@
           </p>
         </div>
 
-        <div class="panel">
-          <h3>Business-Informationen</h3>
-          <p class="section-hint">Diese Angaben nutzt der Bot wenn Gäste fragen. Änderungen sind sofort wirksam.</p>
+        <div class="panel readonly-mode" id="home-panel">
+          <div class="panel-header-row">
+            <div>
+              <h3>Business-Informationen</h3>
+              <p class="section-hint">Diese Angaben nutzt der Bot wenn Gäste fragen.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button class="btn" id="home-edit-btn">Bearbeiten</button>
+            </div>
+          </div>
 
           <div class="field"><label>Firmenname</label><input type="text" data-field="business_name"/></div>
           <div class="field-row">
@@ -304,6 +348,10 @@
           <div class="save-bar">
             <span class="save-status" id="home-save-status"></span>
             <button class="btn primary" data-save="home">Speichern</button>
+          </div>
+          <div class="edit-bar">
+            <button class="btn" id="home-cancel-btn">Abbrechen</button>
+            <button class="btn primary" data-save="home" id="home-save-and-close-btn">Speichern</button>
           </div>
         </div>
       </div>
@@ -1020,11 +1068,34 @@
         statusEl.className = 'save-status saved';
         Object.assign(clientData, payload);
         if (section === 'branding') updateBubblePreview();
+        // Read-Mode wiederherstellen nach Speichern (Phase R+1)
+        const panel = $(section + '-panel');
+        if (panel) panel.classList.add('readonly-mode');
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
       } catch (e) {
         statusEl.textContent = '✗ ' + e.message;
         statusEl.className = 'save-status error';
       }
+    }
+
+    // ============ Read/Edit-Mode Toggle (Phase R+1) ============
+    let homeOriginalValues = {};
+
+    function homeEnterEditMode() {
+      homeOriginalValues = {};
+      ['business_name','phone','address','website','opening_hours','prices','note'].forEach(f => {
+        const el = get(`[data-field="${f}"]`);
+        if (el) homeOriginalValues[f] = el.value;
+      });
+      $('home-panel').classList.remove('readonly-mode');
+    }
+
+    function homeCancelEdit() {
+      Object.entries(homeOriginalValues).forEach(([f, v]) => {
+        const el = get(`[data-field="${f}"]`);
+        if (el) el.value = v;
+      });
+      $('home-panel').classList.add('readonly-mode');
     }
 
     // ============ Resources (Tische/Stuehle/Zimmer) ============
@@ -1164,6 +1235,12 @@
     getAll('[data-save]').forEach(btn => btn.addEventListener('click', () => saveSection(btn.dataset.save)));
     const exportBtn = $('res-export-btn');
     if (exportBtn) exportBtn.addEventListener('click', exportCSV);
+
+    // Read/Edit Toggle Übersicht-Tab
+    const homeEditBtn = $('home-edit-btn');
+    if (homeEditBtn) homeEditBtn.addEventListener('click', homeEnterEditMode);
+    const homeCancelBtn = $('home-cancel-btn');
+    if (homeCancelBtn) homeCancelBtn.addEventListener('click', homeCancelEdit);
     $('recrawl-btn').addEventListener('click', doRecrawl);
 
     // Branding color sync
