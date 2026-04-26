@@ -128,13 +128,82 @@
     .top-login-circle:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06); }
     .top-login-circle svg { width: 18px; height: 18px; display: block; }
 
-    @media (max-width: 600px) {
-      .top-nav { padding: env(safe-area-inset-top) 12px 0; }
-      .top-logo { font-size: 14px; margin-right: 8px; }
-      .tab-btn { font-size: 12px; padding: 6px 10px; }
+    /* Hamburger-Button (nur Mobile sichtbar) */
+    .top-hamburger {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      margin-left: auto;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 50%;
+      background: transparent;
+      color: #cbd5e1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .top-hamburger [data-lucide] { width: 20px; height: 20px; }
+    .top-hamburger:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06); }
+
+    /* Vollbild-Mobile-Overlay */
+    .mobile-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      z-index: 9999;
+      background: rgba(15, 23, 42, 0.97);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      flex-direction: column;
+      padding: 80px 24px 40px;
+      gap: 4px;
+      animation: mobileFadeIn 0.2s ease-out;
+    }
+    .mobile-overlay.open { display: flex; }
+    @keyframes mobileFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .mobile-overlay .overlay-close {
+      position: absolute; top: 18px; right: 18px;
+      width: 42px; height: 42px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+      background: transparent; color: #fff; cursor: pointer;
+    }
+    .mobile-overlay .overlay-close [data-lucide] { width: 22px; height: 22px; }
+    .mobile-overlay a, .mobile-overlay button {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 18px;
+      color: #e2e8f0;
+      font-family: 'Manrope', sans-serif;
+      font-size: 18px; font-weight: 600;
+      text-decoration: none;
+      background: transparent; border: none;
+      border-radius: 10px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mobile-overlay a:hover, .mobile-overlay button:hover { background: rgba(255,255,255,0.06); }
+    .mobile-overlay a.cta {
+      background: #6366f1; color: #fff;
+      justify-content: center;
+      margin-top: 16px;
+      font-weight: 700;
+    }
+    .mobile-overlay a.cta:hover { background: #4f46e5; }
+    .mobile-overlay hr {
+      border: none; border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 12px 0;
+    }
+    .mobile-overlay [data-lucide] { width: 18px; height: 18px; flex-shrink: 0; }
+
+    @media (max-width: 768px) {
+      .top-nav { padding: env(safe-area-inset-top) 16px 0; }
+      .top-logo { font-size: 16px; margin-right: 0; }
+      .tab-nav { display: none; }
+      .top-live { display: none; }
       .top-cta { display: none; }
-      .top-login-circle { width: 32px; height: 32px; margin-left: 6px; }
-      .top-login-circle svg { width: 15px; height: 15px; }
+      .top-login-circle { display: none; }
+      .top-hamburger { display: inline-flex; }
     }
 
     /* ====== BUSINESS SELECTOR ====== */
@@ -589,8 +658,26 @@
     <a href="/dashboard.html" class="top-login-circle" title="Kunden-Login" aria-label="Kunden-Login">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
     </a>
+    <button class="top-hamburger" id="top-hamburger" aria-label="Menü öffnen" onclick="openMobileMenu()">
+      <i data-lucide="menu"></i>
+    </button>
   </div>
 </nav>
+
+<!-- ====== MOBILE OVERLAY ====== -->
+<div class="mobile-overlay" id="mobile-overlay" role="dialog" aria-label="Menü">
+  <button class="overlay-close" aria-label="Menü schliessen" onclick="closeMobileMenu()">
+    <i data-lucide="x"></i>
+  </button>
+  <button onclick="switchTab('landing'); closeMobileMenu()"><i data-lucide="home"></i> Start</button>
+  <button onclick="switchTab('demo'); closeMobileMenu()"><i data-lucide="play"></i> Demo</button>
+  <button onclick="switchTab('anleitung'); closeMobileMenu()"><i data-lucide="book-open"></i> Anleitung</button>
+  <button onclick="switchTab('preise'); closeMobileMenu()"><i data-lucide="tag"></i> Preise</button>
+  <hr/>
+  <a href="https://pizzeria-da-mario-omega.vercel.app" onclick="closeMobileMenu()"><i data-lucide="external-link"></i> Live testen</a>
+  <a href="/dashboard.html" onclick="closeMobileMenu()"><i data-lucide="user"></i> Kunden-Login</a>
+  <a href="/setup.html" class="cta" onclick="closeMobileMenu()">Jetzt starten <i data-lucide="arrow-right"></i></a>
+</div>
 
 <!-- ====== PANEL: LANDING ====== -->
 <div id="panel-landing" class="panel active">
@@ -7954,6 +8041,26 @@ function ensureLucide(retries) {
   setTimeout(function(){ ensureLucide(retries - 1); }, 50);
 }
 ensureLucide();
+
+// Mobile Hamburger-Menü
+function openMobileMenu() {
+  document.getElementById('mobile-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    var ov = document.getElementById('mobile-overlay');
+    if (ov && ov.classList.contains('open')) closeMobileMenu();
+  }
+});
+// Click auf Backdrop (nicht auf Inhalt) schliesst auch
+document.getElementById('mobile-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeMobileMenu();
+});
 </script>
 
 </body>
