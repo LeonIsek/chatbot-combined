@@ -256,13 +256,7 @@
 
     <!-- Main view -->
     <div class="hidden" id="view-box">
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="clients">Kunden</button>
-        <button class="tab-btn" data-tab="reservations">Reservierungen</button>
-      </div>
-
-      <!-- Clients tab -->
+      <!-- Clients (einzige View — Reservations bewusst nicht im Admin, das gehoert zu jedem Kunden privat) -->
       <section id="tab-clients">
         <div class="stats">
           <div class="stat">
@@ -318,58 +312,6 @@
         </div>
       </section>
 
-      <!-- Reservations tab -->
-      <section id="tab-reservations" class="hidden">
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-label">Reservierungen geladen</div>
-            <div class="stat-value" id="stat-resv-total">–</div>
-            <div class="stat-sub">letzte 200 max</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Heute</div>
-            <div class="stat-value" id="stat-resv-today">–</div>
-            <div class="stat-sub">eingegangen heute</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Bestätigt</div>
-            <div class="stat-value" id="stat-resv-confirmed">–</div>
-            <div class="stat-sub">Status confirmed</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Offen</div>
-            <div class="stat-value" id="stat-resv-pending">–</div>
-            <div class="stat-sub">noch nicht bestätigt</div>
-          </div>
-        </div>
-
-        <div class="toolbar">
-          <label for="client-filter">Kunde</label>
-          <select id="client-filter">
-            <option value="">Alle Kunden</option>
-          </select>
-          <button class="secondary" id="resv-refresh">Aktualisieren</button>
-          <div class="count" id="resv-count"></div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Eingegangen</th>
-                <th>Kunde</th>
-                <th>Datum</th>
-                <th>Zeit</th>
-                <th>Personen</th>
-                <th>Email</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="resv-rows"></tbody>
-          </table>
-          <div class="empty hidden" id="resv-empty">Keine Reservierungen für diesen Filter.</div>
-        </div>
-      </section>
     </div>
   </main>
 
@@ -401,7 +343,6 @@
     const setShowDemos = (v) => v ? localStorage.setItem(SHOW_DEMOS_KEY, '1') : localStorage.removeItem(SHOW_DEMOS_KEY);
 
     let CLIENTS = [];
-    let RESERVATIONS = [];
 
     function getVisibleClients() {
       if (getShowDemos()) return CLIENTS;
@@ -462,7 +403,7 @@
         setToken(data.token);
         $('password').value = '';
         showView();
-        await Promise.all([loadClients(), loadReservations()]);
+        await loadClients();
       } catch (e) {
         $('login-error').textContent = e.message;
         $('login-error').classList.add('visible');
@@ -478,17 +419,6 @@
         CLIENTS = data.clients || [];
         renderStats();
         renderClients();
-        // Filter-Dropdown im Reservations-Tab auch aktualisieren
-        const sel = $('client-filter');
-        const prev = sel.value;
-        sel.innerHTML = '<option value="">Alle Kunden</option>';
-        CLIENTS.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c.id;
-          opt.textContent = (c.business_name || c.id) + (c.active ? '' : ' (inaktiv)');
-          sel.appendChild(opt);
-        });
-        sel.value = prev;
       } catch (e) { showToast(e.message, 'error'); }
     }
 
@@ -582,71 +512,6 @@
       }
     }
 
-    // ===== RESERVATIONS =====
-    async function loadReservations() {
-      const clientId = $('client-filter').value;
-      const qs = clientId ? '?clientId=' + encodeURIComponent(clientId) : '';
-      try {
-        const data = await api('/api/admin/reservations' + qs);
-        RESERVATIONS = data.reservations || [];
-        renderResvStats();
-        renderReservations();
-      } catch (e) { showToast(e.message, 'error'); }
-    }
-
-    function renderResvStats() {
-      const total = RESERVATIONS.length;
-      const today = new Date().toISOString().slice(0, 10);
-      const todayCount = RESERVATIONS.filter(r => (r.created_at || '').slice(0, 10) === today).length;
-      const confirmed = RESERVATIONS.filter(r => r.status === 'confirmed').length;
-      const pending = RESERVATIONS.filter(r => !r.status || r.status === 'pending' || r.status === 'offen').length;
-      $('stat-resv-total').textContent = total;
-      $('stat-resv-today').textContent = todayCount;
-      $('stat-resv-confirmed').textContent = confirmed;
-      $('stat-resv-pending').textContent = pending;
-    }
-
-    function renderReservations() {
-      const tbody = $('resv-rows');
-      tbody.innerHTML = '';
-      $('resv-count').textContent = RESERVATIONS.length + ' Reservierung' + (RESERVATIONS.length === 1 ? '' : 'en');
-      if (RESERVATIONS.length === 0) {
-        $('resv-empty').classList.remove('hidden');
-        return;
-      }
-      $('resv-empty').classList.add('hidden');
-      RESERVATIONS.forEach(r => {
-        const tr = document.createElement('tr');
-        const created = new Date(r.created_at);
-        const dateStr = r.date ? r.date : '—';
-        const timeStr = r.start_time ? String(r.start_time).slice(0, 5) : '—';
-        let statusCls = 'badge-muted';
-        if (r.status === 'confirmed') statusCls = 'badge-success';
-        else if (r.status === 'cancelled' || r.status === 'rejected') statusCls = 'badge-danger';
-        else if (r.status === 'pending' || !r.status) statusCls = 'badge-warning';
-        const clientName = (CLIENTS.find(c => c.id === r.client_id) || {}).business_name || r.client_id;
-        tr.innerHTML = `
-          <td>${created.toLocaleDateString('de-CH')} ${created.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td><div class="business">${escapeHtml(clientName)}</div><div class="id">${escapeHtml(r.client_id)}</div></td>
-          <td>${escapeHtml(dateStr)}</td>
-          <td>${escapeHtml(timeStr)}</td>
-          <td>${r.guests || '—'}</td>
-          <td><span class="email">${escapeHtml(r.email || '—')}</span></td>
-          <td><span class="badge ${statusCls}">${escapeHtml(r.status || 'offen')}</span></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // ===== TABS =====
-    function switchTab(name) {
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.tab === name);
-      });
-      $('tab-clients').classList.toggle('hidden', name !== 'clients');
-      $('tab-reservations').classList.toggle('hidden', name !== 'reservations');
-    }
-
     // ===== EVENT WIRING =====
     $('login-btn').addEventListener('click', doLogin);
     $('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -658,12 +523,6 @@
       setShowDemos(e.target.checked);
       renderStats();
       renderClients();
-    });
-    $('client-filter').addEventListener('change', loadReservations);
-    $('resv-refresh').addEventListener('click', loadReservations);
-
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      b.addEventListener('click', () => switchTab(b.dataset.tab));
     });
 
     // Action-Buttons via Event-Delegation
@@ -693,7 +552,7 @@
     $('show-demos-toggle').checked = getShowDemos();
     if (getToken()) {
       showView();
-      Promise.all([loadClients(), loadReservations()]);
+      loadClients();
     } else {
       showLogin();
     }
