@@ -8,7 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
   <style>
+    [data-lucide] { width: 16px; height: 16px; vertical-align: -3px; stroke-width: 2; }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       font-family: 'Manrope', system-ui, sans-serif;
@@ -74,7 +76,7 @@
 <body>
   <nav class="legal-nav">
     <a href="/" class="brand">Bot<span>Swiss</span></a>
-    &nbsp;&nbsp;<a href="/">← zurück</a>
+    &nbsp;&nbsp;<a href="/"><i data-lucide="arrow-left"></i> zurück</a>
   </nav>
   <main>
     <h1>Impressum</h1>
@@ -110,7 +112,8 @@
     <h2>Urheberrecht</h2>
     <p>Sämtliche Inhalte dieser Website (Texte, Grafiken, Logos, Bilder, Code) sind urheberrechtlich geschützt. Vervielfältigung, Bearbeitung oder Verbreitung bedürfen der vorherigen schriftlichen Zustimmung von Leon Isek.</p>
 
-    <p class="footer-back"><a href="/">← Zurück zu BotSwiss</a></p>
+    <p class="footer-back"><a href="/"><i data-lucide="arrow-left"></i> Zurück zu BotSwiss</a></p>
+    <script>if (window.lucide) lucide.createIcons();</script>
   </main>
 </body>
 </html>

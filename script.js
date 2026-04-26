@@ -18,7 +18,7 @@ const DEMO_CONVOS = {
     { from: 'user', text: 'Tisch für 4 Personen Freitag 19 Uhr' },
     { from: 'bot',  text: 'Gerne! Auf welche E-Mail soll die Bestätigung?' },
     { from: 'user', text: 'mario@example.ch' },
-    { from: 'bot',  text: '✓ Reserviert: 4 Personen, Fr. 19:00' }
+    { from: 'bot',  text: 'Reserviert: 4 Personen, Fr. 19:00' }
   ],
   cafe: [
     { from: 'bot',  text: 'Hoi! Was darf\'s sein?' },
@@ -39,7 +39,7 @@ const DEMO_CONVOS = {
     { from: 'user', text: 'Damen — waschen, schneiden, föhnen' },
     { from: 'bot',  text: 'Welcher Tag passt dir?' },
     { from: 'user', text: 'Mittwoch Nachmittag' },
-    { from: 'bot',  text: '✓ Gebucht: Mi. 14:30 Uhr' }
+    { from: 'bot',  text: 'Gebucht: Mi. 14:30 Uhr' }
   ],
   blumenladen: [
     { from: 'bot',  text: 'Grüezi, worum geht\'s?' },

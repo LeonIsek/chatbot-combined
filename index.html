@@ -461,10 +461,10 @@
       color: #374151;
     }
     .price-features li::before {
-      content: '✓';
+      content: '';
       width: 22px;
       height: 22px;
-      background: #d1fae5;
+      background: #d1fae5 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23065f46' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center/14px no-repeat;
       color: #065f46;
       border-radius: 50%;
       display: flex;
@@ -553,7 +553,12 @@
       #panel-landing .lp-hero { padding: 4rem 0 3rem; }
       #panel-landing .lp-pricing-grid { grid-template-columns: 1fr; }
     }
+    [data-lucide] { width: 24px; height: 24px; stroke-width: 2; vertical-align: -4px; }
+    .lp-feature-icon [data-lucide] { width: 32px; height: 32px; }
+    .biz-icon [data-lucide] { width: 28px; height: 28px; }
+    .top-logo [data-lucide] { width: 22px; height: 22px; vertical-align: -5px; }
   </style>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
 
@@ -563,14 +568,14 @@
 <!-- ====== TOP NAV ====== -->
 <nav class="top-nav">
   <div class="top-nav-inner">
-    <a href="#" class="top-logo" onclick="switchTab('landing');return false;">💬 Bot<span>Swiss</span></a>
+    <a href="#" class="top-logo" onclick="switchTab('landing');return false;"><i data-lucide="message-circle"></i> Bot<span>Swiss</span></a>
     <div class="tab-nav">
       <button class="tab-btn" onclick="switchTab('demo')">Demo</button>
       <button class="tab-btn" onclick="switchTab('anleitung')">Anleitung</button>
       <button class="tab-btn" onclick="switchTab('preise')">Preise</button>
     </div>
-    <a href="https://pizzeria-da-mario-omega.vercel.app" class="top-live" title="Bot auf einer echten Website live ausprobieren">Live testen →</a>
-    <a href="/setup.html" class="top-cta">Jetzt starten →</a>
+    <a href="https://pizzeria-da-mario-omega.vercel.app" class="top-live" title="Bot auf einer echten Website live ausprobieren">Live testen <i data-lucide="arrow-right"></i></a>
+    <a href="/setup.html" class="top-cta">Jetzt starten <i data-lucide="arrow-right"></i></a>
     <a href="/dashboard.html" class="top-login-circle" title="Kunden-Login" aria-label="Kunden-Login">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
     </a>
@@ -597,32 +602,32 @@
       <h2 class="lp-section-title">Was dein Chatbot kann</h2>
       <div class="lp-features-grid">
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">📅</div>
+          <div class="lp-feature-icon"><i data-lucide="calendar"></i></div>
           <h3>Reservierungen</h3>
           <p>Nimmt Reservierungen entgegen und schickt automatisch eine Bestätigung an den Gast.</p>
         </div>
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">💬</div>
+          <div class="lp-feature-icon"><i data-lucide="message-circle"></i></div>
           <h3>Fragen beantworten</h3>
           <p>Öffnungszeiten, Preise, Angebote — der Bot kennt dein Business und antwortet sofort.</p>
         </div>
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">🧠</div>
+          <div class="lp-feature-icon"><i data-lucide="brain"></i></div>
           <h3>Versteht Tippfehler</h3>
           <p>Echte Sprache, Dialekt, Tippfehler — der Bot versteht trotzdem was gemeint ist.</p>
         </div>
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">📧</div>
+          <div class="lp-feature-icon"><i data-lucide="mail"></i></div>
           <h3>Email-Benachrichtigung</h3>
           <p>Du bekommst sofort eine Email wenn eine neue Reservierung eingeht.</p>
         </div>
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">🎨</div>
+          <div class="lp-feature-icon"><i data-lucide="palette"></i></div>
           <h3>Passt sich an deine Seite an</h3>
           <p>Farben, Logo und Stil werden automatisch von deiner Website übernommen — der Bot wirkt wie ein Teil deines Auftritts.</p>
         </div>
         <div class="lp-feature-card">
-          <div class="lp-feature-icon">⚡</div>
+          <div class="lp-feature-icon"><i data-lucide="zap"></i></div>
           <h3>1-Zeilen Einbindung</h3>
           <p>Einen Script-Tag auf deine Website — fertig. Kein Techniker nötig.</p>
         </div>
@@ -646,23 +651,23 @@
   <!-- Business Selector -->
   <div class="biz-selector">
     <button class="biz-card active" data-demo="pizzeria" onclick="switchDemo('pizzeria')">
-      <span class="biz-icon">🍕</span>
+      <span class="biz-icon"><i data-lucide="pizza"></i></span>
       <span class="biz-label">Pizzeria</span>
     </button>
     <button class="biz-card" data-demo="coiffeur" onclick="switchDemo('coiffeur')">
-      <span class="biz-icon">✂️</span>
+      <span class="biz-icon"><i data-lucide="scissors"></i></span>
       <span class="biz-label">Coiffeur</span>
     </button>
     <button class="biz-card" data-demo="cafe" onclick="switchDemo('cafe')">
-      <span class="biz-icon">☕</span>
+      <span class="biz-icon"><i data-lucide="coffee"></i></span>
       <span class="biz-label">Café</span>
     </button>
     <button class="biz-card" data-demo="blumenladen" onclick="switchDemo('blumenladen')">
-      <span class="biz-icon">💐</span>
+      <span class="biz-icon"><i data-lucide="flower-2"></i></span>
       <span class="biz-label">Blumenladen</span>
     </button>
     <button class="biz-card" data-demo="zahnarzt" onclick="switchDemo('zahnarzt')">
-      <span class="biz-icon">🦷</span>
+      <span class="biz-icon"><i data-lucide="stethoscope"></i></span>
       <span class="biz-label">Zahnarzt</span>
     </button>
   </div>
@@ -7745,13 +7750,13 @@
   </style>
   <div class="dcm" id="dcm" aria-hidden="true">
     <div class="dcm-head">
-      <div class="dcm-avatar">🤖</div>
+      <div class="dcm-avatar"><i data-lucide="bot"></i></div>
       <div class="dcm-title" id="dcm-title">BotSwiss</div>
     </div>
     <div class="dcm-body" id="dcm-body"></div>
     <div class="dcm-foot">
       <div class="dcm-input">Nachricht schreiben…</div>
-      <div class="dcm-send">↑</div>
+      <div class="dcm-send"><i data-lucide="arrow-up"></i></div>
     </div>
   </div>
 
@@ -7773,7 +7778,7 @@
         <div class="step-body">
           <h3>Melde dich an</h3>
           <p>Klick auf <strong>„Jetzt starten"</strong> oben rechts. Du füllst ein kurzes Formular aus — Firmenname, E-Mail-Adresse, Öffnungszeiten und optional deine Preise. Das dauert ca. 2 Minuten.</p>
-          <a href="/setup.html" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-top:4px;">Zum Anmeldeformular →</a>
+          <a href="/setup.html" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-top:4px;">Zum Anmeldeformular <i data-lucide="arrow-right"></i></a>
         </div>
       </div>
 
@@ -7782,7 +7787,7 @@
         <div class="step-body">
           <h3>Wir richten deinen Bot ein</h3>
           <p>Nach deiner Anmeldung konfigurieren wir deinen persönlichen Chatbot. Er wird mit deinen Öffnungszeiten, Preisen und dem von dir gewählten Tonfall eingerichtet. Du musst nichts weiter tun.</p>
-          <div class="step-note">⏱ Dein Bot wird innerhalb von 24 Stunden aktiviert.</div>
+          <div class="step-note"><i data-lucide="clock"></i> Dein Bot wird innerhalb von 24 Stunden aktiviert.</div>
         </div>
       </div>
 
@@ -7804,19 +7809,19 @@
 
           <div class="platform-cards">
             <div class="platform-card">
-              <strong>🔷 WordPress</strong>
+              <strong>WordPress</strong>
               <p>Geh zu <code>Design → Theme-Editor → footer.php</code>. Oder installiere das Plugin <em>„Insert Headers and Footers"</em>. Dort den Code im Bereich „Footer Scripts" einfügen und speichern.</p>
             </div>
             <div class="platform-card">
-              <strong>🔶 Wix</strong>
+              <strong>Wix</strong>
               <p>Geh zu <code>Einstellungen → Erweitert → Benutzerdefinierten Code</code>. Klick auf „+ Code hinzufügen", wähle <em>„Körper — Ende"</em>, füge den Code ein und speichere.</p>
             </div>
             <div class="platform-card">
-              <strong>⬛ Squarespace</strong>
+              <strong>Squarespace</strong>
               <p>Geh zu <code>Einstellungen → Erweitert → Code-Einschleusung</code>. Füge den Code im Bereich <em>„Footer"</em> ein und speichere die Änderungen.</p>
             </div>
             <div class="platform-card">
-              <strong>🌐 Eigene Website</strong>
+              <strong>Eigene Website</strong>
               <p>Öffne deine <code>index.html</code> im Editor. Suche nach <code>&lt;/body&gt;</code> am Ende der Datei. Füge den Code direkt <em>davor</em> ein und speichere.</p>
             </div>
           </div>
@@ -7830,9 +7835,9 @@
       <div class="guide-step">
         <div class="step-num-circle">5</div>
         <div class="step-body">
-          <h3>Dein Chatbot ist live 🎉</h3>
+          <h3>Dein Chatbot ist live</h3>
           <p>Sobald der Code eingefügt ist, erscheint der Chat-Button unten rechts auf deiner Website. Deine Kunden können sofort Fragen stellen, Öffnungszeiten erfragen und Reservierungen machen — und du bekommst bei jeder Reservierung automatisch eine E-Mail.</p>
-          <div class="step-note">✅ Fertig. Der Bot läuft ab sofort 24/7 auf deiner Website.</div>
+          <div class="step-note"><i data-lucide="check-circle"></i> Fertig. Der Bot läuft ab sofort 24/7 auf deiner Website.</div>
         </div>
       </div>
 
@@ -7873,7 +7878,7 @@
         <li>Monatlich kündbar, kein Vertrag</li>
       </ul>
 
-      <a href="/setup.html" class="price-cta">Jetzt einrichten →</a>
+      <a href="/setup.html" class="price-cta">Jetzt einrichten <i data-lucide="arrow-right"></i></a>
       <p class="price-note">Monatlich, jederzeit kündbar · Zahlung per Karte, Twint oder Banküberweisung</p>
     </div>
   </div>
@@ -7931,6 +7936,7 @@ function switchTab(tab) {
   }, true);
 })();
 
+if (window.lucide) lucide.createIcons();
 </script>
 
 </body>

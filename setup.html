@@ -6,6 +6,7 @@
   <title>Chatbot einrichten — BotSwiss</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -246,7 +247,7 @@
 <body>
 
 <nav>
-  <a href="index.html" class="logo">💬 Bot<span>Swiss</span></a>
+  <a href="index.html" class="logo"><i data-lucide="message-circle"></i> Bot<span>Swiss</span></a>
 </nav>
 
 <div class="page">
@@ -306,7 +307,7 @@
         <div class="field">
           <label for="website">Website <span class="req">*</span></label>
           <input type="url" id="website" name="website" placeholder="https://deine-website.ch" required/>
-          <p class="hint">🤖 Wir analysieren deine Website automatisch — Infos, Farben und Logo werden übernommen</p>
+          <p class="hint"><i data-lucide="bot"></i> Wir analysieren deine Website automatisch — Infos, Farben und Logo werden übernommen</p>
         </div>
 
         <div class="field">
@@ -437,7 +438,7 @@
         <div id="errorMsg" class="error-msg"></div>
 
         <button type="submit" class="submit-btn" id="submitBtn">
-          Chatbot einrichten →
+          Chatbot einrichten <i data-lucide="arrow-right"></i>
         </button>
 
       </form>
@@ -445,7 +446,7 @@
 
     <!-- Success -->
     <div class="success-view" id="successView">
-      <div class="success-icon">✅</div>
+      <div class="success-icon"><i data-lucide="check-circle"></i></div>
       <h2>Fast fertig!</h2>
       <p>Dein Chatbot wurde registriert. <strong>Leon aktiviert ihn innerhalb von 24 Stunden.</strong><br>Du hast auch eine Email mit deinem Script-Tag bekommen.</p>
 
@@ -571,7 +572,8 @@
       errorMsg.textContent = err.message || 'Unbekannter Fehler. Bitte versuche es nochmal.';
       errorMsg.classList.add('visible');
       btn.disabled = false;
-      btn.textContent = 'Chatbot einrichten →';
+      btn.innerHTML = 'Chatbot einrichten <i data-lucide="arrow-right"></i>';
+      if (window.lucide) lucide.createIcons();
     }
   });
 
@@ -586,6 +588,7 @@
       }, 2000);
     });
   }
+  if (window.lucide) lucide.createIcons();
 </script>
 
 </body>
