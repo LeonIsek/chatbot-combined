@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Admin · Reservierungen · BotSwiss</title>
+  <title>Admin · BotSwiss</title>
+  <meta name="robots" content="noindex"/>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #FAFAFA;
@@ -14,7 +17,9 @@
       --border: #E5E5E5;
       --accent: #0A0A0A;
       --success: #10B981;
+      --warning: #F59E0B;
       --danger: #EF4444;
+      --info: #6366F1;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -33,20 +38,11 @@
       align-items: center;
       justify-content: space-between;
     }
-    header h1 {
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-    }
-    header .meta {
-      font-size: 12px;
-      color: var(--muted);
-    }
-    main {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 24px;
-    }
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    header h1 span { color: var(--info); }
+    header .meta { font-size: 12px; color: var(--muted); }
+    main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
     .login-card {
       max-width: 420px;
       margin: 80px auto;
@@ -56,11 +52,8 @@
       padding: 32px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.04);
     }
-    .login-card h2 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 24px;
-    }
+    .login-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+
     input, select {
       width: 100%;
       padding: 10px 14px;
@@ -74,6 +67,7 @@
       transition: border-color 160ms;
     }
     input:focus, select:focus { border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+
     button {
       padding: 10px 16px;
       background: var(--accent);
@@ -84,11 +78,17 @@
       font-weight: 500;
       font-family: inherit;
       cursor: pointer;
-      transition: transform 120ms, opacity 120ms;
+      transition: transform 120ms, opacity 120ms, background 120ms;
     }
     button:hover { transform: translateY(-1px); }
     button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     button.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    button.secondary:hover { background: var(--bg); }
+    button.danger { background: var(--danger); }
+    button.success { background: var(--success); }
+    button.tiny { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+
     .error {
       color: var(--danger);
       font-size: 13px;
@@ -98,6 +98,47 @@
     .error.visible { display: block; }
     .hidden { display: none !important; }
 
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: all 160ms;
+    }
+    .tab-btn:hover { transform: none; color: var(--text); background: var(--bg); }
+    .tab-btn.active { background: var(--accent); color: #fff; }
+    .tab-btn.active:hover { background: var(--accent); }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .stat-label { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+    .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em; }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
     .toolbar {
       display: flex;
       gap: 12px;
@@ -105,32 +146,28 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 14px;
+      padding: 12px 14px;
       margin-bottom: 16px;
       flex-wrap: wrap;
     }
     .toolbar label { font-size: 13px; color: var(--muted); font-weight: 500; }
-    .toolbar select { width: auto; min-width: 220px; }
-    .toolbar .count {
-      font-size: 13px;
-      color: var(--muted);
-      margin-left: auto;
-    }
+    .toolbar select, .toolbar input[type="search"] { width: auto; min-width: 220px; padding: 8px 12px; }
+    .toolbar .count { font-size: 13px; color: var(--muted); margin-left: auto; }
+
     .table-wrap {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      overflow: hidden;
+      overflow: auto;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    table { width: 100%; border-collapse: collapse; }
     th, td {
       text-align: left;
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
+      vertical-align: middle;
+      white-space: nowrap;
     }
     th {
       background: var(--bg);
@@ -139,34 +176,72 @@
       letter-spacing: 0.02em;
       font-size: 11px;
       text-transform: uppercase;
+      position: sticky;
+      top: 0;
     }
     tr:last-child td { border-bottom: 0; }
     tr:hover td { background: rgba(0,0,0,0.02); }
+    td.actions { white-space: nowrap; }
+    td.actions button { margin-right: 4px; }
+    td .business { font-weight: 600; }
+    td .id { color: var(--muted); font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+    td .email { color: var(--muted); font-size: 12px; }
+
     .badge {
       display: inline-block;
       padding: 3px 8px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 500;
+      white-space: nowrap;
     }
     .badge-success { background: rgba(16,185,129,0.12); color: #047857; }
+    .badge-warning { background: rgba(245,158,11,0.14); color: #b45309; }
     .badge-muted   { background: rgba(115,115,115,0.12); color: var(--muted); }
+    .badge-info    { background: rgba(99,102,241,0.12); color: #4338ca; }
+    .badge-danger  { background: rgba(239,68,68,0.12); color: #b91c1c; }
+
     .empty {
       padding: 60px 24px;
       text-align: center;
       color: var(--muted);
     }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--text);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 200ms, transform 200ms;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .toast.visible { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--danger); }
+    .toast.success { background: var(--success); }
+
     @media (max-width: 640px) {
       th, td { padding: 10px 8px; font-size: 12px; }
-      .toolbar select { min-width: 160px; }
+      .toolbar select, .toolbar input[type="search"] { min-width: 140px; }
+      .stat-value { font-size: 22px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Reservierungen · BotSwiss Admin</h1>
+    <h1>Bot<span>Swiss</span> · Admin</h1>
     <div class="meta">
-      <span id="user-indicator" class="hidden"><button class="secondary" id="logout-btn" style="padding:6px 12px;font-size:12px;">Abmelden</button></span>
+      <span id="user-indicator" class="hidden">
+        <button class="secondary" id="logout-btn" style="padding:6px 12px;font-size:12px;">Abmelden</button>
+      </span>
     </div>
   </header>
 
@@ -179,35 +254,122 @@
       <button id="login-btn" style="margin-top:14px;width:100%;">Anmelden</button>
     </div>
 
-    <!-- Reservations-View (nach Login) -->
+    <!-- Main view -->
     <div class="hidden" id="view-box">
-      <div class="toolbar">
-        <label for="client-filter">Kunde</label>
-        <select id="client-filter">
-          <option value="">Alle Kunden</option>
-        </select>
-        <button class="secondary" id="refresh-btn">Aktualisieren</button>
-        <div class="count" id="count"></div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="clients">Kunden</button>
+        <button class="tab-btn" data-tab="reservations">Reservierungen</button>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Eingegangen</th>
-              <th>Kunde</th>
-              <th>Datum</th>
-              <th>Zeit</th>
-              <th>Personen</th>
-              <th>Email</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-        <div class="empty hidden" id="empty">Keine Reservierungen für diesen Filter.</div>
-      </div>
+
+      <!-- Clients tab -->
+      <section id="tab-clients">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Kunden total</div>
+            <div class="stat-value" id="stat-total">–</div>
+            <div class="stat-sub" id="stat-total-sub"></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Aktiv</div>
+            <div class="stat-value" id="stat-active">–</div>
+            <div class="stat-sub">live im Betrieb</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Demo-Modus</div>
+            <div class="stat-value" id="stat-demo">–</div>
+            <div class="stat-sub">keine Visitor-Mails</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Bezahlt</div>
+            <div class="stat-value" id="stat-paid">–</div>
+            <div class="stat-sub" id="stat-paid-sub"></div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <label for="client-search">Suche</label>
+          <input type="search" id="client-search" placeholder="ID, Name, Email…"/>
+          <button class="secondary" id="clients-refresh">Aktualisieren</button>
+          <div class="count" id="clients-count"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kunde</th>
+                <th>Email</th>
+                <th>Branche</th>
+                <th>Aktiv</th>
+                <th>Demo</th>
+                <th>Zahlung</th>
+                <th>CHF/Mo</th>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody id="clients-rows"></tbody>
+          </table>
+          <div class="empty hidden" id="clients-empty">Keine Kunden gefunden.</div>
+        </div>
+      </section>
+
+      <!-- Reservations tab -->
+      <section id="tab-reservations" class="hidden">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Reservierungen geladen</div>
+            <div class="stat-value" id="stat-resv-total">–</div>
+            <div class="stat-sub">letzte 200 max</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Heute</div>
+            <div class="stat-value" id="stat-resv-today">–</div>
+            <div class="stat-sub">eingegangen heute</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Bestätigt</div>
+            <div class="stat-value" id="stat-resv-confirmed">–</div>
+            <div class="stat-sub">Status confirmed</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Offen</div>
+            <div class="stat-value" id="stat-resv-pending">–</div>
+            <div class="stat-sub">noch nicht bestätigt</div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <label for="client-filter">Kunde</label>
+          <select id="client-filter">
+            <option value="">Alle Kunden</option>
+          </select>
+          <button class="secondary" id="resv-refresh">Aktualisieren</button>
+          <div class="count" id="resv-count"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Eingegangen</th>
+                <th>Kunde</th>
+                <th>Datum</th>
+                <th>Zeit</th>
+                <th>Personen</th>
+                <th>Email</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="resv-rows"></tbody>
+          </table>
+          <div class="empty hidden" id="resv-empty">Keine Reservierungen für diesen Filter.</div>
+        </div>
+      </section>
     </div>
   </main>
+
+  <div class="toast" id="toast"></div>
 
   <script>
     const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
@@ -217,13 +379,33 @@
     const getToken = () => localStorage.getItem(TOKEN_KEY);
     const setToken = (t) => t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
 
+    let CLIENTS = [];
+    let RESERVATIONS = [];
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    function showToast(msg, type) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.className = 'toast visible' + (type ? ' ' + type : '');
+      clearTimeout(showToast._h);
+      showToast._h = setTimeout(() => t.classList.remove('visible'), 2400);
+    }
+
     async function api(path, opts = {}) {
       const headers = opts.headers || {};
       if (getToken()) headers['Authorization'] = 'Bearer ' + getToken();
       headers['Content-Type'] = 'application/json';
-      const res = await fetch(BACKEND + path, { ...opts, headers });
+      const body = opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body;
+      const res = await fetch(BACKEND + path, { ...opts, body, headers });
       if (res.status === 401) { setToken(null); showLogin(); throw new Error('Unauthorized'); }
-      return res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
     }
 
     function showLogin() {
@@ -242,6 +424,7 @@
       $('login-error').classList.remove('visible');
       const password = $('password').value;
       if (!password) return;
+      $('login-btn').disabled = true;
       try {
         const res = await fetch(BACKEND + '/api/admin/login', {
           method: 'POST',
@@ -253,81 +436,227 @@
         setToken(data.token);
         $('password').value = '';
         showView();
-        await loadClients();
-        await loadReservations();
+        await Promise.all([loadClients(), loadReservations()]);
       } catch (e) {
         $('login-error').textContent = e.message;
         $('login-error').classList.add('visible');
+      } finally {
+        $('login-btn').disabled = false;
       }
     }
 
+    // ===== CLIENTS =====
     async function loadClients() {
       try {
         const data = await api('/api/admin/clients');
-        const select = $('client-filter');
-        select.innerHTML = '<option value="">Alle Kunden</option>';
-        (data.clients || []).forEach(c => {
+        CLIENTS = data.clients || [];
+        renderStats();
+        renderClients();
+        // Filter-Dropdown im Reservations-Tab auch aktualisieren
+        const sel = $('client-filter');
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Alle Kunden</option>';
+        CLIENTS.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c.id;
           opt.textContent = (c.business_name || c.id) + (c.active ? '' : ' (inaktiv)');
-          select.appendChild(opt);
+          sel.appendChild(opt);
         });
-      } catch (e) { /* unauthorized handled already */ }
+        sel.value = prev;
+      } catch (e) { showToast(e.message, 'error'); }
     }
 
+    function renderStats() {
+      const total = CLIENTS.length;
+      const active = CLIENTS.filter(c => c.active).length;
+      const demo = CLIENTS.filter(c => c.demo_mode).length;
+      const paid = CLIENTS.filter(c => c.payment_status === 'bezahlt').length;
+      const paidSum = CLIENTS
+        .filter(c => c.payment_status === 'bezahlt')
+        .reduce((sum, c) => sum + (Number(c.monthly_price) || 0), 0);
+      $('stat-total').textContent = total;
+      $('stat-total-sub').textContent = (total - active) + ' inaktiv';
+      $('stat-active').textContent = active;
+      $('stat-demo').textContent = demo;
+      $('stat-paid').textContent = paid;
+      $('stat-paid-sub').textContent = paidSum > 0 ? `CHF ${paidSum}/Mo` : 'kein Umsatz erfasst';
+    }
+
+    function renderClients() {
+      const q = $('client-search').value.trim().toLowerCase();
+      const filtered = CLIENTS.filter(c => {
+        if (!q) return true;
+        return (c.id || '').toLowerCase().includes(q)
+          || (c.business_name || '').toLowerCase().includes(q)
+          || (c.email || '').toLowerCase().includes(q);
+      });
+      const tbody = $('clients-rows');
+      tbody.innerHTML = '';
+      $('clients-count').textContent = filtered.length + ' Kunde' + (filtered.length === 1 ? '' : 'n');
+      if (filtered.length === 0) {
+        $('clients-empty').classList.remove('hidden');
+        return;
+      }
+      $('clients-empty').classList.add('hidden');
+      filtered.forEach(c => {
+        const tr = document.createElement('tr');
+        const activeBadge = c.active
+          ? '<span class="badge badge-success">aktiv</span>'
+          : '<span class="badge badge-muted">inaktiv</span>';
+        const demoBadge = c.demo_mode
+          ? '<span class="badge badge-info">demo</span>'
+          : '<span class="badge badge-muted">live</span>';
+        const paymentBadge = c.payment_status === 'bezahlt'
+          ? '<span class="badge badge-success">bezahlt</span>'
+          : (c.payment_status === 'offen'
+              ? '<span class="badge badge-warning">offen</span>'
+              : '<span class="badge badge-muted">—</span>');
+        const branche = c.business_type || '—';
+        const price = c.monthly_price ? `CHF ${c.monthly_price}` : '—';
+        tr.innerHTML = `
+          <td>
+            <div class="business">${escapeHtml(c.business_name || c.id)}</div>
+            <div class="id">${escapeHtml(c.id)}</div>
+          </td>
+          <td><span class="email">${escapeHtml(c.email || '—')}</span></td>
+          <td>${escapeHtml(branche)}</td>
+          <td>${activeBadge}</td>
+          <td>${demoBadge}</td>
+          <td>${paymentBadge}</td>
+          <td>${escapeHtml(price)}</td>
+          <td class="actions">
+            <button class="tiny secondary" data-action="toggle-active" data-id="${escapeHtml(c.id)}">${c.active ? 'Deaktivieren' : 'Aktivieren'}</button>
+            <button class="tiny secondary" data-action="toggle-demo" data-id="${escapeHtml(c.id)}">${c.demo_mode ? 'Live' : 'Demo'}</button>
+            <button class="tiny secondary" data-action="toggle-paid" data-id="${escapeHtml(c.id)}">${c.payment_status === 'bezahlt' ? 'Offen' : 'Bezahlt'}</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function patchClient(id, updates, label) {
+      try {
+        const data = await api('/api/admin/clients/' + encodeURIComponent(id), {
+          method: 'PATCH',
+          body: updates
+        });
+        // Lokal updaten ohne kompletten Reload
+        const idx = CLIENTS.findIndex(c => c.id === id);
+        if (idx >= 0) CLIENTS[idx] = data.client;
+        renderStats();
+        renderClients();
+        showToast(label || 'Aktualisiert', 'success');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // ===== RESERVATIONS =====
     async function loadReservations() {
       const clientId = $('client-filter').value;
       const qs = clientId ? '?clientId=' + encodeURIComponent(clientId) : '';
       try {
         const data = await api('/api/admin/reservations' + qs);
-        renderRows(data.reservations || []);
-      } catch (e) { /* unauthorized handled already */ }
+        RESERVATIONS = data.reservations || [];
+        renderResvStats();
+        renderReservations();
+      } catch (e) { showToast(e.message, 'error'); }
     }
 
-    function renderRows(rows) {
-      const tbody = $('rows');
+    function renderResvStats() {
+      const total = RESERVATIONS.length;
+      const today = new Date().toISOString().slice(0, 10);
+      const todayCount = RESERVATIONS.filter(r => (r.created_at || '').slice(0, 10) === today).length;
+      const confirmed = RESERVATIONS.filter(r => r.status === 'confirmed').length;
+      const pending = RESERVATIONS.filter(r => !r.status || r.status === 'pending' || r.status === 'offen').length;
+      $('stat-resv-total').textContent = total;
+      $('stat-resv-today').textContent = todayCount;
+      $('stat-resv-confirmed').textContent = confirmed;
+      $('stat-resv-pending').textContent = pending;
+    }
+
+    function renderReservations() {
+      const tbody = $('resv-rows');
       tbody.innerHTML = '';
-      $('count').textContent = rows.length + ' Reservierung' + (rows.length === 1 ? '' : 'en');
-      if (rows.length === 0) {
-        $('empty').classList.remove('hidden');
+      $('resv-count').textContent = RESERVATIONS.length + ' Reservierung' + (RESERVATIONS.length === 1 ? '' : 'en');
+      if (RESERVATIONS.length === 0) {
+        $('resv-empty').classList.remove('hidden');
         return;
       }
-      $('empty').classList.add('hidden');
-      rows.forEach(r => {
+      $('resv-empty').classList.add('hidden');
+      RESERVATIONS.forEach(r => {
         const tr = document.createElement('tr');
         const created = new Date(r.created_at);
         const dateStr = r.date ? r.date : '—';
         const timeStr = r.start_time ? String(r.start_time).slice(0, 5) : '—';
-        const statusCls = r.status === 'confirmed' ? 'badge-success' : 'badge-muted';
+        let statusCls = 'badge-muted';
+        if (r.status === 'confirmed') statusCls = 'badge-success';
+        else if (r.status === 'cancelled' || r.status === 'rejected') statusCls = 'badge-danger';
+        else if (r.status === 'pending' || !r.status) statusCls = 'badge-warning';
+        const clientName = (CLIENTS.find(c => c.id === r.client_id) || {}).business_name || r.client_id;
         tr.innerHTML = `
           <td>${created.toLocaleDateString('de-CH')} ${created.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td>${escapeHtml(r.client_id)}</td>
+          <td><div class="business">${escapeHtml(clientName)}</div><div class="id">${escapeHtml(r.client_id)}</div></td>
           <td>${escapeHtml(dateStr)}</td>
           <td>${escapeHtml(timeStr)}</td>
           <td>${r.guests || '—'}</td>
-          <td>${escapeHtml(r.email || '—')}</td>
+          <td><span class="email">${escapeHtml(r.email || '—')}</span></td>
           <td><span class="badge ${statusCls}">${escapeHtml(r.status || 'offen')}</span></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function escapeHtml(s) {
-      return String(s == null ? '' : s)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    // ===== TABS =====
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+      });
+      $('tab-clients').classList.toggle('hidden', name !== 'clients');
+      $('tab-reservations').classList.toggle('hidden', name !== 'reservations');
     }
 
-    // Event wiring
+    // ===== EVENT WIRING =====
     $('login-btn').addEventListener('click', doLogin);
     $('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-    $('client-filter').addEventListener('change', loadReservations);
-    $('refresh-btn').addEventListener('click', loadReservations);
     $('logout-btn').addEventListener('click', () => { setToken(null); showLogin(); });
+
+    $('client-search').addEventListener('input', renderClients);
+    $('clients-refresh').addEventListener('click', loadClients);
+    $('client-filter').addEventListener('change', loadReservations);
+    $('resv-refresh').addEventListener('click', loadReservations);
+
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.addEventListener('click', () => switchTab(b.dataset.tab));
+    });
+
+    // Action-Buttons via Event-Delegation
+    $('clients-rows').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      const c = CLIENTS.find(x => x.id === id);
+      if (!c) return;
+      btn.disabled = true;
+      try {
+        if (action === 'toggle-active') {
+          await patchClient(id, { active: !c.active }, c.active ? 'Deaktiviert' : 'Aktiviert');
+        } else if (action === 'toggle-demo') {
+          await patchClient(id, { demo_mode: !c.demo_mode }, c.demo_mode ? 'Live-Modus' : 'Demo-Modus');
+        } else if (action === 'toggle-paid') {
+          const newStatus = c.payment_status === 'bezahlt' ? 'offen' : 'bezahlt';
+          await patchClient(id, { payment_status: newStatus }, 'Zahlung: ' + newStatus);
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     // Init
     if (getToken()) {
       showView();
-      loadClients().then(loadReservations);
+      Promise.all([loadClients(), loadReservations()]);
     } else {
       showLogin();
     }
