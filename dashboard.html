@@ -372,6 +372,7 @@
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
+            <button class="btn hidden" id="layout-wall-mode">🧱 Wand zeichnen</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Zoom zurücksetzen">⟲ Reset</button>
             <span class="layout-status" id="layout-status"></span>
@@ -711,6 +712,9 @@
     let LAYOUT_MODE = 'live';      // 'live' | 'edit'
     let LAYOUT_DATE = new Date().toISOString().slice(0, 10);
     let LAYOUT_EDITING_ID = null;  // 'new' | resource.id | null
+    let LAYOUT_WALLS = [];         // [{ x1, y1, x2, y2 }]
+    let LAYOUT_WALL_MODE = false;  // true = Wand-Zeichnen aktiv
+    let LAYOUT_WALL_START = null;  // {x, y} wenn erster Klick gesetzt
 
     async function loadReservations() {
       // Backward-compat: Init-Sequenz ruft das. Layout-Tab wird lazy initialisiert beim Tab-Switch.
@@ -794,6 +798,15 @@
         layoutStatus('Zoom zurueckgesetzt', 'success');
       });
 
+      // Wand-Modus-Toggle
+      $('layout-wall-mode').addEventListener('click', layoutToggleWallMode);
+      // Stage-Click fuer Wand-Erstellung
+      LAYOUT_STAGE.on('click tap', layoutHandleStageClick);
+      // Esc beendet Wand-Modus
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && LAYOUT_WALL_MODE) layoutToggleWallMode();
+      });
+
       // Drop-Zone fuer Reservation-Drag
       container.addEventListener('dragover', (e) => e.preventDefault());
       container.addEventListener('drop', layoutHandleDrop);
@@ -813,10 +826,13 @@
       });
       $('layout-add-table').classList.toggle('hidden', mode !== 'edit');
       $('layout-save').classList.toggle('hidden', mode !== 'edit');
+      $('layout-wall-mode').classList.toggle('hidden', mode !== 'edit');
       $('canvas-area').classList.toggle('edit-mode', mode === 'edit');
+      // Beim Verlassen Edit-Mode: Wand-Mode auch aus
+      if (mode !== 'edit' && LAYOUT_WALL_MODE) layoutToggleWallMode();
       $('canvas-hint').textContent = mode === 'edit'
-        ? 'Drag Tische zum Verschieben, Klick zum Bearbeiten'
-        : 'Drag Reservierung von rechts auf einen Tisch zum Zuweisen';
+        ? 'Drag Tische zum Verschieben, Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen'
+        : 'Drag Reservierung von rechts auf einen Tisch zum Zuweisen · Mausrad zoomen · Drag pannen';
       layoutDrawTables();
     }
 
@@ -831,6 +847,7 @@
         const data = await api('/api/customer/resources');
         LAYOUT_RESOURCES = data.resources || [];
       } catch (e) { LAYOUT_RESOURCES = []; }
+      LAYOUT_WALLS = (clientData && Array.isArray(clientData.layout_walls)) ? clientData.layout_walls : [];
       try {
         const data = await api('/api/customer/reservations');
         const all = data.reservations || [];
@@ -856,9 +873,81 @@
     function layoutDrawTables() {
       if (!LAYOUT_LAYER) return;
       LAYOUT_LAYER.destroyChildren();
-      $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0);
+      $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0 && LAYOUT_WALLS.length === 0);
+      // Wände zuerst rendern (damit Tische darüber liegen)
+      LAYOUT_WALLS.forEach((w, i) => LAYOUT_LAYER.add(layoutBuildWallNode(w, i)));
       LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
       LAYOUT_LAYER.draw();
+    }
+
+    function layoutBuildWallNode(wall, idx) {
+      const line = new Konva.Line({
+        points: [wall.x1, wall.y1, wall.x2, wall.y2],
+        stroke: LAYOUT_WALL_MODE ? '#475569' : '#94a3b8',
+        strokeWidth: 6,
+        lineCap: 'round',
+        id: 'wall-' + idx,
+        hitStrokeWidth: 16  // groesserer Click-Bereich
+      });
+      line.on('click tap', async (e) => {
+        e.cancelBubble = true;
+        if (!LAYOUT_WALL_MODE) return;  // nur im Wand-Mode loeschbar
+        if (!confirm('Wand löschen?')) return;
+        LAYOUT_WALLS.splice(idx, 1);
+        await layoutSaveWalls();
+        layoutDrawTables();
+      });
+      return line;
+    }
+
+    async function layoutSaveWalls() {
+      try {
+        await api('/api/customer/client', {
+          method: 'PATCH',
+          body: JSON.stringify({ layout_walls: LAYOUT_WALLS })
+        });
+        if (clientData) clientData.layout_walls = LAYOUT_WALLS;
+      } catch (e) {
+        console.warn('[layout] saveWalls failed:', e);
+      }
+    }
+
+    function layoutToggleWallMode() {
+      LAYOUT_WALL_MODE = !LAYOUT_WALL_MODE;
+      LAYOUT_WALL_START = null;
+      const btn = $('layout-wall-mode');
+      if (btn) {
+        btn.textContent = LAYOUT_WALL_MODE ? '✓ Wand-Modus aktiv (Esc zum Beenden)' : '🧱 Wand zeichnen';
+        btn.classList.toggle('primary', LAYOUT_WALL_MODE);
+      }
+      const cont = $('konva-container');
+      cont.style.cursor = LAYOUT_WALL_MODE ? 'crosshair' : 'grab';
+      // Stage-Drag im Wand-Modus deaktivieren (sonst Pan-Konflikt)
+      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_MODE);
+      layoutDrawTables();
+    }
+
+    async function layoutHandleStageClick(e) {
+      if (!LAYOUT_WALL_MODE) return;
+      if (e.target !== LAYOUT_STAGE && e.target?.getType?.() !== 'Stage') {
+        // Klick auf bestehende Wand oder Tisch — Wand-Build nicht starten
+        return;
+      }
+      const pointer = LAYOUT_STAGE.getPointerPosition();
+      if (!pointer) return;
+      const scale = LAYOUT_STAGE.scaleX();
+      const x = (pointer.x - LAYOUT_STAGE.x()) / scale;
+      const y = (pointer.y - LAYOUT_STAGE.y()) / scale;
+      if (!LAYOUT_WALL_START) {
+        LAYOUT_WALL_START = { x, y };
+        layoutStatus('Klick zweiten Punkt der Wand', 'success');
+      } else {
+        LAYOUT_WALLS.push({ x1: LAYOUT_WALL_START.x, y1: LAYOUT_WALL_START.y, x2: x, y2: y });
+        LAYOUT_WALL_START = null;
+        await layoutSaveWalls();
+        layoutDrawTables();
+        layoutStatus('Wand hinzugefuegt', 'success');
+      }
     }
 
     function layoutBuildTableNode(resource) {
