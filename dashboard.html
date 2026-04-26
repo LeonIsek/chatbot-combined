@@ -737,6 +737,7 @@
     let LAYOUT_WALL_DRAWING = false; // true = aktuell wird gerade gezogen
     let LAYOUT_WALL_PREVIEW = null;  // Konva.Line Preview waehrend Drag
     let LAYOUT_WALL_SELECTED_IDX = null; // index der selektierten Wand (oder null)
+    let LAYOUT_WALL_HOVER_IDX = null;    // index der gehoverten Wand fuer Highlight
 
     async function loadReservations() {
       // Backward-compat: Init-Sequenz ruft das. Layout-Tab wird lazy initialisiert beim Tab-Switch.
@@ -856,6 +857,35 @@
       container.addEventListener('dragover', (e) => e.preventDefault());
       container.addEventListener('drop', layoutHandleDrop);
 
+      // Native Mousemove fuer zuverlaessigen Wand-Hover (Konva-Hit-Detection ist bei Lines flaky)
+      container.addEventListener('mousemove', (ev) => {
+        if (!LAYOUT_WALL_MODE) return;
+        if (LAYOUT_WALL_DRAWING) return;
+        const idx = layoutFindWallAtPointer(ev.clientX, ev.clientY);
+        if (idx === LAYOUT_WALL_HOVER_IDX) return;
+        LAYOUT_WALL_HOVER_IDX = idx;
+        // Stroke-Widths live updaten ohne layoutDrawTables (vermeidet Listener-Reset)
+        LAYOUT_WALLS.forEach((_, i) => {
+          const node = LAYOUT_LAYER.findOne('#wall-' + i);
+          if (!node) return;
+          if (i === LAYOUT_WALL_SELECTED_IDX) node.strokeWidth(8);
+          else if (i === LAYOUT_WALL_HOVER_IDX) node.strokeWidth(10);
+          else node.strokeWidth(6);
+        });
+        container.style.cursor = idx >= 0 ? 'pointer' : 'crosshair';
+        LAYOUT_LAYER.batchDraw();
+      });
+      container.addEventListener('mouseleave', () => {
+        if (LAYOUT_WALL_HOVER_IDX === null) return;
+        LAYOUT_WALL_HOVER_IDX = null;
+        LAYOUT_WALLS.forEach((_, i) => {
+          const node = LAYOUT_LAYER.findOne('#wall-' + i);
+          if (!node) return;
+          node.strokeWidth(i === LAYOUT_WALL_SELECTED_IDX ? 8 : 6);
+        });
+        LAYOUT_LAYER.batchDraw();
+      });
+
       // Resize
       window.addEventListener('resize', () => {
         if (LAYOUT_STAGE) LAYOUT_STAGE.width(container.offsetWidth);
@@ -934,30 +964,47 @@
 
     function layoutBuildWallNode(wall, idx) {
       const isSelected = LAYOUT_WALL_SELECTED_IDX === idx;
+      const isHovered = LAYOUT_WALL_HOVER_IDX === idx;
       const line = new Konva.Line({
         points: [wall.x1, wall.y1, wall.x2, wall.y2],
         stroke: '#0a0a0a',
-        strokeWidth: isSelected ? 8 : 6,
+        strokeWidth: isSelected ? 8 : (isHovered ? 10 : 6),
         lineCap: 'butt',
         id: 'wall-' + idx,
         name: 'wall',
-        hitStrokeWidth: 24,
+        hitStrokeWidth: 40,
+        strokeScaleEnabled: false,
         listening: true
       });
-      // Hover-Feedback nur im Wand-Mode (aber wenig invasiv, da schwarz bleibt)
-      if (LAYOUT_WALL_MODE && !isSelected) {
-        line.on('mouseenter', () => {
-          line.strokeWidth(8);
-          LAYOUT_LAYER.batchDraw();
-          $('konva-container').style.cursor = 'pointer';
-        });
-        line.on('mouseleave', () => {
-          line.strokeWidth(6);
-          LAYOUT_LAYER.batchDraw();
-          $('konva-container').style.cursor = 'crosshair';
-        });
-      }
+      // Hover-Feedback wird ueber native container-mousemove gemacht (zuverlaessiger als Konva-mouseenter).
       return line;
+    }
+
+    // Punkt-zu-Strecke-Distanz (in Welt-Coords)
+    function layoutPointToWallDistance(px, py, wall) {
+      const dx = wall.x2 - wall.x1, dy = wall.y2 - wall.y1;
+      const len2 = dx*dx + dy*dy;
+      if (len2 < 1) return Math.hypot(px - wall.x1, py - wall.y1);
+      let t = ((px - wall.x1) * dx + (py - wall.y1) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const fx = wall.x1 + t * dx, fy = wall.y1 + t * dy;
+      return Math.hypot(px - fx, py - fy);
+    }
+
+    function layoutFindWallAtPointer(clientX, clientY) {
+      if (!LAYOUT_STAGE) return -1;
+      const rect = $('konva-container').getBoundingClientRect();
+      const sx = clientX - rect.left, sy = clientY - rect.top;
+      const scale = LAYOUT_STAGE.scaleX();
+      const wx = (sx - LAYOUT_STAGE.x()) / scale;
+      const wy = (sy - LAYOUT_STAGE.y()) / scale;
+      const threshold = 18 / scale;  // 18px screen-space unabhaengig vom Zoom
+      let bestIdx = -1, bestDist = Infinity;
+      LAYOUT_WALLS.forEach((w, i) => {
+        const d = layoutPointToWallDistance(wx, wy, w);
+        if (d < threshold && d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      return bestIdx;
     }
 
     function layoutBuildWallHandles(wall, idx) {
@@ -1032,6 +1079,7 @@
       LAYOUT_WALL_MODE = !LAYOUT_WALL_MODE;
       LAYOUT_WALL_START = null;
       LAYOUT_WALL_DRAWING = false;
+      LAYOUT_WALL_HOVER_IDX = null;
       if (LAYOUT_WALL_PREVIEW) {
         LAYOUT_WALL_PREVIEW.destroy();
         LAYOUT_WALL_PREVIEW = null;
@@ -1069,7 +1117,7 @@
       const tname = e.target?.name?.();
       // Klick auf Handle → Konva uebernimmt Drag, nicht stoeren
       if (tname === 'wall-handle') return;
-      // Klick auf Wand → selektieren (nicht loeschen)
+      // Klick auf Wand → selektieren (Konva-Path)
       if (tname === 'wall') {
         e.cancelBubble = true;
         const tid = e.target.id() || '';
@@ -1082,6 +1130,13 @@
       }
       // Klick auf Tisch oder andere Shape → ignorieren
       if (e.target !== LAYOUT_STAGE) return;
+      // Fallback: Konva hat die Wand nicht erkannt, aber unsere native Hover-Detection schon
+      if (LAYOUT_WALL_HOVER_IDX !== null) {
+        e.cancelBubble = true;
+        LAYOUT_WALL_SELECTED_IDX = LAYOUT_WALL_HOVER_IDX;
+        layoutDrawTables();
+        return;
+      }
       // Klick auf leeren Bereich
       // 1. Wenn etwas selektiert war → deselect (Drag-to-Draw startet trotzdem,
       //    aber ein purer Klick mit <20px Bewegung wird in End-Handler ignoriert)
