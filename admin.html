@@ -284,10 +284,6 @@
         <div class="toolbar">
           <label for="client-search">Suche</label>
           <input type="search" id="client-search" placeholder="ID, Name, Email…"/>
-          <label class="toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;">
-            <input type="checkbox" id="show-demos-toggle" style="width:auto;margin:0;cursor:pointer;"/>
-            Landing-Demos einblenden
-          </label>
           <button class="secondary" id="clients-refresh">Aktualisieren</button>
           <div class="count" id="clients-count"></div>
         </div>
@@ -322,19 +318,10 @@
     const TOKEN_KEY = 'bs_admin_token';
     const SHOW_DEMOS_KEY = 'bs_admin_show_demos';
 
-    // Landing-Demo-IDs: Infrastruktur-Daten fuer Bot auf den 4 Tabs (botswiss.ch),
-    // Mock-Site (pizzeria-da-mario-omega.vercel.app) und alte Test-Accounts.
-    // Diese Eintraege sind technisch noetig, aber keine echten Kunden.
-    // Standardmaessig im Admin-Tool ausgeblendet, einblendbar via Checkbox.
-    const LANDING_DEMO_IDS = new Set([
-      'demo-blumenladen',
-      'demo-cafe',
-      'demo-coiffeur',
-      'demo-zahnarzt',
-      'pizzeria-da-mario',
-      '_test_crawler',
-      'bella-napoli-luzern'
-    ]);
+    // 2026-04-26: DB radikal aufgeraeumt — nur pizzeria-da-mario uebrig.
+    // Landing-Demo-Tabs auf botswiss.ch sind reine Bild-Mockups, kein DB-Eintrag noetig.
+    // Filter-Mechanismus bleibt fuer kuenftige Test-Accounts, aktuell leer.
+    const LANDING_DEMO_IDS = new Set([]);
 
     const $ = (id) => document.getElementById(id);
     const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -519,11 +506,6 @@
 
     $('client-search').addEventListener('input', renderClients);
     $('clients-refresh').addEventListener('click', loadClients);
-    $('show-demos-toggle').addEventListener('change', (e) => {
-      setShowDemos(e.target.checked);
-      renderStats();
-      renderClients();
-    });
 
     // Action-Buttons via Event-Delegation
     $('clients-rows').addEventListener('click', async (e) => {
@@ -549,7 +531,6 @@
     });
 
     // Init
-    $('show-demos-toggle').checked = getShowDemos();
     if (getToken()) {
       showView();
       loadClients();
