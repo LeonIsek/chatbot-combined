@@ -6,6 +6,7 @@
   <title>Dashboard · BotSwiss</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
   <style>
     :root {
       --bg: #FAFAFA; --surface: #FFFFFF; --text: #0A0A0A; --muted: #737373;
@@ -143,6 +144,106 @@
     }
     .widget-preview .bubble img { width: 70%; height: 70%; object-fit: contain; }
     .widget-preview p { color: var(--muted); font-size: 13px; font-style: italic; }
+
+    /* ============ LAYOUT/RESERVATIONS Canvas (Phase R) ============ */
+    .layout-toolbar {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      padding: 12px 14px; background: var(--bg); border-radius: var(--radius);
+      margin-bottom: 16px; border: 1px solid var(--border);
+    }
+    .layout-toolbar input[type="date"] { width: auto; padding: 6px 10px; }
+    .mode-toggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .mode-toggle button {
+      padding: 8px 14px; background: var(--surface); color: var(--muted); border: none;
+      cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit;
+      transition: all 120ms;
+    }
+    .mode-toggle button.active { background: var(--text); color: #fff; }
+    .mode-toggle button:hover:not(.active) { background: var(--bg); color: var(--text); }
+    .layout-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+    .layout-grid {
+      display: grid; grid-template-columns: 1fr 280px; gap: 14px;
+    }
+    @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
+
+    .canvas-area {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; position: relative;
+    }
+    .canvas-area.edit-mode {
+      border-style: dashed; border-color: var(--warn); background: #fffbeb;
+    }
+    #konva-container {
+      width: 100%; height: 480px; background: #fafbfc; border-radius: 8px;
+      border: 1px solid var(--border); overflow: hidden; position: relative;
+    }
+    #konva-container.empty::before {
+      content: 'Noch keine Tische — klick "+ Tisch" um zu starten';
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: var(--muted); font-size: 14px;
+    }
+    .canvas-legend {
+      display: flex; gap: 14px; margin-top: 10px; font-size: 12px;
+      color: var(--muted); align-items: center; flex-wrap: wrap;
+    }
+    .canvas-legend .dot {
+      display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+      margin-right: 4px; vertical-align: middle;
+    }
+    .canvas-legend .dot.grey   { background: #cbd5e1; }
+    .canvas-legend .dot.red    { background: #ef4444; }
+    .canvas-legend .dot.orange { background: #f59e0b; }
+    .canvas-legend .dot.blue   { background: #3b82f6; }
+
+    .reservation-list {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; max-height: 540px;
+      overflow-y: auto;
+    }
+    .reservation-list h4 {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 12px;
+    }
+    .res-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+      cursor: grab; transition: all 120ms;
+    }
+    .res-card:active { cursor: grabbing; }
+    .res-card.dragging { opacity: 0.5; }
+    .res-card.assigned { border-color: var(--success); background: #ecfdf5; }
+    .res-card-time { font-weight: 600; font-size: 14px; }
+    .res-card-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .res-card-table {
+      font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 500;
+    }
+    .res-card-actions {
+      display: flex; gap: 6px; margin-top: 8px;
+    }
+    .res-card-actions button {
+      padding: 3px 8px; font-size: 11px; background: var(--surface);
+      color: var(--muted); border: 1px solid var(--border); border-radius: 5px;
+      cursor: pointer;
+    }
+    .res-card-actions button:hover { color: var(--text); }
+    .res-card-actions button.danger { color: var(--danger); border-color: #fecaca; }
+
+    /* Modal fuer Tisch-Edit */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius-lg); padding: 24px;
+      width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal h3 { margin-bottom: 16px; font-size: 18px; }
+    .modal .field { margin-bottom: 14px; }
+    .modal .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .modal-actions button { padding: 8px 14px; }
   </style>
 </head>
 <body>
@@ -207,28 +308,39 @@
         </div>
       </div>
 
-      <!-- Tab: Reservations -->
+      <!-- Tab: Reservations & Layout (Phase R 2026-04-26) -->
       <div class="tab-content hidden" data-tab-content="reservations">
         <div class="panel" id="res-enabled-panel">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <div><h3 style="display:inline;">Reservierungen</h3><span class="section-hint" style="margin-left:12px;" id="res-count"></span></div>
-            <div style="display:flex;gap:8px;">
-              <button class="btn" id="res-export-btn">CSV exportieren</button>
-              <button class="btn" id="res-refresh-btn">Aktualisieren</button>
+          <div class="layout-toolbar">
+            <label style="font-size:13px;color:var(--muted);">Datum</label>
+            <input type="date" id="layout-date"/>
+            <div class="mode-toggle">
+              <button data-mode="live" class="active" id="mode-live-btn">Live-Sicht</button>
+              <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
+            <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
+            <button class="btn hidden" id="layout-save">Layout speichern</button>
+            <span class="layout-status" id="layout-status"></span>
           </div>
-          <div style="overflow-x:auto;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Eingegangen</th><th>Datum</th><th>Zeit</th><th>Personen</th>
-                  <th>Email</th><th>Status</th><th>Aktion</th>
-                </tr>
-              </thead>
-              <tbody id="res-rows"></tbody>
-            </table>
+
+          <div class="layout-grid">
+            <div class="canvas-area" id="canvas-area">
+              <div id="konva-container"></div>
+              <div class="canvas-legend">
+                <span><span class="dot grey"></span>frei</span>
+                <span><span class="dot red"></span>besetzt</span>
+                <span><span class="dot orange"></span>bald reserviert</span>
+                <span style="margin-left:auto;font-style:italic;" id="canvas-hint">Im Edit-Mode: drag Tische, Klick zum Bearbeiten</span>
+              </div>
+            </div>
+
+            <aside class="reservation-list">
+              <h4>Reservierungen <span id="resv-list-count" style="text-transform:none;color:var(--muted);">(0)</span></h4>
+              <div id="resv-today-list"></div>
+              <div class="empty-msg hidden" id="resv-today-empty" style="text-align:center;color:var(--muted);font-size:13px;padding:20px;">Keine Reservierungen für dieses Datum</div>
+              <button class="btn" id="res-export-btn" style="width:100%;margin-top:12px;font-size:12px;">CSV exportieren</button>
+            </aside>
           </div>
-          <div class="empty hidden" id="res-empty">Noch keine Reservierungen. Sobald der Bot welche entgegennimmt, erscheinen sie hier.</div>
         </div>
         <div class="panel hidden" id="res-disabled-panel">
           <h3>Reservierungen deaktiviert</h3>
@@ -324,6 +436,44 @@
           <div class="save-bar">
             <span class="save-status" id="branding-save-status"></span>
             <button class="btn primary" data-save="branding">Speichern</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Tisch editieren -->
+      <div class="modal-backdrop" id="table-edit-modal">
+        <div class="modal">
+          <h3 id="table-modal-title">Tisch bearbeiten</h3>
+          <div class="field">
+            <label>Bezeichnung / Nummer</label>
+            <input type="text" id="table-edit-label" placeholder="z.B. Tisch 1, Terrasse, Stuhl A"/>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Plätze (Capacity)</label>
+              <input type="number" id="table-edit-capacity" min="1" max="50" value="4"/>
+            </div>
+            <div class="field">
+              <label>Form</label>
+              <select id="table-edit-shape">
+                <option value="rect">Rechteck</option>
+                <option value="circle">Kreis / Rund</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Typ</label>
+            <select id="table-edit-type">
+              <option value="table">Tisch</option>
+              <option value="chair">Stuhl</option>
+              <option value="room">Raum</option>
+              <option value="booth">Nische</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" id="table-modal-cancel">Abbrechen</button>
+            <button class="btn" id="table-modal-delete" style="color:var(--danger);">Löschen</button>
+            <button class="btn primary" id="table-modal-save">Speichern</button>
           </div>
         </div>
       </div>
@@ -463,56 +613,357 @@
       if (colorText) colorText.value = clientData.bubble_color || '#0A0A0A';
     }
 
+    // ===== Phase R: Layout-Canvas + Live-Reservation-View =====
+    // Ersetzt die alte Tabellen-Liste. Konva.js Canvas mit Drag-and-Drop fuer Tische,
+    // Reservation-Liste rechts mit Drag-on-Tisch fuer Assignment.
+
+    let LAYOUT_STAGE = null;
+    let LAYOUT_LAYER = null;
+    let LAYOUT_RESOURCES = [];
+    let LAYOUT_RESERVATIONS = [];
+    let LAYOUT_ASSIGNMENTS = {};   // resource_id -> [reservation]
+    let LAYOUT_MODE = 'live';      // 'live' | 'edit'
+    let LAYOUT_DATE = new Date().toISOString().slice(0, 10);
+    let LAYOUT_EDITING_ID = null;  // 'new' | resource.id | null
+
     async function loadReservations() {
-      try {
-        const { reservations } = await api('/api/customer/reservations');
-        const tbody = $('res-rows');
-        tbody.innerHTML = '';
-        $('res-count').textContent = '(' + reservations.length + ')';
-        if (reservations.length === 0) {
-          $('res-empty').classList.remove('hidden');
-          return;
-        }
-        $('res-empty').classList.add('hidden');
-        reservations.forEach(r => tbody.appendChild(buildReservationRow(r)));
-      } catch (e) { console.warn(e); }
+      // Backward-compat: Init-Sequenz ruft das. Layout-Tab wird lazy initialisiert beim Tab-Switch.
+      // Wir laden hier schon die Daten in den Hintergrund, damit beim ersten Tab-Open alles bereit ist.
+      try { await layoutLoadAll(); } catch (e) { console.warn('[layout] preload failed:', e); }
     }
 
-    function buildReservationRow(r) {
-      const tr = document.createElement('tr');
-      const created = new Date(r.created_at);
-      const dateStr = r.date || '—';
-      const timeStr = r.start_time ? String(r.start_time).slice(0,5) : '—';
-      const status = r.status || 'offen';
-      const badgeCls = 'badge-' + status;
-      tr.innerHTML = `
-        <td>${created.toLocaleDateString('de-CH')} ${created.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})}</td>
-        <td>${escapeHtml(dateStr)}</td>
-        <td>${escapeHtml(timeStr)}</td>
-        <td>${r.guests ?? '—'}</td>
-        <td>${escapeHtml(r.email || '—')}</td>
-        <td><span class="badge ${badgeCls}">${escapeHtml(status)}</span></td>
-        <td>
-          <select data-res-action="${r.id}" style="font-size:12px;padding:4px 6px;">
-            <option value="">—</option>
-            <option value="confirmed">bestätigt</option>
-            <option value="completed">erledigt</option>
-            <option value="cancelled">abgesagt</option>
-            <option value="no_show">nicht erschienen</option>
-          </select>
-        </td>
-      `;
-      tr.querySelector('select').addEventListener('change', async (e) => {
-        const newStatus = e.target.value;
-        if (!newStatus) return;
-        try {
-          await api('/api/customer/reservations/' + r.id, {
-            method: 'PATCH', body: JSON.stringify({ status: newStatus })
-          });
-          await loadReservations();
-        } catch (err) { alert('Fehler: ' + err.message); }
+    function layoutInitOnce() {
+      if (LAYOUT_STAGE) {
+        layoutRefresh();
+        return;
+      }
+      const container = $('konva-container');
+      if (!container) return;
+      const width = container.offsetWidth || 700;
+      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480 });
+      LAYOUT_LAYER = new Konva.Layer();
+      LAYOUT_STAGE.add(LAYOUT_LAYER);
+
+      // Date-Picker
+      const datePicker = $('layout-date');
+      datePicker.value = LAYOUT_DATE;
+      datePicker.addEventListener('change', (e) => {
+        LAYOUT_DATE = e.target.value;
+        layoutRefresh();
       });
-      return tr;
+
+      // Mode-Toggle
+      $('mode-live-btn').addEventListener('click', () => layoutSwitchMode('live'));
+      $('mode-edit-btn').addEventListener('click', () => layoutSwitchMode('edit'));
+
+      // Add-Tisch + Save
+      $('layout-add-table').addEventListener('click', layoutAddTable);
+      $('layout-save').addEventListener('click', () => layoutStatus('Layout gespeichert', 'success'));
+
+      // Modal
+      $('table-modal-cancel').addEventListener('click', layoutCloseModal);
+      $('table-modal-save').addEventListener('click', layoutSaveModal);
+      $('table-modal-delete').addEventListener('click', layoutDeleteCurrent);
+
+      // Drop-Zone fuer Reservation-Drag
+      container.addEventListener('dragover', (e) => e.preventDefault());
+      container.addEventListener('drop', layoutHandleDrop);
+
+      // Resize
+      window.addEventListener('resize', () => {
+        if (LAYOUT_STAGE) LAYOUT_STAGE.width(container.offsetWidth);
+      });
+
+      layoutRefresh();
+    }
+
+    function layoutSwitchMode(mode) {
+      LAYOUT_MODE = mode;
+      document.querySelectorAll('.mode-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      $('layout-add-table').classList.toggle('hidden', mode !== 'edit');
+      $('layout-save').classList.toggle('hidden', mode !== 'edit');
+      $('canvas-area').classList.toggle('edit-mode', mode === 'edit');
+      $('canvas-hint').textContent = mode === 'edit'
+        ? 'Drag Tische zum Verschieben, Klick zum Bearbeiten'
+        : 'Drag Reservierung von rechts auf einen Tisch zum Zuweisen';
+      layoutDrawTables();
+    }
+
+    async function layoutRefresh() {
+      await layoutLoadAll();
+      layoutDrawTables();
+      layoutRenderReservations();
+    }
+
+    async function layoutLoadAll() {
+      try {
+        const data = await api('/api/customer/resources');
+        LAYOUT_RESOURCES = data.resources || [];
+      } catch (e) { LAYOUT_RESOURCES = []; }
+      try {
+        const data = await api('/api/customer/reservations');
+        const all = data.reservations || [];
+        LAYOUT_RESERVATIONS = all.filter(r => r.date === LAYOUT_DATE);
+        // Bulk fetch assignments
+        LAYOUT_ASSIGNMENTS = {};
+        const results = await Promise.all(LAYOUT_RESERVATIONS.map(r =>
+          api('/api/customer/reservations/' + r.id + '/resources').catch(() => ({ resources: [] }))
+        ));
+        results.forEach((res, i) => {
+          LAYOUT_RESERVATIONS[i].assignedResources = res.resources || [];
+          (res.resources || []).forEach(ar => {
+            if (!LAYOUT_ASSIGNMENTS[ar.id]) LAYOUT_ASSIGNMENTS[ar.id] = [];
+            LAYOUT_ASSIGNMENTS[ar.id].push(LAYOUT_RESERVATIONS[i]);
+          });
+        });
+      } catch (e) {
+        LAYOUT_RESERVATIONS = [];
+        LAYOUT_ASSIGNMENTS = {};
+      }
+    }
+
+    function layoutDrawTables() {
+      if (!LAYOUT_LAYER) return;
+      LAYOUT_LAYER.destroyChildren();
+      $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0);
+      LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
+      LAYOUT_LAYER.draw();
+    }
+
+    function layoutBuildTableNode(resource) {
+      const w = resource.width || 80;
+      const h = resource.height || 80;
+      const occupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
+      const isOccupied = occupants.length > 0;
+      const fill = isOccupied ? '#fee2e2' : '#f1f5f9';
+      const stroke = isOccupied ? '#ef4444' : '#cbd5e1';
+
+      const group = new Konva.Group({
+        x: resource.x || 60,
+        y: resource.y || 60,
+        draggable: LAYOUT_MODE === 'edit',
+        id: 'table-' + resource.id
+      });
+
+      let shape;
+      if (resource.shape === 'circle') {
+        shape = new Konva.Circle({
+          x: w / 2, y: h / 2, radius: w / 2,
+          fill, stroke, strokeWidth: 2
+        });
+      } else {
+        shape = new Konva.Rect({
+          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6
+        });
+      }
+      group.add(shape);
+
+      group.add(new Konva.Text({
+        text: resource.label, fontSize: 13, fontStyle: 'bold',
+        fontFamily: 'Inter, sans-serif', fill: '#0a0a0a',
+        width: w, height: h - 14, align: 'center', verticalAlign: 'middle'
+      }));
+
+      group.add(new Konva.Text({
+        text: resource.capacity + 'P', fontSize: 11, fill: '#737373',
+        fontFamily: 'Inter, sans-serif', width: w, y: h - 16, align: 'center'
+      }));
+
+      if (isOccupied) {
+        group.add(new Konva.Text({
+          text: occupants[0].start_time?.slice(0, 5) || '', fontSize: 10,
+          fill: '#b91c1c', fontFamily: 'Inter, sans-serif',
+          x: 4, y: 4
+        }));
+      }
+
+      group.on('dragend', async () => {
+        if (LAYOUT_MODE !== 'edit') return;
+        const newX = group.x(), newY = group.y();
+        resource.x = newX; resource.y = newY;
+        try {
+          await api('/api/customer/resources/' + resource.id, {
+            method: 'PATCH', body: JSON.stringify({ x: newX, y: newY })
+          });
+          layoutStatus('Position gespeichert', 'success');
+        } catch (e) { layoutStatus('Speichern fehlgeschlagen', 'error'); }
+      });
+
+      group.on('click tap', () => {
+        if (LAYOUT_MODE === 'edit') layoutOpenEditModal(resource);
+      });
+
+      return group;
+    }
+
+    function layoutRenderReservations() {
+      const list = $('resv-today-list');
+      const count = $('resv-list-count');
+      const empty = $('resv-today-empty');
+      list.innerHTML = '';
+      count.textContent = '(' + LAYOUT_RESERVATIONS.length + ')';
+      if (LAYOUT_RESERVATIONS.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      const sorted = [...LAYOUT_RESERVATIONS].sort((a, b) =>
+        (a.start_time || '').localeCompare(b.start_time || ''));
+      sorted.forEach(r => list.appendChild(layoutBuildResvCard(r)));
+    }
+
+    function layoutBuildResvCard(r) {
+      const card = document.createElement('div');
+      card.className = 'res-card';
+      if (r.assignedResources?.length > 0) card.classList.add('assigned');
+      card.draggable = true;
+      card.dataset.resvId = r.id;
+      const time = r.start_time ? r.start_time.slice(0, 5) : '—';
+      const tableInfo = (r.assignedResources || []).map(a => a.label).join(', ');
+      card.innerHTML = `
+        <div class="res-card-time">${time} · ${r.guests || '?'} P</div>
+        <div class="res-card-detail">${escapeHtml(r.email || 'kein Kontakt')}</div>
+        ${tableInfo ? `<div class="res-card-table">→ ${escapeHtml(tableInfo)}</div>` : ''}
+        <div class="res-card-actions">
+          ${r.assignedResources?.length > 0 ? '<button data-action="unassign">Tisch lösen</button>' : ''}
+          <button data-action="delete" class="danger">Löschen</button>
+        </div>`;
+      card.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(r.id));
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      card.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          if (action === 'delete') {
+            if (!confirm('Reservation wirklich löschen?')) return;
+            try {
+              await api('/api/customer/reservations/' + r.id, { method: 'DELETE' });
+              await layoutRefresh();
+            } catch (err) { alert(err.message); }
+          } else if (action === 'unassign') {
+            for (const ar of r.assignedResources) {
+              await api('/api/customer/reservations/' + r.id + '/assign/' + ar.id, { method: 'DELETE' });
+            }
+            await layoutRefresh();
+          }
+        });
+      });
+      return card;
+    }
+
+    async function layoutHandleDrop(e) {
+      e.preventDefault();
+      const resvId = e.dataTransfer.getData('text/plain');
+      if (!resvId || !LAYOUT_STAGE) return;
+      const rect = $('konva-container').getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      // finde Resource an Position
+      let target = null;
+      for (const r of LAYOUT_RESOURCES) {
+        const rx = r.x || 60, ry = r.y || 60;
+        const rw = r.width || 80, rh = r.height || 80;
+        if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+          target = r; break;
+        }
+      }
+      if (!target) {
+        layoutStatus('Reservation muss auf einen Tisch fallen', 'error');
+        return;
+      }
+      try {
+        await api('/api/customer/reservations/' + resvId + '/assign', {
+          method: 'POST',
+          body: JSON.stringify({ resource_id: target.id, replace: true })
+        });
+        await layoutRefresh();
+        layoutStatus('Zugewiesen an ' + target.label, 'success');
+      } catch (err) {
+        layoutStatus('Zuweisung fehlgeschlagen: ' + err.message, 'error');
+      }
+    }
+
+    function layoutAddTable() {
+      LAYOUT_EDITING_ID = 'new';
+      $('table-modal-title').textContent = 'Neuer Tisch';
+      $('table-edit-label').value = 'Tisch ' + (LAYOUT_RESOURCES.length + 1);
+      $('table-edit-capacity').value = 4;
+      $('table-edit-shape').value = 'rect';
+      $('table-edit-type').value = 'table';
+      $('table-modal-delete').style.display = 'none';
+      $('table-edit-modal').classList.add('visible');
+    }
+
+    function layoutOpenEditModal(resource) {
+      LAYOUT_EDITING_ID = resource.id;
+      $('table-modal-title').textContent = 'Tisch bearbeiten';
+      $('table-edit-label').value = resource.label || '';
+      $('table-edit-capacity').value = resource.capacity || 4;
+      $('table-edit-shape').value = resource.shape || 'rect';
+      $('table-edit-type').value = resource.resource_type || 'table';
+      $('table-modal-delete').style.display = '';
+      $('table-edit-modal').classList.add('visible');
+    }
+
+    function layoutCloseModal() {
+      LAYOUT_EDITING_ID = null;
+      $('table-edit-modal').classList.remove('visible');
+    }
+
+    async function layoutSaveModal() {
+      const label = $('table-edit-label').value.trim();
+      const capacity = parseInt($('table-edit-capacity').value, 10) || 4;
+      const shape = $('table-edit-shape').value;
+      const resource_type = $('table-edit-type').value;
+      if (!label) { alert('Bezeichnung darf nicht leer sein'); return; }
+      try {
+        if (LAYOUT_EDITING_ID === 'new') {
+          const x = 60 + (LAYOUT_RESOURCES.length % 5) * 100;
+          const y = 60 + Math.floor(LAYOUT_RESOURCES.length / 5) * 100;
+          await api('/api/customer/resources', {
+            method: 'POST',
+            body: JSON.stringify({ label, capacity, shape, resource_type, x, y, width: 80, height: 80 })
+          });
+        } else {
+          await api('/api/customer/resources/' + LAYOUT_EDITING_ID, {
+            method: 'PATCH',
+            body: JSON.stringify({ label, capacity, shape, resource_type })
+          });
+        }
+        layoutCloseModal();
+        await layoutRefresh();
+        layoutStatus('Gespeichert', 'success');
+      } catch (err) {
+        alert('Fehler: ' + err.message);
+      }
+    }
+
+    async function layoutDeleteCurrent() {
+      if (!LAYOUT_EDITING_ID || LAYOUT_EDITING_ID === 'new') return;
+      if (!confirm('Tisch wirklich löschen? Bestehende Zuweisungen werden mit gelöscht.')) return;
+      try {
+        await api('/api/customer/resources/' + LAYOUT_EDITING_ID, { method: 'DELETE' });
+        layoutCloseModal();
+        await layoutRefresh();
+        layoutStatus('Tisch gelöscht', 'success');
+      } catch (err) {
+        alert('Fehler: ' + err.message);
+      }
+    }
+
+    function layoutStatus(text, type) {
+      const el = $('layout-status');
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = type === 'success' ? 'var(--success)' :
+                       type === 'error' ? 'var(--danger)' : 'var(--muted)';
+      setTimeout(() => { el.textContent = ''; }, 2400);
     }
 
     async function loadCrawlStatus() {
@@ -661,17 +1112,30 @@
     }
 
     function exportCSV() {
-      const rows = Array.from(document.querySelectorAll('#res-rows tr'));
-      if (rows.length === 0) return;
-      const header = ['Eingegangen','Datum','Zeit','Personen','Email','Status'];
-      const csv = [header.join(',')].concat(rows.map(tr => {
-        const cells = Array.from(tr.querySelectorAll('td')).slice(0,6);
-        return cells.map(c => '"' + c.textContent.trim().replace(/"/g,'""') + '"').join(',');
+      // Exportiert die aktuell sichtbare Reservation-Liste (LAYOUT_DATE)
+      if (!LAYOUT_RESERVATIONS || LAYOUT_RESERVATIONS.length === 0) {
+        alert('Keine Reservierungen für ' + LAYOUT_DATE + ' zum Exportieren');
+        return;
+      }
+      const header = ['Eingegangen','Datum','Zeit','Personen','Email','Status','Tisch'];
+      const csv = [header.join(',')].concat(LAYOUT_RESERVATIONS.map(r => {
+        const created = new Date(r.created_at);
+        const tisch = (r.assignedResources || []).map(a => a.label).join('; ');
+        const row = [
+          created.toLocaleDateString('de-CH') + ' ' + created.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }),
+          r.date || '',
+          r.start_time ? r.start_time.slice(0, 5) : '',
+          r.guests ?? '',
+          r.email || '',
+          r.status || '',
+          tisch
+        ];
+        return row.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',');
       })).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'reservierungen-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.href = url; a.download = 'reservierungen-' + LAYOUT_DATE + '.csv';
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -686,8 +1150,11 @@
       btn.classList.add('active');
       getAll('.tab-content').forEach(c => c.classList.add('hidden'));
       get('[data-tab-content="' + btn.dataset.tab + '"]').classList.remove('hidden');
-      // Lazy-load Tab-Content (v1: nur Resources)
       if (btn.dataset.tab === 'tables') loadResources();
+      if (btn.dataset.tab === 'reservations') {
+        // Konva braucht visiblen Container fuer korrekte Groesse
+        setTimeout(() => layoutInitOnce(), 50);
+      }
     }));
 
     // Resources-Add
@@ -695,8 +1162,8 @@
     if (resAddBtn) resAddBtn.addEventListener('click', addResource);
 
     getAll('[data-save]').forEach(btn => btn.addEventListener('click', () => saveSection(btn.dataset.save)));
-    $('res-refresh-btn').addEventListener('click', loadReservations);
-    $('res-export-btn').addEventListener('click', exportCSV);
+    const exportBtn = $('res-export-btn');
+    if (exportBtn) exportBtn.addEventListener('click', exportCSV);
     $('recrawl-btn').addEventListener('click', doRecrawl);
 
     // Branding color sync
