@@ -177,6 +177,14 @@
 
       <!-- Tab: Home / Business-Info -->
       <div class="tab-content" data-tab-content="home">
+        <div class="panel" style="background: #fef9e7; border-color: #f4d35e;">
+          <p style="margin:0;font-size:13px;color:#856404;">
+            💡 <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) trägst du im Tab
+            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="color:#856404;font-weight:600;">💬 Bot-Infos →</a>
+            ein. Bot berücksichtigt das ab der nächsten Nachricht, kein Deploy nötig.
+          </p>
+        </div>
+
         <div class="panel">
           <h3>Business-Informationen</h3>
           <p class="section-hint">Diese Angaben nutzt der Bot wenn Gäste fragen. Änderungen sind sofort wirksam.</p>
@@ -190,7 +198,7 @@
           <div class="field"><label>Website</label><input type="url" data-field="website"/></div>
           <div class="field"><label>Öffnungszeiten</label><textarea data-field="opening_hours" placeholder="Mo Ruhetag&#10;Di-Do 11:30-14:00 & 17:30-22:00&#10;..."></textarea></div>
           <div class="field"><label>Preise / Angebote</label><textarea data-field="prices"></textarea></div>
-          <div class="field"><label>Allgemeine Notizen</label><textarea data-field="note"></textarea><div class="sub">Für dich als Erinnerung. Bot nutzt das Feld "Bot-Infos" separat.</div></div>
+          <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, gehört in den Tab 💬 Bot-Infos →</div></div>
 
           <div class="save-bar">
             <span class="save-status" id="home-save-status"></span>
@@ -244,8 +252,10 @@
 
         <div class="panel">
           <h3>Zusätzliche Infos für den Bot</h3>
-          <p class="section-hint">Was soll der Bot wissen über deinen Betrieb? Je konkreter, desto besser die Antworten. Beispiele:</p>
+          <p class="section-hint">Was soll der Bot wissen über deinen Betrieb? Je konkreter, desto besser die Antworten. Auch Ferien, temporäre Schließungen und Specials gehören hier rein. Beispiele:</p>
           <div style="background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--muted); font-family: monospace;">
+            • Vom 1.-7. Mai geschlossen wegen Ferien<br/>
+            • Diese Woche Specials: Trüffel-Pasta CHF 32, Tiramisu hausgemacht<br/>
             • Freitag Abend kein Kindermenü<br/>
             • Hund im Garten OK, nicht im Innenraum<br/>
             • Für 10+ Personen bitte mindestens 3 Tage vorher reservieren<br/>
