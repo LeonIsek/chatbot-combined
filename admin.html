@@ -290,6 +290,10 @@
         <div class="toolbar">
           <label for="client-search">Suche</label>
           <input type="search" id="client-search" placeholder="ID, Name, Email…"/>
+          <label class="toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;">
+            <input type="checkbox" id="show-demos-toggle" style="width:auto;margin:0;cursor:pointer;"/>
+            Landing-Demos einblenden
+          </label>
           <button class="secondary" id="clients-refresh">Aktualisieren</button>
           <div class="count" id="clients-count"></div>
         </div>
@@ -374,13 +378,35 @@
   <script>
     const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
     const TOKEN_KEY = 'bs_admin_token';
+    const SHOW_DEMOS_KEY = 'bs_admin_show_demos';
+
+    // Landing-Demo-IDs: Infrastruktur-Daten fuer Bot auf den 4 Tabs (botswiss.ch),
+    // Mock-Site (pizzeria-da-mario-omega.vercel.app) und alte Test-Accounts.
+    // Diese Eintraege sind technisch noetig, aber keine echten Kunden.
+    // Standardmaessig im Admin-Tool ausgeblendet, einblendbar via Checkbox.
+    const LANDING_DEMO_IDS = new Set([
+      'demo-blumenladen',
+      'demo-cafe',
+      'demo-coiffeur',
+      'demo-zahnarzt',
+      'pizzeria-da-mario',
+      '_test_crawler',
+      'bella-napoli-luzern'
+    ]);
 
     const $ = (id) => document.getElementById(id);
     const getToken = () => localStorage.getItem(TOKEN_KEY);
     const setToken = (t) => t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+    const getShowDemos = () => localStorage.getItem(SHOW_DEMOS_KEY) === '1';
+    const setShowDemos = (v) => v ? localStorage.setItem(SHOW_DEMOS_KEY, '1') : localStorage.removeItem(SHOW_DEMOS_KEY);
 
     let CLIENTS = [];
     let RESERVATIONS = [];
+
+    function getVisibleClients() {
+      if (getShowDemos()) return CLIENTS;
+      return CLIENTS.filter(c => !LANDING_DEMO_IDS.has(c.id));
+    }
 
     function escapeHtml(s) {
       return String(s == null ? '' : s)
@@ -467,15 +493,19 @@
     }
 
     function renderStats() {
-      const total = CLIENTS.length;
-      const active = CLIENTS.filter(c => c.active).length;
-      const demo = CLIENTS.filter(c => c.demo_mode).length;
-      const paid = CLIENTS.filter(c => c.payment_status === 'bezahlt').length;
-      const paidSum = CLIENTS
+      const visible = getVisibleClients();
+      const hidden = CLIENTS.length - visible.length;
+      const total = visible.length;
+      const active = visible.filter(c => c.active).length;
+      const demo = visible.filter(c => c.demo_mode).length;
+      const paid = visible.filter(c => c.payment_status === 'bezahlt').length;
+      const paidSum = visible
         .filter(c => c.payment_status === 'bezahlt')
         .reduce((sum, c) => sum + (Number(c.monthly_price) || 0), 0);
       $('stat-total').textContent = total;
-      $('stat-total-sub').textContent = (total - active) + ' inaktiv';
+      $('stat-total-sub').textContent = hidden > 0
+        ? `+ ${hidden} Landing-Demo${hidden === 1 ? '' : 's'} ausgeblendet`
+        : (total - active) + ' inaktiv';
       $('stat-active').textContent = active;
       $('stat-demo').textContent = demo;
       $('stat-paid').textContent = paid;
@@ -484,7 +514,8 @@
 
     function renderClients() {
       const q = $('client-search').value.trim().toLowerCase();
-      const filtered = CLIENTS.filter(c => {
+      const visible = getVisibleClients();
+      const filtered = visible.filter(c => {
         if (!q) return true;
         return (c.id || '').toLowerCase().includes(q)
           || (c.business_name || '').toLowerCase().includes(q)
@@ -623,6 +654,11 @@
 
     $('client-search').addEventListener('input', renderClients);
     $('clients-refresh').addEventListener('click', loadClients);
+    $('show-demos-toggle').addEventListener('change', (e) => {
+      setShowDemos(e.target.checked);
+      renderStats();
+      renderClients();
+    });
     $('client-filter').addEventListener('change', loadReservations);
     $('resv-refresh').addEventListener('click', loadReservations);
 
@@ -654,6 +690,7 @@
     });
 
     // Init
+    $('show-demos-toggle').checked = getShowDemos();
     if (getToken()) {
       showView();
       Promise.all([loadClients(), loadReservations()]);
