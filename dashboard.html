@@ -1311,17 +1311,18 @@
         draggable: LAYOUT_MODE === 'edit' && !LAYOUT_WALL_MODE,
         id: 'table-' + resource.id
       });
-      group.dragDistance(3);
 
       let shape;
       if (resource.shape === 'circle') {
         shape = new Konva.Circle({
           x: w / 2, y: h / 2, radius: w / 2,
-          fill, stroke, strokeWidth: 2
+          fill, stroke, strokeWidth: 2,
+          listening: false
         });
       } else {
         shape = new Konva.Rect({
-          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6
+          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6,
+          listening: false
         });
       }
       group.add(shape);
@@ -1330,7 +1331,7 @@
         text: resource.label, fontSize: 13, fontStyle: 'bold',
         fontFamily: 'Inter, sans-serif', fill: '#0a0a0a',
         width: w, height: h - 14, align: 'center', verticalAlign: 'middle',
-        listening: false  // Klicks fallen durch zur Shape → ueberall im Rect draggable
+        listening: false
       }));
 
       group.add(new Konva.Text({
@@ -1347,6 +1348,14 @@
           listening: false
         }));
       }
+
+      // Hit-Rect: liegt ueber allem, faengt alle Klicks/Drags fuer den ganzen Tisch-Bereich
+      group.add(new Konva.Rect({
+        width: w, height: h,
+        fill: 'rgba(0,0,0,0.001)',  // quasi-transparent, aber Konva-hit-detectable
+        listening: true,
+        name: 'tisch-hit'
+      }));
 
       group.on('dragend', async () => {
         if (LAYOUT_MODE !== 'edit') return;
