@@ -29,6 +29,8 @@ body {
 
 html {
   scroll-behavior: smooth;
+  background: #fff8ef;
+  overscroll-behavior-y: none;
 }
 
 body {

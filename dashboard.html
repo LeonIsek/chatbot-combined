@@ -754,6 +754,15 @@
       if (!container) return;
       const width = container.offsetWidth || 700;
       LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480, draggable: true });
+      // Mindest-Bewegung bevor Stage-Pan startet (verhindert versehentlichen Pan bei kleinen Klicks)
+      LAYOUT_STAGE.dragDistance(5);
+      // Wenn ein Kind (Tisch, Wand-Handle) das eigentliche Drag-Target ist, soll die Stage NICHT mit-pannen.
+      // Fixt: (a) Pan->Tisch-Drag-Race nach Pan-Ende, (b) Wand-Handle-Drag im Wand-Modus
+      LAYOUT_STAGE.on('dragstart', (e) => {
+        if (e.target !== LAYOUT_STAGE) {
+          LAYOUT_STAGE.stopDrag();
+        }
+      });
       LAYOUT_LAYER = new Konva.Layer();
       LAYOUT_STAGE.add(LAYOUT_LAYER);
 
@@ -1096,11 +1105,12 @@
       }
       const cont = $('konva-container');
       cont.style.cursor = LAYOUT_WALL_MODE ? 'crosshair' : 'grab';
-      // Stage-Drag im Wand-Modus deaktivieren (sonst Pan-Konflikt)
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_MODE);
+      // Stage bleibt immer draggable. Im Wand-Modus entscheidet Shift-Taste:
+      // ohne Shift = Wand zeichnen (wallStart stoppt den Stage-Pan), mit Shift = Pan.
+      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
       // Hint-Text aktualisieren
       if (LAYOUT_WALL_MODE) {
-        layoutStatus('Drag im leeren Bereich = Wand zeichnen · Klick auf Wand zum Auswaehlen', 'success');
+        layoutStatus('Drag = Wand zeichnen · Shift+Drag = Raum verschieben · Klick auf Wand = Auswaehlen', 'success');
       }
       layoutDrawTables();
     }
@@ -1130,6 +1140,8 @@
       }
       // Klick auf Tisch oder andere Shape → ignorieren
       if (e.target !== LAYOUT_STAGE) return;
+      // Shift+Drag auf leerem Bereich = Stage-Pan (statt Wand zeichnen)
+      if (e.evt && e.evt.shiftKey) return;
       // Fallback: Konva hat die Wand nicht erkannt, aber unsere native Hover-Detection schon
       if (LAYOUT_WALL_HOVER_IDX !== null) {
         e.cancelBubble = true;
@@ -1144,7 +1156,8 @@
         layoutDeselectWall();
         layoutDrawTables();
       }
-      // 2. Wand-Drag starten
+      // 2. Wand-Drag starten — verhindere Stage-Pan-Hijack waehrend Wand-Draw
+      LAYOUT_STAGE.stopDrag();
       const w = layoutWorldCoords();
       if (!w) return;
       LAYOUT_WALL_DRAWING = true;
