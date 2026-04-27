@@ -30,7 +30,7 @@ body {
 
 html {
   scroll-behavior: smooth;
-  background: #fffdf9;
+  background: #0f172a;
 }
 
 body {
@@ -43,6 +43,8 @@ body {
   font-family: "Manrope", "Segoe UI", sans-serif;
   line-height: 1.6;
   overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .page-glow {

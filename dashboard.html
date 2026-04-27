@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#fffdf9"/>
+  <meta name="theme-color" content="#0f172a"/>
   <title>Dashboard · BotSwiss</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230A0A0A'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='26' font-weight='800' fill='%23FFFFFF' text-anchor='middle'%3EBS%3C/text%3E%3C/svg%3E"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -200,7 +200,7 @@
     .mode-toggle button.active { background: var(--text); color: #fff; }
     .mode-toggle button:hover:not(.active) { background: var(--bg); color: var(--text); }
     .layout-status {
-      position: fixed; top: 76px; right: 24px; z-index: 1000;
+      position: fixed; top: 76px; right: 24px; z-index: 50;
       background: var(--surface); border: 1px solid var(--border);
       padding: 10px 16px; border-radius: 10px;
       font-size: 13px; color: var(--text);
@@ -402,11 +402,11 @@
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
-            <button class="btn hidden" id="layout-wall-mode"><i data-lucide="square"></i> Waende bearbeiten</button>
-            <button class="btn hidden" id="layout-wall-add"><i data-lucide="plus"></i> Wand hinzufuegen</button>
-            <button class="btn danger hidden" id="layout-wall-delete-all"><i data-lucide="trash-2"></i> Alle Waende loeschen</button>
+            <button class="btn hidden" id="layout-wall-mode"><i data-lucide="square"></i> Wände bearbeiten</button>
+            <button class="btn hidden" id="layout-wall-add"><i data-lucide="plus"></i> Wand hinzufügen</button>
+            <button class="btn danger hidden" id="layout-wall-delete-all"><i data-lucide="trash-2"></i> Alle Wände löschen</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
-            <button class="btn" id="layout-zoom-reset" title="Zoom zurücksetzen"><i data-lucide="rotate-ccw"></i> Reset</button>
+            <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
             <span class="layout-status" id="layout-status"></span>
           </div>
 
@@ -835,11 +835,7 @@
       $('walkin-save').addEventListener('click', walkinSave);
 
       // Zoom-Reset
-      $('layout-zoom-reset').addEventListener('click', () => {
-        LAYOUT_STAGE.scale({ x: 1, y: 1 });
-        LAYOUT_STAGE.position({ x: 0, y: 0 });
-        layoutStatus('Zoom zurueckgesetzt', 'success');
-      });
+      $('layout-zoom-reset').addEventListener('click', layoutFitToContent);
 
       // Wand-Modus-Toggle
       $('layout-wall-mode').addEventListener('click', layoutToggleWallMode);
@@ -857,7 +853,7 @@
         layoutDeselectWall();
         await layoutSaveWalls();
         layoutDrawTables();
-        layoutStatus('Wand geloescht', 'success');
+        layoutStatus('Wand gelöscht', 'success');
       });
       // Trash-Button bei Pan/Zoom mitbewegen
       LAYOUT_STAGE.on('dragmove', () => {
@@ -1005,9 +1001,9 @@
         hitStrokeWidth: 40,
         strokeScaleEnabled: false,
         listening: true,
-        draggable: LAYOUT_WALL_MODE,
-        dragDistance: 4  // <4px Bewegung = Klick (Selektion), >=4px = Drag (verschieben)
+        draggable: LAYOUT_WALL_MODE
       });
+      line.dragDistance(4);  // <4px Bewegung = Klick (Selektion), >=4px = Drag
       line.on('dragstart', () => {
         LAYOUT_WALL_SELECTED_IDX = idx;
         const tb = $('wall-trash-btn');
@@ -1151,7 +1147,7 @@
       if (btn) {
         btn.innerHTML = LAYOUT_WALL_MODE
           ? '<i data-lucide="check"></i> Bearbeitung beenden (Esc)'
-          : '<i data-lucide="square"></i> Waende bearbeiten';
+          : '<i data-lucide="square"></i> Wände bearbeiten';
         btn.classList.toggle('primary', LAYOUT_WALL_MODE);
         if (window.lucide) lucide.createIcons();
       }
@@ -1159,14 +1155,16 @@
       cont.style.cursor = LAYOUT_WALL_MODE ? 'grab' : 'grab';
       // Wand-Modus default = Pan. Stage bleibt draggable.
       if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
-      // Sub-Buttons ein-/ausblenden
+      // Sub-Buttons ein-/ausblenden + +Tisch im Wand-Modus verstecken (weniger Visual-Clutter)
       const addBtn = $('layout-wall-add');
       const delAllBtn = $('layout-wall-delete-all');
+      const addTableBtn = $('layout-add-table');
       if (addBtn) addBtn.classList.toggle('hidden', !LAYOUT_WALL_MODE);
       if (delAllBtn) delAllBtn.classList.toggle('hidden', !LAYOUT_WALL_MODE);
+      if (addTableBtn) addTableBtn.classList.toggle('hidden', LAYOUT_WALL_MODE || LAYOUT_MODE !== 'edit');
       // Hint-Text aktualisieren
       if (LAYOUT_WALL_MODE) {
-        layoutStatus('Drag = Pan · Klick auf Wand = auswaehlen · Drag auf Wand = verschieben', 'success');
+        layoutStatus('Drag = Pan · Klick auf Wand = auswählen · Drag auf Wand = verschieben', 'success');
       }
       layoutDrawTables();
     }
@@ -1178,6 +1176,47 @@
       return { x: (p.x - LAYOUT_STAGE.x()) / s, y: (p.y - LAYOUT_STAGE.y()) / s };
     }
 
+    // Fit-to-Content: zoomt + pannt so dass alle Tische und Wände sichtbar zentriert sind
+    function layoutFitToContent() {
+      if (!LAYOUT_STAGE) return;
+      const boxes = [];
+      LAYOUT_RESOURCES.forEach(r => {
+        const x = r.x || 60, y = r.y || 60, w = r.width || 80, h = r.height || 80;
+        boxes.push({ x1: x, y1: y, x2: x + w, y2: y + h });
+      });
+      LAYOUT_WALLS.forEach(w => {
+        boxes.push({
+          x1: Math.min(w.x1, w.x2), y1: Math.min(w.y1, w.y2),
+          x2: Math.max(w.x1, w.x2), y2: Math.max(w.y1, w.y2)
+        });
+      });
+      const cw = LAYOUT_STAGE.width(), ch = LAYOUT_STAGE.height();
+      if (!boxes.length) {
+        // Leerer Canvas: auf Container-Mitte zentrieren bei Scale 1
+        LAYOUT_STAGE.scale({ x: 1, y: 1 });
+        LAYOUT_STAGE.position({ x: 0, y: 0 });
+        layoutStatus('Ansicht resettet', 'success');
+        return;
+      }
+      const minX = Math.min(...boxes.map(b => b.x1));
+      const minY = Math.min(...boxes.map(b => b.y1));
+      const maxX = Math.max(...boxes.map(b => b.x2));
+      const maxY = Math.max(...boxes.map(b => b.y2));
+      const bw = Math.max(maxX - minX, 1);
+      const bh = Math.max(maxY - minY, 1);
+      const padding = 60;
+      const scaleX = (cw - 2 * padding) / bw;
+      const scaleY = (ch - 2 * padding) / bh;
+      const scale = Math.min(scaleX, scaleY, 1.5);
+      LAYOUT_STAGE.scale({ x: scale, y: scale });
+      LAYOUT_STAGE.position({
+        x: (cw - bw * scale) / 2 - minX * scale,
+        y: (ch - bh * scale) / 2 - minY * scale
+      });
+      if (LAYOUT_WALL_SELECTED_IDX !== null) layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
+      layoutStatus('Ansicht resettet', 'success');
+    }
+
     function layoutStartDrawWall() {
       if (!LAYOUT_WALL_MODE) return;
       LAYOUT_WALL_DRAW_NEXT = true;
@@ -1186,19 +1225,20 @@
       if (cont) cont.style.cursor = 'crosshair';
       layoutStatus('Im leeren Bereich draggen um Wand zu zeichnen (Esc = Abbruch)', 'success');
     }
+    }
 
     async function layoutDeleteAllWalls() {
       if (!LAYOUT_WALLS.length) {
-        layoutStatus('Keine Waende vorhanden', 'success');
+        layoutStatus('Keine Wände vorhanden', 'success');
         return;
       }
-      if (!confirm('Wirklich ALLE Waende loeschen? Das kann nicht rueckgaengig gemacht werden.')) return;
+      if (!confirm('Wirklich ALLE Wände löschen? Das kann nicht rückgängig gemacht werden.')) return;
       LAYOUT_WALLS.length = 0;
       LAYOUT_WALL_SELECTED_IDX = null;
       LAYOUT_WALL_HOVER_IDX = null;
       await layoutSaveWalls();
       layoutDrawTables();
-      layoutStatus('Alle Waende geloescht', 'success');
+      layoutStatus('Alle Wände gelöscht', 'success');
     }
 
     async function layoutHandleWallStart(e) {
@@ -1262,7 +1302,7 @@
       LAYOUT_WALLS.push({ x1: start.x, y1: start.y, x2: w.x, y2: w.y });
       await layoutSaveWalls();
       layoutDrawTables();
-      layoutStatus('Wand hinzugefuegt', 'success');
+      layoutStatus('Wand hinzugefügt', 'success');
     }
 
     function layoutBuildTableNode(resource) {
@@ -1277,9 +1317,9 @@
         x: resource.x || 60,
         y: resource.y || 60,
         draggable: LAYOUT_MODE === 'edit' && !LAYOUT_WALL_MODE,
-        id: 'table-' + resource.id,
-        dragDistance: 3
+        id: 'table-' + resource.id
       });
+      group.dragDistance(3);
 
       let shape;
       if (resource.shape === 'circle') {
