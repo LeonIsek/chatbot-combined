@@ -862,13 +862,9 @@
       // Esc: zuerst deselect, dann Wand-Modus beenden
       document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        // Erst: aktiven Draw-Modus abbrechen
+        // Erst: aktiven Lock-Mode beenden via Toggle
         if (LAYOUT_WALL_DRAW_NEXT) {
-          LAYOUT_WALL_DRAW_NEXT = false;
-          if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
-          const c = $('konva-container');
-          if (c) c.style.cursor = 'grab';
-          layoutStatus('Wand-Zeichnen abgebrochen', 'success');
+          layoutStartDrawWall();
           return;
         }
         if (LAYOUT_WALL_SELECTED_IDX !== null) {
@@ -991,6 +987,9 @@
     function layoutBuildWallNode(wall, idx) {
       const isSelected = LAYOUT_WALL_SELECTED_IDX === idx;
       const isHovered = LAYOUT_WALL_HOVER_IDX === idx;
+      // Im Lock-Mode (DRAW_NEXT) sollen Wände nicht selektierbar/draggable sein,
+      // damit das Zeichnen neuer Waende neben bestehenden nicht stoert
+      const interactive = LAYOUT_WALL_MODE && !LAYOUT_WALL_DRAW_NEXT;
       const line = new Konva.Line({
         points: [wall.x1, wall.y1, wall.x2, wall.y2],
         stroke: '#0a0a0a',
@@ -998,10 +997,10 @@
         lineCap: 'butt',
         id: 'wall-' + idx,
         name: 'wall',
-        hitStrokeWidth: 40,
+        hitStrokeWidth: 60,  // grosser Hit-Bereich auch fuer kleine Waende
         strokeScaleEnabled: false,
-        listening: true,
-        draggable: LAYOUT_WALL_MODE
+        listening: interactive,
+        draggable: interactive
       });
       line.dragDistance(4);  // <4px Bewegung = Klick (Selektion), >=4px = Drag
       line.on('dragstart', () => {
@@ -1137,6 +1136,12 @@
       LAYOUT_WALL_DRAWING = false;
       LAYOUT_WALL_HOVER_IDX = null;
       LAYOUT_WALL_DRAW_NEXT = false;
+      // Lock-Mode-Button auf default zuruecksetzen
+      const addBtnReset = $('layout-wall-add');
+      if (addBtnReset) {
+        addBtnReset.classList.remove('primary');
+        addBtnReset.innerHTML = '<i data-lucide="plus"></i> Wand hinzufügen';
+      }
       if (LAYOUT_WALL_PREVIEW) {
         LAYOUT_WALL_PREVIEW.destroy();
         LAYOUT_WALL_PREVIEW = null;
@@ -1176,54 +1181,39 @@
       return { x: (p.x - LAYOUT_STAGE.x()) / s, y: (p.y - LAYOUT_STAGE.y()) / s };
     }
 
-    // Fit-to-Content: zoomt + pannt so dass alle Tische und Wände sichtbar zentriert sind
+    // Reset = Pan auf einen fixen Default-Punkt im freien Raum (world origin in Container-Mitte).
+    // Scale bleibt unveraendert — User behaelt seinen Zoom-Level.
     function layoutFitToContent() {
       if (!LAYOUT_STAGE) return;
-      const boxes = [];
-      LAYOUT_RESOURCES.forEach(r => {
-        const x = r.x || 60, y = r.y || 60, w = r.width || 80, h = r.height || 80;
-        boxes.push({ x1: x, y1: y, x2: x + w, y2: y + h });
-      });
-      LAYOUT_WALLS.forEach(w => {
-        boxes.push({
-          x1: Math.min(w.x1, w.x2), y1: Math.min(w.y1, w.y2),
-          x2: Math.max(w.x1, w.x2), y2: Math.max(w.y1, w.y2)
-        });
-      });
       const cw = LAYOUT_STAGE.width(), ch = LAYOUT_STAGE.height();
-      if (!boxes.length) {
-        // Leerer Canvas: auf Container-Mitte zentrieren bei Scale 1
-        LAYOUT_STAGE.scale({ x: 1, y: 1 });
-        LAYOUT_STAGE.position({ x: 0, y: 0 });
-        layoutStatus('Ansicht resettet', 'success');
-        return;
-      }
-      const minX = Math.min(...boxes.map(b => b.x1));
-      const minY = Math.min(...boxes.map(b => b.y1));
-      const maxX = Math.max(...boxes.map(b => b.x2));
-      const maxY = Math.max(...boxes.map(b => b.y2));
-      const bw = Math.max(maxX - minX, 1);
-      const bh = Math.max(maxY - minY, 1);
-      const padding = 60;
-      const scaleX = (cw - 2 * padding) / bw;
-      const scaleY = (ch - 2 * padding) / bh;
-      const scale = Math.min(scaleX, scaleY, 1.5);
-      LAYOUT_STAGE.scale({ x: scale, y: scale });
-      LAYOUT_STAGE.position({
-        x: (cw - bw * scale) / 2 - minX * scale,
-        y: (ch - bh * scale) / 2 - minY * scale
-      });
+      LAYOUT_STAGE.position({ x: cw / 2, y: ch / 2 });
       if (LAYOUT_WALL_SELECTED_IDX !== null) layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
       layoutStatus('Ansicht resettet', 'success');
     }
 
+    // Toggle: einmal druecken = aktiv und bleibt, bis erneut Knopf oder Esc
     function layoutStartDrawWall() {
       if (!LAYOUT_WALL_MODE) return;
-      LAYOUT_WALL_DRAW_NEXT = true;
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(false);
+      LAYOUT_WALL_DRAW_NEXT = !LAYOUT_WALL_DRAW_NEXT;
+      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_DRAW_NEXT);
       const cont = $('konva-container');
-      if (cont) cont.style.cursor = 'crosshair';
-      layoutStatus('Im leeren Bereich draggen um Wand zu zeichnen (Esc = Abbruch)', 'success');
+      if (cont) cont.style.cursor = LAYOUT_WALL_DRAW_NEXT ? 'crosshair' : 'grab';
+      const btn = $('layout-wall-add');
+      if (btn) {
+        btn.classList.toggle('primary', LAYOUT_WALL_DRAW_NEXT);
+        btn.innerHTML = LAYOUT_WALL_DRAW_NEXT
+          ? '<i data-lucide="check"></i> Zeichnen aktiv (Esc zum Beenden)'
+          : '<i data-lucide="plus"></i> Wand hinzufügen';
+        if (window.lucide) lucide.createIcons();
+      }
+      // Wand-Selektion aufheben + Re-Render damit Wand-Lines listening=false bekommen
+      if (LAYOUT_WALL_SELECTED_IDX !== null) layoutDeselectWall();
+      layoutDrawTables();
+      if (LAYOUT_WALL_DRAW_NEXT) {
+        layoutStatus('Wand-Zeichnen aktiv · weiter zeichnen oder erneut Knopf druecken zum Beenden', 'success');
+      } else {
+        layoutStatus('Wand-Zeichnen beendet', 'success');
+      }
     }
 
     async function layoutDeleteAllWalls() {
@@ -1247,6 +1237,13 @@
       if (tname === 'wall-handle' || tname === 'wall') return;
       // Klick auf Tisch oder andere Shape → ignorieren
       if (e.target !== LAYOUT_STAGE) return;
+      // Fallback fuer kleine Waende: Konva-Hit verfehlt aber native mousemove fand eine Wand
+      if (!LAYOUT_WALL_DRAW_NEXT && LAYOUT_WALL_HOVER_IDX !== null) {
+        e.cancelBubble = true;
+        LAYOUT_WALL_SELECTED_IDX = LAYOUT_WALL_HOVER_IDX;
+        layoutDrawTables();
+        return;
+      }
       // Wenn etwas selektiert war → deselect
       if (LAYOUT_WALL_SELECTED_IDX !== null) {
         layoutDeselectWall();
@@ -1284,11 +1281,7 @@
       }
       const start = LAYOUT_WALL_START;
       LAYOUT_WALL_START = null;
-      // Draw-Modus immer beenden — User muss "Wand hinzufuegen" wieder druecken
-      LAYOUT_WALL_DRAW_NEXT = false;
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
-      const cont = $('konva-container');
-      if (cont) cont.style.cursor = 'grab';
+      // Lock-Mode: DRAW_NEXT bleibt aktiv. User toggled selber wann fertig.
       if (!start) { LAYOUT_LAYER.batchDraw(); return; }
       const w = layoutWorldCoords();
       if (!w) { layoutDrawTables(); return; }
@@ -1301,7 +1294,7 @@
       LAYOUT_WALLS.push({ x1: start.x, y1: start.y, x2: w.x, y2: w.y });
       await layoutSaveWalls();
       layoutDrawTables();
-      layoutStatus('Wand hinzugefügt', 'success');
+      layoutStatus('Wand hinzugefügt — weiter zeichnen oder Knopf erneut drücken zum Beenden', 'success');
     }
 
     function layoutBuildTableNode(resource) {
@@ -1336,19 +1329,22 @@
       group.add(new Konva.Text({
         text: resource.label, fontSize: 13, fontStyle: 'bold',
         fontFamily: 'Inter, sans-serif', fill: '#0a0a0a',
-        width: w, height: h - 14, align: 'center', verticalAlign: 'middle'
+        width: w, height: h - 14, align: 'center', verticalAlign: 'middle',
+        listening: false  // Klicks fallen durch zur Shape → ueberall im Rect draggable
       }));
 
       group.add(new Konva.Text({
         text: resource.capacity + 'P', fontSize: 11, fill: '#737373',
-        fontFamily: 'Inter, sans-serif', width: w, y: h - 16, align: 'center'
+        fontFamily: 'Inter, sans-serif', width: w, y: h - 16, align: 'center',
+        listening: false
       }));
 
       if (isOccupied) {
         group.add(new Konva.Text({
           text: occupants[0].start_time?.slice(0, 5) || '', fontSize: 10,
           fill: '#b91c1c', fontFamily: 'Inter, sans-serif',
-          x: 4, y: 4
+          x: 4, y: 4,
+          listening: false
         }));
       }
 
@@ -1473,7 +1469,6 @@
       $('table-edit-label').value = 'Tisch ' + (LAYOUT_RESOURCES.length + 1);
       $('table-edit-capacity').value = 4;
       $('table-edit-shape').value = 'rect';
-      $('table-edit-type').value = 'table';
       $('table-modal-delete').style.display = 'none';
       $('table-edit-modal').classList.add('visible');
     }
@@ -1484,7 +1479,6 @@
       $('table-edit-label').value = resource.label || '';
       $('table-edit-capacity').value = resource.capacity || 4;
       $('table-edit-shape').value = resource.shape || 'rect';
-      $('table-edit-type').value = resource.resource_type || 'table';
       $('table-modal-delete').style.display = '';
       $('table-edit-modal').classList.add('visible');
     }
