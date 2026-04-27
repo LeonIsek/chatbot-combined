@@ -1312,21 +1312,28 @@
         id: 'table-' + resource.id
       });
 
+      // Shape selber listening:true → faengt Klicks im Form-Bereich (Rect bbox / Circle-Flaeche)
       let shape;
       if (resource.shape === 'circle') {
         shape = new Konva.Circle({
           x: w / 2, y: h / 2, radius: w / 2,
-          fill, stroke, strokeWidth: 2,
-          listening: false
+          fill, stroke, strokeWidth: 2
+        });
+        // Hit-Area auf quadratische bbox erweitern, damit auch Ecken klickbar sind
+        shape.hitFunc(function(ctx) {
+          ctx.beginPath();
+          ctx.rect(-w/2, -h/2, w, h);
+          ctx.closePath();
+          ctx.fillStrokeShape(this);
         });
       } else {
         shape = new Konva.Rect({
-          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6,
-          listening: false
+          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6
         });
       }
       group.add(shape);
 
+      // Texts daraufgelegt mit listening:false → Klicks fallen durch zur Shape
       group.add(new Konva.Text({
         text: resource.label, fontSize: 13, fontStyle: 'bold',
         fontFamily: 'Inter, sans-serif', fill: '#0a0a0a',
@@ -1348,21 +1355,6 @@
           listening: false
         }));
       }
-
-      // Hit-Rect: liegt ueber allem, faengt alle Klicks/Drags fuer den ganzen Tisch-Bereich.
-      // hitFunc zwingt Konva die ganze Box als hit-area zu nutzen, unabhaengig vom Fill.
-      const hitRect = new Konva.Rect({
-        width: w, height: h,
-        listening: true,
-        name: 'tisch-hit'
-      });
-      hitRect.hitFunc(function(ctx) {
-        ctx.beginPath();
-        ctx.rect(0, 0, w, h);
-        ctx.closePath();
-        ctx.fillStrokeShape(this);
-      });
-      group.add(hitRect);
 
       group.on('dragend', async () => {
         if (LAYOUT_MODE !== 'edit') return;
