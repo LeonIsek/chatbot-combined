@@ -770,7 +770,9 @@
       const container = $('konva-container');
       if (!container) return;
       const width = container.offsetWidth || 700;
-      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480, draggable: true });
+      // Stage NICHT draggable per default — verhindert Race mit Group-Drag (Push 13).
+      // Pan wird im mousedown-handler unten gezielt aktiviert wenn target === Stage.
+      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480 });
       // Mindest-Bewegung bevor Stage-Pan startet (verhindert versehentlichen Pan bei kleinen Klicks)
       LAYOUT_STAGE.dragDistance(5);
       LAYOUT_LAYER = new Konva.Layer();
@@ -800,9 +802,15 @@
       // Stage-Drag: nur auf leerem Hintergrund (Konva handhabt automatisch — wenn Group draggable=true,
       // wird Group statt Stage gedragged). Cursor-Style anpassen fuer Visual-Feedback.
       LAYOUT_STAGE.on('mousedown touchstart', (e) => {
-        if (e.target === LAYOUT_STAGE || e.target.getType?.() === 'Stage') {
-          container.style.cursor = 'grabbing';
-        }
+        // Push 13: Stage-Pan deterministisch. Erst draggable zuruecksetzen (verhindert
+        // dass alte Stage-draggable=true Group-Drags abklemmt), dann gezielt aktivieren
+        // wenn auf leerer Stage UND nicht im Wand-Zeichnen.
+        LAYOUT_STAGE.draggable(false);
+        if (e.target !== LAYOUT_STAGE && e.target.getType?.() !== 'Stage') return;
+        if (LAYOUT_WALL_DRAW_NEXT) return;
+        container.style.cursor = 'grabbing';
+        LAYOUT_STAGE.draggable(true);
+        LAYOUT_STAGE.startDrag();
       });
       LAYOUT_STAGE.on('mouseup touchend mouseleave', () => {
         container.style.cursor = 'default';
@@ -1158,8 +1166,7 @@
       }
       const cont = $('konva-container');
       cont.style.cursor = LAYOUT_WALL_MODE ? 'grab' : 'grab';
-      // Wand-Modus default = Pan. Stage bleibt draggable.
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
+      // Push 13: Stage-Pan wird vom mousedown-Handler dynamisch verwaltet, kein draggable-Toggle hier.
       // Sub-Buttons ein-/ausblenden + +Tisch im Wand-Modus verstecken (weniger Visual-Clutter)
       const addBtn = $('layout-wall-add');
       const delAllBtn = $('layout-wall-delete-all');
@@ -1195,7 +1202,7 @@
     function layoutStartDrawWall() {
       if (!LAYOUT_WALL_MODE) return;
       LAYOUT_WALL_DRAW_NEXT = !LAYOUT_WALL_DRAW_NEXT;
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_DRAW_NEXT);
+      // Push 13: kein Stage.draggable-Toggle noetig — mousedown-Handler liest LAYOUT_WALL_DRAW_NEXT direkt
       const cont = $('konva-container');
       if (cont) cont.style.cursor = LAYOUT_WALL_DRAW_NEXT ? 'crosshair' : 'grab';
       const btn = $('layout-wall-add');
