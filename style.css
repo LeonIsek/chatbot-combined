@@ -38,7 +38,7 @@ body {
     radial-gradient(circle at top left, rgba(199, 55, 47, 0.22), transparent 28%),
     radial-gradient(circle at bottom right, rgba(47, 138, 72, 0.18), transparent 24%),
     linear-gradient(180deg, #fff8ef 0%, #fff5ed 55%, #fffdf9 100%);
-  background-color: #fffdf9;
+  background-color: #0f172a;
   color: var(--text);
   font-family: "Manrope", "Segoe UI", sans-serif;
   line-height: 1.6;

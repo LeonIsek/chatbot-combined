@@ -634,7 +634,8 @@
     #panel-landing .lp-cta { padding: 5rem 0; text-align: center; border-top: 1px solid #1f2d4a; }
     #panel-landing .lp-cta p { color: #8899bb; margin: 1rem 0 2rem; }
     /* Footer */
-    #panel-landing .lp-footer { padding: 2rem 0; border-top: 1px solid #1f2d4a; text-align: center; color: #8899bb; font-size: .875rem; }
+    #panel-landing .lp-footer { padding: 2rem 0 max(2rem, env(safe-area-inset-bottom)) 0; border-top: 1px solid #1f2d4a; text-align: center; color: #8899bb; font-size: .875rem; background: #060912; }
+    #panel-landing::after { content: ''; display: block; height: env(safe-area-inset-bottom); background: #060912; }
     #panel-landing .lp-footer a { color: #8899bb; }
     @media (max-width: 640px) {
       #panel-landing .lp-hero { padding: 4rem 0 3rem; }
