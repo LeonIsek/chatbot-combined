@@ -1349,13 +1349,20 @@
         }));
       }
 
-      // Hit-Rect: liegt ueber allem, faengt alle Klicks/Drags fuer den ganzen Tisch-Bereich
-      group.add(new Konva.Rect({
+      // Hit-Rect: liegt ueber allem, faengt alle Klicks/Drags fuer den ganzen Tisch-Bereich.
+      // hitFunc zwingt Konva die ganze Box als hit-area zu nutzen, unabhaengig vom Fill.
+      const hitRect = new Konva.Rect({
         width: w, height: h,
-        fill: 'rgba(0,0,0,0.001)',  // quasi-transparent, aber Konva-hit-detectable
         listening: true,
         name: 'tisch-hit'
-      }));
+      });
+      hitRect.hitFunc(function(ctx) {
+        ctx.beginPath();
+        ctx.rect(0, 0, w, h);
+        ctx.closePath();
+        ctx.fillStrokeShape(this);
+      });
+      group.add(hitRect);
 
       group.on('dragend', async () => {
         if (LAYOUT_MODE !== 'edit') return;
