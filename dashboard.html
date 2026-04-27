@@ -756,13 +756,6 @@
       LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480, draggable: true });
       // Mindest-Bewegung bevor Stage-Pan startet (verhindert versehentlichen Pan bei kleinen Klicks)
       LAYOUT_STAGE.dragDistance(5);
-      // Wenn ein Kind (Tisch, Wand-Handle) das eigentliche Drag-Target ist, soll die Stage NICHT mit-pannen.
-      // Fixt: (a) Pan->Tisch-Drag-Race nach Pan-Ende, (b) Wand-Handle-Drag im Wand-Modus
-      LAYOUT_STAGE.on('dragstart', (e) => {
-        if (e.target !== LAYOUT_STAGE) {
-          LAYOUT_STAGE.stopDrag();
-        }
-      });
       LAYOUT_LAYER = new Konva.Layer();
       LAYOUT_STAGE.add(LAYOUT_LAYER);
 
@@ -983,9 +976,32 @@
         name: 'wall',
         hitStrokeWidth: 40,
         strokeScaleEnabled: false,
-        listening: true
+        listening: true,
+        draggable: LAYOUT_WALL_MODE  // im Wand-Modus: ganze Wand ziehbar
       });
-      // Hover-Feedback wird ueber native container-mousemove gemacht (zuverlaessiger als Konva-mouseenter).
+      // Drag-Start: Wand selektieren (Trash-Btn waehrend Drag verstecken)
+      line.on('dragstart', () => {
+        LAYOUT_WALL_SELECTED_IDX = idx;
+        const tb = $('wall-trash-btn');
+        if (tb) tb.classList.remove('visible');
+      });
+      // Drag-End: Konva-Offset in Welt-Coords einrechnen, Position zuruecksetzen, speichern, redraw
+      line.on('dragend', async () => {
+        const dx = line.x(), dy = line.y();
+        const w = LAYOUT_WALLS[idx];
+        if (w) {
+          w.x1 += dx; w.y1 += dy; w.x2 += dx; w.y2 += dy;
+        }
+        line.position({ x: 0, y: 0 });
+        await layoutSaveWalls();
+        layoutDrawTables();
+      });
+      // Klick (ohne Drag): nur selektieren
+      line.on('click tap', () => {
+        if (LAYOUT_WALL_SELECTED_IDX === idx) return;
+        LAYOUT_WALL_SELECTED_IDX = idx;
+        layoutDrawTables();
+      });
       return line;
     }
 
@@ -1105,12 +1121,11 @@
       }
       const cont = $('konva-container');
       cont.style.cursor = LAYOUT_WALL_MODE ? 'crosshair' : 'grab';
-      // Stage bleibt immer draggable. Im Wand-Modus entscheidet Shift-Taste:
-      // ohne Shift = Wand zeichnen (wallStart stoppt den Stage-Pan), mit Shift = Pan.
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
+      // Im Wand-Modus: Stage-Pan deaktivieren (sonst Konflikt mit Wand-Zeichnen)
+      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(!LAYOUT_WALL_MODE);
       // Hint-Text aktualisieren
       if (LAYOUT_WALL_MODE) {
-        layoutStatus('Drag = Wand zeichnen · Shift+Drag = Raum verschieben · Klick auf Wand = Auswaehlen', 'success');
+        layoutStatus('Leeren Bereich draggen = Wand zeichnen · Wand draggen = verschieben · Endpunkt-Punkte ziehen = verlaengern', 'success');
       }
       layoutDrawTables();
     }
@@ -1125,39 +1140,17 @@
     async function layoutHandleWallStart(e) {
       if (!LAYOUT_WALL_MODE) return;
       const tname = e.target?.name?.();
-      // Klick auf Handle → Konva uebernimmt Drag, nicht stoeren
-      if (tname === 'wall-handle') return;
-      // Klick auf Wand → selektieren (Konva-Path)
-      if (tname === 'wall') {
-        e.cancelBubble = true;
-        const tid = e.target.id() || '';
-        const idx = parseInt(tid.replace('wall-', ''), 10);
-        if (!isNaN(idx) && idx >= 0 && idx < LAYOUT_WALLS.length) {
-          LAYOUT_WALL_SELECTED_IDX = idx;
-          layoutDrawTables();
-        }
-        return;
-      }
+      // Klick/Drag auf Handle oder Wand → Konva-Listener uebernehmen (Drag/Select)
+      if (tname === 'wall-handle' || tname === 'wall') return;
       // Klick auf Tisch oder andere Shape → ignorieren
       if (e.target !== LAYOUT_STAGE) return;
-      // Shift+Drag auf leerem Bereich = Stage-Pan (statt Wand zeichnen)
-      if (e.evt && e.evt.shiftKey) return;
-      // Fallback: Konva hat die Wand nicht erkannt, aber unsere native Hover-Detection schon
-      if (LAYOUT_WALL_HOVER_IDX !== null) {
-        e.cancelBubble = true;
-        LAYOUT_WALL_SELECTED_IDX = LAYOUT_WALL_HOVER_IDX;
-        layoutDrawTables();
-        return;
-      }
       // Klick auf leeren Bereich
-      // 1. Wenn etwas selektiert war → deselect (Drag-to-Draw startet trotzdem,
-      //    aber ein purer Klick mit <20px Bewegung wird in End-Handler ignoriert)
+      // 1. Wenn etwas selektiert war → deselect
       if (LAYOUT_WALL_SELECTED_IDX !== null) {
         layoutDeselectWall();
         layoutDrawTables();
       }
-      // 2. Wand-Drag starten — verhindere Stage-Pan-Hijack waehrend Wand-Draw
-      LAYOUT_STAGE.stopDrag();
+      // 2. Wand-Drag starten
       const w = layoutWorldCoords();
       if (!w) return;
       LAYOUT_WALL_DRAWING = true;
