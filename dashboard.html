@@ -980,27 +980,35 @@
         div.appendChild(time);
       }
 
-      // Drag mit Pointer Capture — keine Hit-Canvas-Magie, keine DD-Singleton, robust.
+      // Drag mit Pointer Capture — Anker-basiert, kein Closure-Wert.
+      // Wir merken uns wo INNERHALB des Tisches der User gegriffen hat und
+      // platzieren den Tisch immer so dass der Cursor an der gleichen
+      // Stelle innerhalb des Tisches bleibt.
       let dragState = null;
       div.addEventListener('pointerdown', (e) => {
         e.stopPropagation();  // Pan auf Viewport blocken
         div.setPointerCapture(e.pointerId);
+        const rect = div.getBoundingClientRect();
         dragState = {
           pointerId: e.pointerId,
+          grabOffsetX: e.clientX - rect.left,  // Pixel von Tisch-Linkskante zum Cursor
+          grabOffsetY: e.clientY - rect.top,
           startX: e.clientX, startY: e.clientY,
-          origX: x, origY: y,
           moved: false
         };
         div.classList.add('dragging');
       });
       div.addEventListener('pointermove', (e) => {
         if (!dragState || e.pointerId !== dragState.pointerId) return;
-        // Welt-Koordinaten = Bildschirm-Delta / scale (sonst zieht der Tisch zu schnell wenn rausgezoomt)
-        const dx = (e.clientX - dragState.startX) / LAYOUT_SCALE;
-        const dy = (e.clientY - dragState.startY) / LAYOUT_SCALE;
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragState.moved = true;
-        div.style.left = (dragState.origX + dx) + 'px';
-        div.style.top = (dragState.origY + dy) + 'px';
+        if (Math.abs(e.clientX - dragState.startX) > 2 ||
+            Math.abs(e.clientY - dragState.startY) > 2) dragState.moved = true;
+        // Wo soll Tisch-Top-Left sein in Viewport-Koordinaten? = Cursor - grabOffset
+        // Dann zu World-Koords: (vp - container_left - PAN) / SCALE
+        const vrect = LAYOUT_VIEWPORT.getBoundingClientRect();
+        const newX = (e.clientX - dragState.grabOffsetX - vrect.left - LAYOUT_PAN.x) / LAYOUT_SCALE;
+        const newY = (e.clientY - dragState.grabOffsetY - vrect.top - LAYOUT_PAN.y) / LAYOUT_SCALE;
+        div.style.left = newX + 'px';
+        div.style.top = newY + 'px';
       });
       const endDrag = async (e, cancelled) => {
         if (!dragState || e.pointerId !== dragState.pointerId) return;
