@@ -928,7 +928,7 @@
       const group = new Konva.Group({
         x: resource.x || 60,
         y: resource.y || 60,
-        draggable: LAYOUT_MODE === 'edit',
+        draggable: true,
         id: 'table-' + resource.id
       });
       // dragDistance: default (3px) — gibt click-Event Raum vor dragstart, sonst kannst
@@ -979,7 +979,6 @@
       }
 
       group.on('dragend', async () => {
-        if (LAYOUT_MODE !== 'edit') return;
         const newX = group.x(), newY = group.y();
         // Bei effektiv keiner Bewegung (Klick statt Drag): kein Save, kein Toast
         if (Math.abs(newX - (resource.x || 60)) < 1 && Math.abs(newY - (resource.y || 60)) < 1) return;
@@ -992,9 +991,7 @@
         } catch (e) { layoutStatus('Speichern fehlgeschlagen', 'error'); }
       });
 
-      group.on('click tap', () => {
-        if (LAYOUT_MODE === 'edit') layoutOpenEditModal(resource);
-      });
+      group.on('click tap', () => layoutOpenEditModal(resource));
 
       return group;
     }
