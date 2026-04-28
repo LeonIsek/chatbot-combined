@@ -780,6 +780,16 @@
       // Aktiviert NUR bei mousedown direkt auf Stage (leerer Hintergrund), nicht auf Children.
       let LAYOUT_PAN = null;  // { pointerX, pointerY, stageX, stageY } oder null
       LAYOUT_STAGE.on('mousedown touchstart', (e) => {
+        // [DIAG-P22] Was hat der Pointer getroffen?
+        console.log('[DIAG-P22 STAGE-MOUSEDOWN]', {
+          targetClass: e.target?.constructor?.name,
+          targetType: e.target?.getType?.(),
+          targetId: e.target?.id?.(),
+          targetName: e.target?.name?.(),
+          targetDraggable: e.target?.draggable?.(),
+          parentId: e.target?.getParent?.()?.id?.(),
+          parentDraggable: e.target?.getParent?.()?.draggable?.()
+        });
         if (e.target !== LAYOUT_STAGE && e.target.getType?.() !== 'Stage') return;
         const p = LAYOUT_STAGE.getPointerPosition();
         if (!p) return;
@@ -931,9 +941,16 @@
         draggable: LAYOUT_MODE === 'edit',
         id: 'table-' + resource.id
       });
-      // Sofortiger Drag, kein dragDistance-Threshold. Stage ist eh nicht mehr draggable,
-      // also kein Race mehr. Reagiert auch besser auf kleine Bewegungen.
-      group.dragDistance(0);
+      // dragDistance: default (3px) — gibt click-Event Raum vor dragstart, sonst kannst
+      // du den Tisch nicht mehr klicken um Edit-Modal zu oeffnen.
+
+      // [DIAG-P22] Tisch-DD-Diagnose: feuern die Events ueberhaupt fuer beide Tische?
+      group.on('dragstart', () => {
+        console.log('[DIAG-P22 TISCH-DRAGSTART]', {
+          id: resource.id, label: resource.label, shape: resource.shape,
+          groupDraggable: group.draggable(), stageDraggable: LAYOUT_STAGE.draggable()
+        });
+      });
 
       // Shape selber listening:true → faengt Klicks im Form-Bereich (Rect bbox / Circle-Flaeche)
       let shape;
