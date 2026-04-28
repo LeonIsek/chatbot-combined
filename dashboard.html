@@ -753,6 +753,8 @@
       LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480 });
       LAYOUT_LAYER = new Konva.Layer();
       LAYOUT_STAGE.add(LAYOUT_LAYER);
+      // Initial: World-Origin (0,0) erscheint in Container-Mitte — Tische bekommen sichtbaren Anker
+      LAYOUT_STAGE.position({ x: width / 2, y: 240 });
 
       // Mausrad-Zoom: scale um Cursor-Position
       LAYOUT_STAGE.on('wheel', (e) => {
@@ -893,6 +895,15 @@
       if (!LAYOUT_LAYER) return;
       LAYOUT_LAYER.destroyChildren();
       $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0);
+      // Origin-Marker bei World (0,0) — kleines Kreuz als Raum-Referenz, listening:false
+      const origin = new Konva.Group({ listening: false });
+      origin.add(new Konva.Line({
+        points: [-8, 0, 8, 0], stroke: '#cbd5e1', strokeWidth: 1, strokeScaleEnabled: false
+      }));
+      origin.add(new Konva.Line({
+        points: [0, -8, 0, 8], stroke: '#cbd5e1', strokeWidth: 1, strokeScaleEnabled: false
+      }));
+      LAYOUT_LAYER.add(origin);
       LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
       LAYOUT_LAYER.draw();
     }
