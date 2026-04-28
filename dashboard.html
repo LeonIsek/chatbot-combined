@@ -410,7 +410,7 @@
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
-            <button class="btn hidden" id="layout-wall-add"><i data-lucide="plus"></i> + Wand</button>
+            <button class="btn hidden" id="layout-wall-add"><i data-lucide="plus"></i> Wand</button>
             <button class="btn danger hidden" id="layout-wall-delete-all"><i data-lucide="trash-2"></i> Alle Wände löschen</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
@@ -1019,12 +1019,15 @@
       });
       LAYOUT_LAYER.destroyChildren();
       $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0 && LAYOUT_WALLS.length === 0);
-      // Wände zuerst rendern (damit Tische darüber liegen)
-      LAYOUT_WALLS.forEach((w, i) => LAYOUT_LAYER.add(layoutBuildWallNode(w, i)));
+      // Nicht-selektierte Waende zuerst (unter Tischen)
+      LAYOUT_WALLS.forEach((w, i) => {
+        if (i === LAYOUT_WALL_SELECTED_IDX) return;
+        LAYOUT_LAYER.add(layoutBuildWallNode(w, i));
+      });
       LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
-      // Handles fuer selektierte Wand zuletzt → liegen ueber allem
+      // Selektierte Wand zuletzt → topmost (Handles ueber Tischen)
       if (LAYOUT_WALL_SELECTED_IDX !== null && LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX]) {
-        LAYOUT_LAYER.add(layoutBuildWallHandles(LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX], LAYOUT_WALL_SELECTED_IDX));
+        LAYOUT_LAYER.add(layoutBuildWallNode(LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX], LAYOUT_WALL_SELECTED_IDX));
         layoutShowWallInspector(LAYOUT_WALL_SELECTED_IDX);
       } else {
         layoutHideWallInspector();
@@ -1035,11 +1038,24 @@
     function layoutBuildWallNode(wall, idx) {
       const isSelected = LAYOUT_WALL_SELECTED_IDX === idx;
       const isHovered = LAYOUT_WALL_HOVER_IDX === idx;
-      // Im Draw-Pending-Mode (one-shot Zeichnen) sind bestehende Waende non-interactive,
-      // damit das Zeichnen einer neuen Wand nicht stoert. Sonst voll interaktiv im Edit-Mode.
       const interactive = LAYOUT_MODE === 'edit' && !LAYOUT_DRAW_PENDING;
+      const dx = wall.x2 - wall.x1;
+      const dy = wall.y2 - wall.y1;
+
+      // Wand-Group: x/y = absoluter Anker bei Endpunkt A. Children leben in Group-lokalen Coords.
+      // Effekt: Group-Drag bewegt Linie + Handles synchron via Konva-Transform — kein Sync-Code.
+      const group = new Konva.Group({
+        x: wall.x1,
+        y: wall.y1,
+        draggable: interactive,
+        id: 'wall-group-' + idx,
+        name: 'wall-group'
+      });
+      group.dragDistance(4);
+
+      // Linie lokal von (0,0) zu (dx, dy)
       const line = new Konva.Line({
-        points: [wall.x1, wall.y1, wall.x2, wall.y2],
+        points: [0, 0, dx, dy],
         stroke: '#0a0a0a',
         strokeWidth: isSelected ? 8 : (isHovered ? 10 : 6),
         lineCap: 'butt',
@@ -1047,38 +1063,74 @@
         name: 'wall',
         hitStrokeWidth: 80,
         strokeScaleEnabled: false,
-        listening: interactive,
-        draggable: interactive
+        listening: interactive
       });
-      line.dragDistance(4);
-      line.on('dragstart', () => {
+      group.add(line);
+
+      // Handles nur wenn selektiert (sonst optisch ruhiger)
+      if (isSelected && interactive) {
+        const mkHandle = (lx, ly, key) => {
+          const h = new Konva.Circle({
+            x: lx, y: ly, radius: 7,
+            fill: '#ffffff', stroke: '#3b82f6', strokeWidth: 2,
+            draggable: true,
+            name: 'wall-handle',
+            id: 'wall-handle-' + idx + '-' + key
+          });
+          h.dragDistance(2);  // sehr empfindlich, Handle ist klein
+          h.on('dragmove', () => {
+            const w = LAYOUT_WALLS[idx]; if (!w) return;
+            // Handle-Position ist lokal zu Group; absolute Wand-Coords = group + handle-local
+            const absX = group.x() + h.x();
+            const absY = group.y() + h.y();
+            if (key === 'a') { w.x1 = absX; w.y1 = absY; }
+            else             { w.x2 = absX; w.y2 = absY; }
+            // Linie zwischen Handle-A und Handle-B (lokal)
+            const hA = group.findOne('#wall-handle-' + idx + '-a');
+            const hB = group.findOne('#wall-handle-' + idx + '-b');
+            if (hA && hB) line.points([hA.x(), hA.y(), hB.x(), hB.y()]);
+            layoutShowWallInspector(idx);  // Length live-update
+          });
+          h.on('dragend', async () => {
+            await layoutSaveWalls();
+            // Re-render damit Group-Anker wieder bei wall.x1,wall.y1 sitzt und Handles auf (0,0)/(dx,dy)
+            layoutDrawTables();
+          });
+          return h;
+        };
+        group.add(mkHandle(0, 0, 'a'));
+        group.add(mkHandle(dx, dy, 'b'));
+      }
+
+      // Group-Drag (gesamte Wand verschieben).
+      // Handle-Drag bubbled zur Group, deshalb e.target-Check.
+      group.on('dragstart', (e) => {
+        if (e.target?.name?.() === 'wall-handle') return;
         LAYOUT_WALL_SELECTED_IDX = idx;
         layoutHideWallInspector();
       });
-      line.on('dragend', async () => {
-        const dx = line.x(), dy = line.y();
-        // Klick-statt-Drag (Schwelle erreicht aber effektiv 0)
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
-          line.position({ x: 0, y: 0 });
-          if (LAYOUT_WALL_SELECTED_IDX !== idx) {
-            layoutSelectWall(idx);
-          } else {
-            layoutShowWallInspector(idx);
-          }
-          return;
-        }
-        const w = LAYOUT_WALLS[idx];
-        if (w) { w.x1 += dx; w.y1 += dy; w.x2 += dx; w.y2 += dy; }
-        line.position({ x: 0, y: 0 });
+      group.on('dragend', async (e) => {
+        if (e.target?.name?.() === 'wall-handle') return;
+        const w = LAYOUT_WALLS[idx]; if (!w) return;
+        const oldDx = w.x2 - w.x1;
+        const oldDy = w.y2 - w.y1;
+        w.x1 = group.x();
+        w.y1 = group.y();
+        w.x2 = group.x() + oldDx;
+        w.y2 = group.y() + oldDy;
         await layoutSaveWalls();
-        layoutDrawTables();
-        layoutShowWallInspector(idx);
+        // Kein layoutDrawTables noetig — Group ist visuell schon korrekt, kein Pop-Back.
+        // Wenn Wand vorher nicht selektiert war: jetzt selektieren + Handles rendern via Re-Render.
+        if (LAYOUT_WALL_SELECTED_IDX !== idx) layoutSelectWall(idx);
+        else layoutShowWallInspector(idx);
       });
-      line.on('click tap', () => {
+      group.on('click tap', (e) => {
+        if (e.target?.name?.() === 'wall-handle') return;
         if (LAYOUT_WALL_SELECTED_IDX === idx) return;
         layoutSelectWall(idx);
       });
-      return line;
+
+      return group;
     }
 
     // Punkt-zu-Strecke-Distanz (in Welt-Coords)
@@ -1108,32 +1160,6 @@
       return bestIdx;
     }
 
-    function layoutBuildWallHandles(wall, idx) {
-      const group = new Konva.Group({ id: 'wall-handles-' + idx, listening: true });
-      ['x1','y1','x2','y2'].length;
-      const mkHandle = (px, py, pointKey) => {
-        const h = new Konva.Circle({
-          x: px, y: py, radius: 7,
-          fill: '#ffffff', stroke: '#3b82f6', strokeWidth: 2,
-          draggable: true, name: 'wall-handle',
-          id: 'wall-handle-' + idx + '-' + pointKey
-        });
-        h.on('dragmove', () => {
-          const w = LAYOUT_WALLS[idx]; if (!w) return;
-          if (pointKey === 'a') { w.x1 = h.x(); w.y1 = h.y(); }
-          else                  { w.x2 = h.x(); w.y2 = h.y(); }
-          const wallNode = LAYOUT_LAYER.findOne('#wall-' + idx);
-          if (wallNode) wallNode.points([w.x1, w.y1, w.x2, w.y2]);
-          layoutShowWallInspector(idx);  // Length-Update in Inspector
-          LAYOUT_LAYER.batchDraw();
-        });
-        h.on('dragend', async () => { await layoutSaveWalls(); });
-        return h;
-      };
-      group.add(mkHandle(wall.x1, wall.y1, 'a'));
-      group.add(mkHandle(wall.x2, wall.y2, 'b'));
-      return group;
-    }
 
     function layoutSelectWall(idx) {
       LAYOUT_WALL_SELECTED_IDX = idx;
@@ -1191,7 +1217,7 @@
       const btn = $('layout-wall-add');
       if (btn) {
         btn.classList.remove('primary');
-        btn.innerHTML = '<i data-lucide="plus"></i> + Wand';
+        btn.innerHTML = '<i data-lucide="plus"></i> Wand';
         if (window.lucide) lucide.createIcons();
       }
       const cont = $('konva-container');
