@@ -746,9 +746,11 @@
       const container = $('konva-container');
       if (!container) return;
       const width = container.offsetWidth || 700;
-      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480, draggable: true });
-      // Mindest-Bewegung bevor Stage-Pan startet (verhindert versehentlichen Pan bei kleinen Klicks)
-      LAYOUT_STAGE.dragDistance(5);
+      // Stage NICHT draggable — sonst wuerde Konva-DD bei jedem mousedown sowohl Stage als auch
+      // das getroffene Child (z.B. Tisch-Group) als Drag-Kandidaten registrieren → Race um wer
+      // tatsaechlich gedragged wird. Heisenbug rect/circle nicht-draggable kommt daher.
+      // Pan wird stattdessen via Custom-Logic implementiert (siehe weiter unten).
+      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480 });
       LAYOUT_LAYER = new Konva.Layer();
       LAYOUT_STAGE.add(LAYOUT_LAYER);
 
@@ -772,15 +774,30 @@
         });
       });
 
-      // Stage-Drag: nur auf leerem Hintergrund (Konva handhabt automatisch — wenn Group draggable=true,
-      // wird Group statt Stage gedragged). Cursor-Style anpassen fuer Visual-Feedback.
+      // Custom Stage-Pan (statt Konva-DD-Stage-Drag — eliminiert DD-Race mit Tisch-Groups).
+      // Aktiviert NUR bei mousedown direkt auf Stage (leerer Hintergrund), nicht auf Children.
+      let LAYOUT_PAN = null;  // { pointerX, pointerY, stageX, stageY } oder null
       LAYOUT_STAGE.on('mousedown touchstart', (e) => {
-        if (e.target === LAYOUT_STAGE || e.target.getType?.() === 'Stage') {
-          container.style.cursor = 'grabbing';
-        }
+        if (e.target !== LAYOUT_STAGE && e.target.getType?.() !== 'Stage') return;
+        const p = LAYOUT_STAGE.getPointerPosition();
+        if (!p) return;
+        LAYOUT_PAN = {
+          pointerX: p.x, pointerY: p.y,
+          stageX: LAYOUT_STAGE.x(), stageY: LAYOUT_STAGE.y()
+        };
+        container.style.cursor = 'grabbing';
+      });
+      LAYOUT_STAGE.on('mousemove touchmove', () => {
+        if (!LAYOUT_PAN) return;
+        const p = LAYOUT_STAGE.getPointerPosition();
+        if (!p) return;
+        LAYOUT_STAGE.position({
+          x: LAYOUT_PAN.stageX + (p.x - LAYOUT_PAN.pointerX),
+          y: LAYOUT_PAN.stageY + (p.y - LAYOUT_PAN.pointerY)
+        });
       });
       LAYOUT_STAGE.on('mouseup touchend mouseleave', () => {
-        container.style.cursor = 'default';
+        if (LAYOUT_PAN) { LAYOUT_PAN = null; container.style.cursor = 'default'; }
       });
 
       // Date-Picker
@@ -903,6 +920,9 @@
         draggable: LAYOUT_MODE === 'edit',
         id: 'table-' + resource.id
       });
+      // Sofortiger Drag, kein dragDistance-Threshold. Stage ist eh nicht mehr draggable,
+      // also kein Race mehr. Reagiert auch besser auf kleine Bewegungen.
+      group.dragDistance(0);
 
       // Shape selber listening:true → faengt Klicks im Form-Bereich (Rect bbox / Circle-Flaeche)
       let shape;
