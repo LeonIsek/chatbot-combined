@@ -56,20 +56,20 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .header-bar { display: flex; gap: 12px; align-items: center; }
-    .icon-btn {
-      background: transparent; border: 1px solid #2A2A2A; color: #fff;
-      width: 34px; height: 34px; padding: 0; border-radius: 8px; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .icon-btn:hover { background: #1A1A1A; }
-    .icon-btn i, .icon-btn svg { width: 16px; height: 16px; display: block; }
     .hint-panel { background: var(--hint-bg); border-color: var(--hint-border); }
     .hint-panel p, .hint-panel a { color: var(--hint-text); }
     header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
     header .right { display: flex; gap: 12px; align-items: center; font-size: 13px; color: #A3A3A3; }
-    header button { background: transparent; border: 1px solid #2A2A2A; color: #fff;
-      padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    header button {
+      background: transparent; border: 1px solid #2A2A2A; color: #fff;
+      height: 32px; padding: 0 12px;
+      border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit;
+      display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
     header button:hover { background: #1A1A1A; }
+    .icon-btn { width: 32px; padding: 0; }
+    .icon-btn i, .icon-btn svg { width: 16px; height: 16px; display: block; }
 
     main { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .hidden { display: none !important; }
