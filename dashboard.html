@@ -226,15 +226,46 @@
     .canvas-area.edit-mode {
       border-style: dashed; border-color: var(--warn); background: #fffbeb;
     }
+    #layout-world {
+      position: absolute; left: 0; top: 0; width: 0; height: 0;
+      transform-origin: 0 0; will-change: transform;
+    }
+    .layout-table {
+      position: absolute; box-sizing: border-box;
+      background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 6px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: grab; user-select: none; -webkit-user-select: none;
+      font-family: inherit; font-size: 13px; font-weight: 700; color: #0a0a0a;
+      touch-action: none;
+      transition: box-shadow 120ms;
+    }
+    .layout-table:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .layout-table.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: none; }
+    .layout-table.occupied { background: #fee2e2; border-color: #ef4444; }
+    .layout-table.circle { border-radius: 50%; }
+    .layout-table .lt-cap { font-size: 11px; color: #737373; font-weight: 500; margin-top: 2px; }
+    .layout-table .lt-time {
+      position: absolute; top: 4px; left: 6px;
+      font-size: 10px; color: #b91c1c; font-weight: 600;
+    }
+    .layout-origin {
+      position: absolute; left: -8px; top: -1px; width: 16px; height: 2px;
+      background: #cbd5e1; pointer-events: none;
+    }
+    .layout-origin::before {
+      content: ''; position: absolute; left: 7px; top: -7px;
+      width: 2px; height: 16px; background: #cbd5e1;
+    }
     #konva-container {
       width: 100%; height: 480px; background: #fafbfc; border-radius: 8px;
       border: 1px solid var(--border); overflow: hidden; position: relative;
-      cursor: grab;
+      cursor: grab; touch-action: none;
       background-image:
         linear-gradient(#e2e8f0 1px, transparent 1px),
         linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
       background-size: 20px 20px;
     }
+    #konva-container.panning { cursor: grabbing; }
     #konva-container.empty::before {
       content: 'Noch keine Tische — klick "+ Tisch" um zu starten';
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -723,8 +754,15 @@
     // Ersetzt die alte Tabellen-Liste. Konva.js Canvas mit Drag-and-Drop fuer Tische,
     // Reservation-Liste rechts mit Drag-on-Tisch fuer Assignment.
 
-    let LAYOUT_STAGE = null;
-    let LAYOUT_LAYER = null;
+    let LAYOUT_VIEWPORT = null;
+    let LAYOUT_WORLD = null;
+    let LAYOUT_PAN = { x: 0, y: 0 };
+    let LAYOUT_SCALE = 1;
+    function layoutApplyTransform() {
+      if (!LAYOUT_WORLD) return;
+      LAYOUT_WORLD.style.transform =
+        'translate(' + LAYOUT_PAN.x + 'px,' + LAYOUT_PAN.y + 'px) scale(' + LAYOUT_SCALE + ')';
+    }
     let LAYOUT_RESOURCES = [];
     let LAYOUT_RESERVATIONS = [];
     let LAYOUT_ASSIGNMENTS = {};   // resource_id -> [reservation]
@@ -739,53 +777,69 @@
     }
 
     function layoutInitOnce() {
-      if (LAYOUT_STAGE) {
+      if (LAYOUT_VIEWPORT) {
         layoutRefresh();
         return;
       }
       const container = $('konva-container');
       if (!container) return;
-      const width = container.offsetWidth || 700;
-      // Konva 9: Stage UND Children beide draggable funktioniert nativ. Click auf
-      // ein Child draggt das Child, Click auf leeren Raum draggt die Stage (= Pan).
-      LAYOUT_STAGE = new Konva.Stage({
-        container: container, width, height: 480, draggable: true
-      });
-      LAYOUT_LAYER = new Konva.Layer();
-      LAYOUT_STAGE.add(LAYOUT_LAYER);
-      // Initial: World-Origin (0,0) erscheint in Container-Mitte — Tische bekommen sichtbaren Anker
-      LAYOUT_STAGE.position({ x: width / 2, y: 240 });
+      LAYOUT_VIEWPORT = container;
+      // World-Container: alle Tische sind hier drin und werden mit ihm transformiert.
+      LAYOUT_WORLD = document.createElement('div');
+      LAYOUT_WORLD.id = 'layout-world';
+      container.appendChild(LAYOUT_WORLD);
+      // World-Origin als Mini-Kreuz (rein visuell, pointer-events:none).
+      const origin = document.createElement('div');
+      origin.className = 'layout-origin';
+      LAYOUT_WORLD.appendChild(origin);
 
-      // Mausrad-Zoom: scale um Cursor-Position
-      LAYOUT_STAGE.on('wheel', (e) => {
-        e.evt.preventDefault();
-        const oldScale = LAYOUT_STAGE.scaleX();
-        const pointer = LAYOUT_STAGE.getPointerPosition();
-        if (!pointer) return;
-        const mousePointTo = {
-          x: (pointer.x - LAYOUT_STAGE.x()) / oldScale,
-          y: (pointer.y - LAYOUT_STAGE.y()) / oldScale,
+      // Initial: World-Origin (0,0) in Container-Mitte.
+      LAYOUT_PAN.x = (container.offsetWidth || 700) / 2;
+      LAYOUT_PAN.y = 240;
+      layoutApplyTransform();
+
+      // Pan via Pointer-Events auf den Viewport (NICHT auf einen Tisch).
+      let panState = null;
+      container.addEventListener('pointerdown', (e) => {
+        // Tische haben ihren eigenen pointerdown-Handler mit stopPropagation,
+        // also kommt hier nur ein Click auf leeren Raum an.
+        if (e.target !== container && e.target !== LAYOUT_WORLD && !e.target.classList.contains('layout-origin')) return;
+        container.setPointerCapture(e.pointerId);
+        panState = {
+          pointerId: e.pointerId,
+          startX: e.clientX, startY: e.clientY,
+          origX: LAYOUT_PAN.x, origY: LAYOUT_PAN.y
         };
-        const direction = e.evt.deltaY > 0 ? -1 : 1;
-        let newScale = direction > 0 ? oldScale * 1.08 : oldScale / 1.08;
-        newScale = Math.max(0.3, Math.min(3, newScale));
-        LAYOUT_STAGE.scale({ x: newScale, y: newScale });
-        LAYOUT_STAGE.position({
-          x: pointer.x - mousePointTo.x * newScale,
-          y: pointer.y - mousePointTo.y * newScale,
-        });
-        // Hit-Canvas explizit neu zeichnen — Stage-Transforms aktualisieren
-        // den visuellen Canvas auto, aber NICHT den Hit-Canvas.
-        LAYOUT_LAYER.batchDraw();
+        container.classList.add('panning');
       });
+      container.addEventListener('pointermove', (e) => {
+        if (!panState || e.pointerId !== panState.pointerId) return;
+        LAYOUT_PAN.x = panState.origX + (e.clientX - panState.startX);
+        LAYOUT_PAN.y = panState.origY + (e.clientY - panState.startY);
+        layoutApplyTransform();
+      });
+      const endPan = (e) => {
+        if (!panState || e.pointerId !== panState.pointerId) return;
+        panState = null;
+        container.classList.remove('panning');
+      };
+      container.addEventListener('pointerup', endPan);
+      container.addEventListener('pointercancel', endPan);
 
-      // Pan = Stage.draggable native. Cursor-Update bei drag-start/end.
-      LAYOUT_STAGE.on('dragstart', (e) => {
-        if (e.target === LAYOUT_STAGE) container.style.cursor = 'grabbing';
-      });
-      LAYOUT_STAGE.on('dragend', (e) => {
-        if (e.target === LAYOUT_STAGE) container.style.cursor = 'grab';
-      });
+      // Mausrad-Zoom um Cursor-Position.
+      container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = container.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const oldScale = LAYOUT_SCALE;
+        let newScale = e.deltaY > 0 ? oldScale / 1.08 : oldScale * 1.08;
+        newScale = Math.max(0.3, Math.min(3, newScale));
+        LAYOUT_PAN.x = px - (px - LAYOUT_PAN.x) * (newScale / oldScale);
+        LAYOUT_PAN.y = py - (py - LAYOUT_PAN.y) * (newScale / oldScale);
+        LAYOUT_SCALE = newScale;
+        layoutApplyTransform();
+      }, { passive: false });
 
       // Date-Picker
       const datePicker = $('layout-date');
@@ -821,10 +875,7 @@
       container.addEventListener('dragover', (e) => e.preventDefault());
       container.addEventListener('drop', layoutHandleDrop);
 
-      // Resize
-      window.addEventListener('resize', () => {
-        if (LAYOUT_STAGE) LAYOUT_STAGE.width(container.offsetWidth);
-      });
+      // Resize: nichts zu tun, Viewport ist 100% breit via CSS
 
       layoutRefresh();
     }
@@ -877,116 +928,105 @@
     }
 
     function layoutDrawTables() {
-      if (!LAYOUT_LAYER) return;
-      LAYOUT_LAYER.destroyChildren();
+      if (!LAYOUT_WORLD) return;
+      // Alle bestehenden Tische entfernen, Origin behalten (oder neu setzen).
+      Array.from(LAYOUT_WORLD.querySelectorAll('.layout-table')).forEach(n => n.remove());
       $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0);
-      // Origin-Marker bei World (0,0) — kleines Kreuz als Raum-Referenz, listening:false
-      const origin = new Konva.Group({ listening: false });
-      origin.add(new Konva.Line({
-        points: [-8, 0, 8, 0], stroke: '#cbd5e1', strokeWidth: 1, strokeScaleEnabled: false
-      }));
-      origin.add(new Konva.Line({
-        points: [0, -8, 0, 8], stroke: '#cbd5e1', strokeWidth: 1, strokeScaleEnabled: false
-      }));
-      LAYOUT_LAYER.add(origin);
-      LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
-      LAYOUT_LAYER.draw();
+      LAYOUT_RESOURCES.forEach(r => LAYOUT_WORLD.appendChild(layoutBuildTableNode(r)));
     }
 
-    // Reset = Pan auf einen fixen Default-Punkt im freien Raum (world origin in Container-Mitte).
-    // Scale bleibt unveraendert — User behaelt seinen Zoom-Level.
+    // Reset = Pan auf Container-Mitte. Scale bleibt unveraendert.
     function layoutFitToContent() {
-      if (!LAYOUT_STAGE) return;
-      const cw = LAYOUT_STAGE.width(), ch = LAYOUT_STAGE.height();
-      LAYOUT_STAGE.position({ x: cw / 2, y: ch / 2 });
+      if (!LAYOUT_VIEWPORT) return;
+      LAYOUT_PAN.x = LAYOUT_VIEWPORT.offsetWidth / 2;
+      LAYOUT_PAN.y = LAYOUT_VIEWPORT.offsetHeight / 2;
+      layoutApplyTransform();
       layoutStatus('Ansicht resettet', 'success');
     }
 
     function layoutBuildTableNode(resource) {
-      // Defensiv: width/height koennen aus DB als String "0", null, NaN, fehlend kommen.
-      // Konva.Rect mit width 0 ist unsichtbar fuer Hit-Test → Tisch nicht klickbar/draggable.
-      const wRaw = Number(resource.width);
-      const hRaw = Number(resource.height);
-      const w = (wRaw > 0 ? wRaw : 80);
-      const h = (hRaw > 0 ? hRaw : 80);
-      const xRaw = Number(resource.x);
-      const yRaw = Number(resource.y);
+      const wRaw = Number(resource.width), hRaw = Number(resource.height);
+      const w = wRaw > 0 ? wRaw : 80;
+      const h = hRaw > 0 ? hRaw : 80;
+      const xRaw = Number(resource.x), yRaw = Number(resource.y);
+      const x = Number.isFinite(xRaw) ? xRaw : 60;
+      const y = Number.isFinite(yRaw) ? yRaw : 60;
       const occupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
       const isOccupied = occupants.length > 0;
-      const fill = isOccupied ? '#fee2e2' : '#f1f5f9';
-      const stroke = isOccupied ? '#ef4444' : '#cbd5e1';
 
-      const group = new Konva.Group({
-        x: Number.isFinite(xRaw) ? xRaw : 60,
-        y: Number.isFinite(yRaw) ? yRaw : 60,
-        draggable: true,
-        name: 'table-' + resource.id
-      });
-      // dragDistance: default (3px) — gibt click-Event Raum vor dragstart, sonst kannst
-      // du den Tisch nicht mehr klicken um Edit-Modal zu oeffnen.
+      const div = document.createElement('div');
+      div.className = 'layout-table' +
+        (resource.shape === 'circle' ? ' circle' : '') +
+        (isOccupied ? ' occupied' : '');
+      div.style.left = x + 'px';
+      div.style.top = y + 'px';
+      div.style.width = w + 'px';
+      div.style.height = h + 'px';
+      div.dataset.tableId = resource.id;
 
-      // Shape selber listening:true → faengt Klicks im Form-Bereich (Rect bbox / Circle-Flaeche)
-      let shape;
-      if (resource.shape === 'circle') {
-        shape = new Konva.Circle({
-          x: w / 2, y: h / 2, radius: w / 2,
-          fill, stroke, strokeWidth: 2
-        });
-        // Hit-Area auf quadratische bbox erweitern, damit auch Ecken klickbar sind
-        shape.hitFunc(function(ctx) {
-          ctx.beginPath();
-          ctx.rect(-w/2, -h/2, w, h);
-          ctx.closePath();
-          ctx.fillStrokeShape(this);
-        });
-      } else {
-        shape = new Konva.Rect({
-          width: w, height: h, fill, stroke, strokeWidth: 2, cornerRadius: 6
-        });
-      }
-      group.add(shape);
+      const lbl = document.createElement('span');
+      lbl.textContent = resource.label || '';
+      div.appendChild(lbl);
 
-      // Texts daraufgelegt mit listening:false → Klicks fallen durch zur Shape
-      group.add(new Konva.Text({
-        text: resource.label, fontSize: 13, fontStyle: 'bold',
-        fontFamily: 'Inter, sans-serif', fill: '#0a0a0a',
-        width: w, height: h - 14, align: 'center', verticalAlign: 'middle',
-        listening: false
-      }));
-
-      group.add(new Konva.Text({
-        text: resource.capacity + 'P', fontSize: 11, fill: '#737373',
-        fontFamily: 'Inter, sans-serif', width: w, y: h - 16, align: 'center',
-        listening: false
-      }));
+      const cap = document.createElement('span');
+      cap.className = 'lt-cap';
+      cap.textContent = (resource.capacity || 4) + 'P';
+      div.appendChild(cap);
 
       if (isOccupied) {
-        group.add(new Konva.Text({
-          text: occupants[0].start_time?.slice(0, 5) || '', fontSize: 10,
-          fill: '#b91c1c', fontFamily: 'Inter, sans-serif',
-          x: 4, y: 4,
-          listening: false
-        }));
+        const time = document.createElement('span');
+        time.className = 'lt-time';
+        time.textContent = (occupants[0].start_time || '').slice(0, 5);
+        div.appendChild(time);
       }
 
-      group.on('dragend', async () => {
-        const newX = group.x(), newY = group.y();
-        const oldX = Number.isFinite(xRaw) ? xRaw : 60;
-        const oldY = Number.isFinite(yRaw) ? yRaw : 60;
-        // Bei effektiv keiner Bewegung (Klick statt Drag): kein Save, kein Toast
-        if (Math.abs(newX - oldX) < 1 && Math.abs(newY - oldY) < 1) return;
+      // Drag mit Pointer Capture — keine Hit-Canvas-Magie, keine DD-Singleton, robust.
+      let dragState = null;
+      div.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();  // Pan auf Viewport blocken
+        div.setPointerCapture(e.pointerId);
+        dragState = {
+          pointerId: e.pointerId,
+          startX: e.clientX, startY: e.clientY,
+          origX: x, origY: y,
+          moved: false
+        };
+        div.classList.add('dragging');
+      });
+      div.addEventListener('pointermove', (e) => {
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
+        // Welt-Koordinaten = Bildschirm-Delta / scale (sonst zieht der Tisch zu schnell wenn rausgezoomt)
+        const dx = (e.clientX - dragState.startX) / LAYOUT_SCALE;
+        const dy = (e.clientY - dragState.startY) / LAYOUT_SCALE;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragState.moved = true;
+        div.style.left = (dragState.origX + dx) + 'px';
+        div.style.top = (dragState.origY + dy) + 'px';
+      });
+      const endDrag = async (e, cancelled) => {
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
+        const wasMoved = dragState.moved;
+        dragState = null;
+        div.classList.remove('dragging');
+        if (cancelled) return;
+        if (!wasMoved) {
+          // Klick-statt-Drag → Edit-Modal
+          layoutOpenEditModal(resource);
+          return;
+        }
+        const newX = parseFloat(div.style.left);
+        const newY = parseFloat(div.style.top);
         resource.x = newX; resource.y = newY;
         try {
           await api('/api/customer/resources/' + resource.id, {
             method: 'PATCH', body: JSON.stringify({ x: newX, y: newY })
           });
           layoutStatus('Position gespeichert', 'success');
-        } catch (e) { layoutStatus('Speichern fehlgeschlagen', 'error'); }
-      });
+        } catch (err) { layoutStatus('Speichern fehlgeschlagen', 'error'); }
+      };
+      div.addEventListener('pointerup', (e) => endDrag(e, false));
+      div.addEventListener('pointercancel', (e) => endDrag(e, true));
 
-      group.on('click tap', () => layoutOpenEditModal(resource));
-
-      return group;
+      return div;
     }
 
     function layoutRenderReservations() {
@@ -1052,12 +1092,11 @@
     async function layoutHandleDrop(e) {
       e.preventDefault();
       const resvId = e.dataTransfer.getData('text/plain');
-      if (!resvId || !LAYOUT_STAGE) return;
-      const rect = $('konva-container').getBoundingClientRect();
-      // Stage-Transformation beruecksichtigen (Pan + Zoom)
-      const scale = LAYOUT_STAGE.scaleX();
-      const px = (e.clientX - rect.left - LAYOUT_STAGE.x()) / scale;
-      const py = (e.clientY - rect.top - LAYOUT_STAGE.y()) / scale;
+      if (!resvId || !LAYOUT_VIEWPORT) return;
+      const rect = LAYOUT_VIEWPORT.getBoundingClientRect();
+      // World-Koordinaten = (Screen - Pan) / Scale
+      const px = (e.clientX - rect.left - LAYOUT_PAN.x) / LAYOUT_SCALE;
+      const py = (e.clientY - rect.top - LAYOUT_PAN.y) / LAYOUT_SCALE;
       // finde Resource an Position (Logik-Koordinaten)
       let target = null;
       for (const r of LAYOUT_RESOURCES) {
