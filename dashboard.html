@@ -746,11 +746,11 @@
       const container = $('konva-container');
       if (!container) return;
       const width = container.offsetWidth || 700;
-      // Stage NICHT draggable — sonst wuerde Konva-DD bei jedem mousedown sowohl Stage als auch
-      // das getroffene Child (z.B. Tisch-Group) als Drag-Kandidaten registrieren → Race um wer
-      // tatsaechlich gedragged wird. Heisenbug rect/circle nicht-draggable kommt daher.
-      // Pan wird stattdessen via Custom-Logic implementiert (siehe weiter unten).
-      LAYOUT_STAGE = new Konva.Stage({ container: container, width, height: 480 });
+      // Konva 9: Stage UND Children beide draggable funktioniert nativ. Click auf
+      // ein Child draggt das Child, Click auf leeren Raum draggt die Stage (= Pan).
+      LAYOUT_STAGE = new Konva.Stage({
+        container: container, width, height: 480, draggable: true
+      });
       LAYOUT_LAYER = new Konva.Layer();
       LAYOUT_STAGE.add(LAYOUT_LAYER);
       // Initial: World-Origin (0,0) erscheint in Container-Mitte — Tische bekommen sichtbaren Anker
@@ -779,47 +779,13 @@
         LAYOUT_LAYER.batchDraw();
       });
 
-      // Custom Stage-Pan (statt Konva-DD-Stage-Drag — eliminiert DD-Race mit Tisch-Groups).
-      // Aktiviert NUR bei mousedown direkt auf Stage (leerer Hintergrund), nicht auf Children.
-      let LAYOUT_PAN = null;  // { pointerX, pointerY, stageX, stageY } oder null
-      LAYOUT_STAGE.on('mousedown touchstart', (e) => {
-        if (e.target !== LAYOUT_STAGE && e.target.getType?.() !== 'Stage') return;
-        const p = LAYOUT_STAGE.getPointerPosition();
-        if (!p) return;
-        LAYOUT_PAN = {
-          pointerX: p.x, pointerY: p.y,
-          stageX: LAYOUT_STAGE.x(), stageY: LAYOUT_STAGE.y()
-        };
-        container.style.cursor = 'grabbing';
+      // Pan = Stage.draggable native. Cursor-Update bei drag-start/end.
+      LAYOUT_STAGE.on('dragstart', (e) => {
+        if (e.target === LAYOUT_STAGE) container.style.cursor = 'grabbing';
       });
-      LAYOUT_STAGE.on('mousemove touchmove', (e) => {
-        if (!LAYOUT_PAN) return;
-        // Sicherheitsnetz: wenn keine Maustaste mehr gedrueckt → wir haben mouseup verpasst
-        if (e.evt && typeof e.evt.buttons === 'number' && e.evt.buttons === 0) {
-          LAYOUT_PAN = null;
-          container.style.cursor = 'default';
-          return;
-        }
-        const p = LAYOUT_STAGE.getPointerPosition();
-        if (!p) return;
-        LAYOUT_STAGE.position({
-          x: LAYOUT_PAN.stageX + (p.x - LAYOUT_PAN.pointerX),
-          y: LAYOUT_PAN.stageY + (p.y - LAYOUT_PAN.pointerY)
-        });
-        LAYOUT_LAYER.batchDraw();  // Hit-Canvas mit Pan-Bewegung synchron halten
+      LAYOUT_STAGE.on('dragend', (e) => {
+        if (e.target === LAYOUT_STAGE) container.style.cursor = 'grab';
       });
-      LAYOUT_STAGE.on('mouseup touchend mouseleave', () => {
-        if (LAYOUT_PAN) { LAYOUT_PAN = null; container.style.cursor = 'default'; }
-      });
-      // Window-level Sicherheitsnetz: pointer kann ausserhalb des Stages losgelassen werden
-      // ohne dass Konva-Events feuern → LAYOUT_PAN bliebe haengen → naechster Tisch-Drag interferiert.
-      const _layoutPanCleanup = () => {
-        if (LAYOUT_PAN) { LAYOUT_PAN = null; container.style.cursor = 'default'; }
-      };
-      window.addEventListener('mouseup', _layoutPanCleanup);
-      window.addEventListener('touchend', _layoutPanCleanup);
-      window.addEventListener('touchcancel', _layoutPanCleanup);
-      window.addEventListener('blur', _layoutPanCleanup);
 
       // Date-Picker
       const datePicker = $('layout-date');
