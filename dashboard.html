@@ -871,8 +871,10 @@
         layoutDrawTables();
         layoutStatus('Wand gelöscht', 'success');
       });
-      // Trash-Button bei Pan/Zoom mitbewegen
-      LAYOUT_STAGE.on('dragmove', () => {
+      // Trash-Button bei Pan/Zoom mitbewegen — NUR bei Stage-Pan, nicht bei Child-Drag
+      // (sonst macht das Wall-Drag den Btn waehrend Bewegung wieder visible)
+      LAYOUT_STAGE.on('dragmove', (e) => {
+        if (e.target !== LAYOUT_STAGE) return;
         if (LAYOUT_WALL_SELECTED_IDX !== null) layoutPositionTrashBtn(LAYOUT_WALL_SELECTED_IDX);
       });
       // Esc: zuerst deselect, dann Wand-Modus beenden
@@ -910,7 +912,8 @@
           else if (i === LAYOUT_WALL_HOVER_IDX) node.strokeWidth(10);
           else node.strokeWidth(6);
         });
-        container.style.cursor = idx >= 0 ? 'pointer' : 'crosshair';
+        // Im Draw-Lock-Mode bleibt cursor=crosshair (zeichnen). Sonst grab fuer Pan+Wall-Drag.
+        container.style.cursor = LAYOUT_WALL_DRAW_NEXT ? 'crosshair' : 'grab';
         LAYOUT_LAYER.batchDraw();
       });
       container.addEventListener('mouseleave', () => {
@@ -1024,7 +1027,7 @@
         lineCap: 'butt',
         id: 'wall-' + idx,
         name: 'wall',
-        hitStrokeWidth: 60,  // grosser Hit-Bereich auch fuer kleine Waende
+        hitStrokeWidth: 80,  // grosser Hit-Bereich entlang der ganzen Wand-Linie
         strokeScaleEnabled: false,
         listening: interactive,
         draggable: interactive
