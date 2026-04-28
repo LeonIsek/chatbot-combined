@@ -239,7 +239,8 @@
       touch-action: none;
       transition: box-shadow 120ms;
     }
-    .layout-table:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .canvas-area.edit-mode .layout-table:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .canvas-area:not(.edit-mode) .layout-table { cursor: default; }
     .layout-table.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: none; }
     .layout-table.occupied { background: #fee2e2; border-color: #ef4444; }
     .layout-table.circle { border-radius: 50%; }
@@ -981,12 +982,11 @@
       }
 
       // Drag mit Pointer Capture — Anker-basiert, kein Closure-Wert.
-      // Wir merken uns wo INNERHALB des Tisches der User gegriffen hat und
-      // platzieren den Tisch immer so dass der Cursor an der gleichen
-      // Stelle innerhalb des Tisches bleibt.
+      // NUR im Edit-Modus draggable. In Live-Sicht: stopPropagation aber kein drag-state.
       let dragState = null;
       div.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();  // Pan auf Viewport blocken
+        e.stopPropagation();  // Pan auf Viewport immer blocken
+        if (LAYOUT_MODE !== 'edit') return;  // In Live-Sicht: kein Drag, kein Modal
         div.setPointerCapture(e.pointerId);
         const rect = div.getBoundingClientRect();
         dragState = {
@@ -1174,8 +1174,14 @@
       if (!label) { alert('Bezeichnung darf nicht leer sein'); return; }
       try {
         if (LAYOUT_EDITING_ID === 'new') {
-          const x = 60 + (LAYOUT_RESOURCES.length % 5) * 100;
-          const y = 60 + Math.floor(LAYOUT_RESOURCES.length / 5) * 100;
+          // Neuer Tisch am sichtbaren Viewport-Zentrum, in Welt-Koordinaten umgerechnet.
+          // (vp_w/2 - PAN.x) / SCALE gibt die Welt-x am Container-Mittelpunkt.
+          const vp = LAYOUT_VIEWPORT || $('konva-container');
+          const cx = (vp.offsetWidth / 2 - LAYOUT_PAN.x) / LAYOUT_SCALE;
+          const cy = (vp.offsetHeight / 2 - LAYOUT_PAN.y) / LAYOUT_SCALE;
+          // Tisch-Mitte am Viewport-Zentrum (- w/2, - h/2 weil left/top Top-Left ist)
+          const x = cx - 40;
+          const y = cy - 40;
           await api('/api/customer/resources', {
             method: 'POST',
             body: JSON.stringify({ label, capacity, shape, resource_type, x, y, width: 80, height: 80 })
