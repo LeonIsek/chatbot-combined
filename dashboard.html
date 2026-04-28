@@ -1078,6 +1078,12 @@
             id: 'wall-handle-' + idx + '-' + key
           });
           h.dragDistance(2);  // sehr empfindlich, Handle ist klein
+          // KRITISCH: Bubble stoppen damit parent Group's mousedown.konva NICHT triggert.
+          // Sonst wuerden Handle UND Group sich beide in Konva.DD._dragElements registrieren
+          // und es entsteht ein Drag-Race (Handle dragDist 2 vs Group dragDist 4) — manchmal
+          // gewinnt Group, dann wird die ganze Wand bewegt statt nur der Endpunkt.
+          h.on('mousedown touchstart', (e) => { e.cancelBubble = true; });
+          h.on('dragstart', (e) => { e.cancelBubble = true; });
           h.on('dragmove', () => {
             const w = LAYOUT_WALLS[idx]; if (!w) return;
             // Handle-Position ist lokal zu Group; absolute Wand-Coords = group + handle-local
@@ -1112,21 +1118,34 @@
       group.on('dragend', async (e) => {
         if (e.target?.name?.() === 'wall-handle') return;
         const w = LAYOUT_WALLS[idx]; if (!w) return;
+        const newX = group.x();
+        const newY = group.y();
+        // Effektive Bewegung < 1px = "verklickt" (Drag-Threshold ueberschritten aber zurueck).
+        // Kein Save, Wand bleibt wo sie war, Selection-State bleibt konsistent.
+        if (Math.abs(newX - w.x1) < 1 && Math.abs(newY - w.y1) < 1) {
+          group.position({ x: w.x1, y: w.y1 });  // sicherstellen dass keine sub-px-Drift bleibt
+          if (LAYOUT_WALL_SELECTED_IDX !== idx) layoutSelectWall(idx);
+          else layoutShowWallInspector(idx);
+          return;
+        }
         const oldDx = w.x2 - w.x1;
         const oldDy = w.y2 - w.y1;
-        w.x1 = group.x();
-        w.y1 = group.y();
-        w.x2 = group.x() + oldDx;
-        w.y2 = group.y() + oldDy;
+        w.x1 = newX;
+        w.y1 = newY;
+        w.x2 = newX + oldDx;
+        w.y2 = newY + oldDy;
         await layoutSaveWalls();
-        // Kein layoutDrawTables noetig — Group ist visuell schon korrekt, kein Pop-Back.
-        // Wenn Wand vorher nicht selektiert war: jetzt selektieren + Handles rendern via Re-Render.
         if (LAYOUT_WALL_SELECTED_IDX !== idx) layoutSelectWall(idx);
         else layoutShowWallInspector(idx);
       });
       group.on('click tap', (e) => {
         if (e.target?.name?.() === 'wall-handle') return;
-        if (LAYOUT_WALL_SELECTED_IDX === idx) return;
+        // Toggle: zweiter Klick auf bereits selektierter Wand = abwaehlen
+        if (LAYOUT_WALL_SELECTED_IDX === idx) {
+          layoutDeselectWall();
+          layoutDrawTables();
+          return;
+        }
         layoutSelectWall(idx);
       });
 
