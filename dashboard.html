@@ -9,11 +9,39 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://unpkg.com/konva@9/konva.min.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script>
+    // Theme so frueh wie moeglich anwenden — verhindert "flash of light theme" wenn dark gespeichert
+    (function () {
+      try {
+        var t = localStorage.getItem('bs_theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
       --bg: #FAFAFA; --surface: #FFFFFF; --text: #0A0A0A; --muted: #737373;
       --border: #E5E5E5; --accent: #0A0A0A; --success: #10B981; --danger: #EF4444; --warn: #F59E0B;
       --radius: 12px; --radius-lg: 16px;
+      --canvas-bg: #fafbfc; --canvas-grid: #e2e8f0;
+      --table-bg: #f1f5f9; --table-border: #cbd5e1; --table-text: #0a0a0a;
+      --table-occ-bg: #fee2e2; --table-occ-border: #ef4444; --table-occ-time: #b91c1c;
+      --table-cap: #737373; --origin-color: #cbd5e1;
+      --badge-success-text: #047857; --badge-danger-text: #991B1B; --badge-warn-text: #B45309;
+      --hover-bg: rgba(0,0,0,0.03);
+      --hint-bg: #fef9e7; --hint-border: #f4d35e; --hint-text: #856404;
+    }
+    [data-theme="dark"] {
+      --bg: #0a0a0a; --surface: #171717; --text: #fafafa; --muted: #a3a3a3;
+      --border: #2a2a2a; --accent: #fafafa;
+      --success: #34d399; --danger: #f87171; --warn: #fbbf24;
+      --canvas-bg: #0f0f0f; --canvas-grid: #262626;
+      --table-bg: #1f1f1f; --table-border: #404040; --table-text: #fafafa;
+      --table-occ-bg: #3b1f1f; --table-occ-border: #ef4444; --table-occ-time: #fca5a5;
+      --table-cap: #a3a3a3; --origin-color: #525252;
+      --badge-success-text: #34d399; --badge-danger-text: #fca5a5; --badge-warn-text: #fbbf24;
+      --hover-bg: rgba(255,255,255,0.05);
+      --hint-bg: #1f1c0a; --hint-border: #4a3e10; --hint-text: #fbbf24;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -22,9 +50,19 @@
       -webkit-font-smoothing: antialiased; min-height: 100vh;
     }
     header {
-      background: var(--text); color: #fff; padding: 16px 24px;
+      background: #0a0a0a; color: #fff; padding: 16px 24px;
       display: flex; align-items: center; justify-content: space-between;
     }
+    .header-bar { display: flex; gap: 12px; align-items: center; }
+    .icon-btn {
+      background: transparent; border: 1px solid #2A2A2A; color: #fff;
+      width: 34px; height: 34px; padding: 0; border-radius: 8px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .icon-btn:hover { background: #1A1A1A; }
+    .icon-btn i { width: 16px; height: 16px; }
+    .hint-panel { background: var(--hint-bg); border-color: var(--hint-border); }
+    .hint-panel p, .hint-panel a { color: var(--hint-text); }
     header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
     header .right { display: flex; gap: 12px; align-items: center; font-size: 13px; color: #A3A3A3; }
     header button { background: transparent; border: 1px solid #2A2A2A; color: #fff;
@@ -51,8 +89,8 @@
     .login-card button:hover { opacity: 0.9; }
     .login-card .msg { margin-top: 12px; font-size: 13px; padding: 10px 12px; border-radius: 8px; display: none; }
     .login-card .msg.visible { display: block; }
-    .login-card .msg.success { background: rgba(16,185,129,0.08); color: #047857; }
-    .login-card .msg.error   { background: rgba(239,68,68,0.08); color: #991B1B; }
+    .login-card .msg.success { background: rgba(16,185,129,0.08); color: var(--badge-success-text); }
+    .login-card .msg.error   { background: rgba(239,68,68,0.08); color: var(--badge-danger-text); }
 
     /* ====== Tabs ====== */
     .tabs {
@@ -64,7 +102,7 @@
       font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer;
       font-family: inherit; white-space: nowrap; transition: all 120ms;
     }
-    .tab-btn:hover { color: var(--text); background: rgba(0,0,0,0.03); }
+    .tab-btn:hover { color: var(--text); background: var(--hover-bg); }
     .tab-btn.active { background: var(--text); color: #fff; }
 
     .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -92,7 +130,7 @@
     .btn { padding: 9px 14px; border: 1px solid var(--border); background: var(--surface);
       color: var(--text); border-radius: var(--radius); font-size: 13px; font-weight: 500;
       cursor: pointer; font-family: inherit; transition: all 120ms; }
-    .btn:hover { background: rgba(0,0,0,0.03); }
+    .btn:hover { background: var(--hover-bg); }
     .btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
     .btn.primary:hover { opacity: 0.9; }
     .btn.danger { color: var(--danger); border-color: #FCA5A5; }
@@ -112,12 +150,12 @@
     th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
     th { background: var(--bg); color: var(--muted); font-weight: 500; font-size: 11px;
       text-transform: uppercase; letter-spacing: 0.04em; }
-    tr:hover td { background: rgba(0,0,0,0.02); }
+    tr:hover td { background: var(--hover-bg); }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
-    .badge-confirmed { background: rgba(16,185,129,0.12); color: #047857; }
-    .badge-cancelled { background: rgba(239,68,68,0.10); color: #991B1B; }
+    .badge-confirmed { background: rgba(16,185,129,0.12); color: var(--badge-success-text); }
+    .badge-cancelled { background: rgba(239,68,68,0.10); color: var(--badge-danger-text); }
     .badge-completed { background: rgba(115,115,115,0.12); color: var(--muted); }
-    .badge-no_show   { background: rgba(245,158,11,0.12); color: #B45309; }
+    .badge-no_show   { background: rgba(245,158,11,0.12); color: var(--badge-warn-text); }
 
     .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
 
@@ -232,38 +270,38 @@
     }
     .layout-table {
       position: absolute; box-sizing: border-box;
-      background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 6px;
+      background: var(--table-bg); border: 2px solid var(--table-border); border-radius: 6px;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       cursor: grab; user-select: none; -webkit-user-select: none;
-      font-family: inherit; font-size: 13px; font-weight: 700; color: #0a0a0a;
+      font-family: inherit; font-size: 13px; font-weight: 700; color: var(--table-text);
       touch-action: none;
       transition: box-shadow 120ms;
     }
     .canvas-area.edit-mode .layout-table:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
     .canvas-area:not(.edit-mode) .layout-table { cursor: default; }
     .layout-table.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: none; }
-    .layout-table.occupied { background: #fee2e2; border-color: #ef4444; }
+    .layout-table.occupied { background: var(--table-occ-bg); border-color: var(--table-occ-border); }
     .layout-table.circle { border-radius: 50%; }
-    .layout-table .lt-cap { font-size: 11px; color: #737373; font-weight: 500; margin-top: 2px; }
+    .layout-table .lt-cap { font-size: 11px; color: var(--table-cap); font-weight: 500; margin-top: 2px; }
     .layout-table .lt-time {
       position: absolute; top: 4px; left: 6px;
-      font-size: 10px; color: #b91c1c; font-weight: 600;
+      font-size: 10px; color: var(--table-occ-time); font-weight: 600;
     }
     .layout-origin {
       position: absolute; left: -8px; top: -1px; width: 16px; height: 2px;
-      background: #cbd5e1; pointer-events: none;
+      background: var(--origin-color); pointer-events: none;
     }
     .layout-origin::before {
       content: ''; position: absolute; left: 7px; top: -7px;
-      width: 2px; height: 16px; background: #cbd5e1;
+      width: 2px; height: 16px; background: var(--origin-color);
     }
     #konva-container {
-      width: 100%; height: 480px; background: #fafbfc; border-radius: 8px;
+      width: 100%; height: 480px; background: var(--canvas-bg); border-radius: 8px;
       border: 1px solid var(--border); overflow: hidden; position: relative;
       cursor: grab; touch-action: none;
       background-image:
-        linear-gradient(#e2e8f0 1px, transparent 1px),
-        linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+        linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px);
       background-size: 20px 20px;
     }
     #konva-container.panning { cursor: grabbing; }
@@ -280,7 +318,7 @@
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-right: 4px; vertical-align: middle;
     }
-    .canvas-legend .dot.grey   { background: #cbd5e1; }
+    .canvas-legend .dot.grey   { background: var(--table-border); }
     .canvas-legend .dot.red    { background: #ef4444; }
     .canvas-legend .dot.orange { background: #f59e0b; }
     .canvas-legend .dot.blue   { background: #3b82f6; }
@@ -343,9 +381,14 @@
 <body>
   <header>
     <h1 id="header-title">BotSwiss Dashboard</h1>
-    <div class="right hidden" id="header-user">
-      <span id="header-user-email"></span>
-      <button id="logout-btn">Abmelden</button>
+    <div class="header-bar">
+      <button id="theme-toggle" type="button" class="icon-btn" aria-label="Theme wechseln" title="Theme wechseln">
+        <i data-lucide="moon" id="theme-icon"></i>
+      </button>
+      <div class="right hidden" id="header-user">
+        <span id="header-user-email"></span>
+        <button id="logout-btn">Abmelden</button>
+      </div>
     </div>
   </header>
 
@@ -372,10 +415,10 @@
 
       <!-- Tab: Home / Business-Info -->
       <div class="tab-content" data-tab-content="home">
-        <div class="panel" style="background: #fef9e7; border-color: #f4d35e;">
-          <p style="margin:0;font-size:13px;color:#856404;">
+        <div class="panel hint-panel">
+          <p style="margin:0;font-size:13px;">
             <i data-lucide="lightbulb"></i> <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) trägst du im Tab
-            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="color:#856404;font-weight:600;"><i data-lucide="message-circle"></i> Bot-Infos <i data-lucide="arrow-right"></i></a>
+            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="font-weight:600;"><i data-lucide="message-circle"></i> Bot-Infos <i data-lucide="arrow-right"></i></a>
             ein. Bot berücksichtigt das ab der nächsten Nachricht, kein Deploy nötig.
           </p>
         </div>
@@ -1283,17 +1326,17 @@
       const msg = $('recrawl-msg');
       btn.disabled = true;
       msg.style.display = 'block'; msg.style.background = 'rgba(245,158,11,0.08)';
-      msg.style.color = '#B45309'; msg.textContent = 'Scan gestartet...';
+      msg.style.color = 'var(--badge-warn-text)'; msg.textContent = 'Scan gestartet...';
       try {
         const r = await api('/api/customer/recrawl', { method: 'POST', body: '{}' });
         msg.style.background = 'rgba(16,185,129,0.08)';
-        msg.style.color = '#047857';
+        msg.style.color = 'var(--badge-success-text)';
         msg.textContent = r.message;
         setTimeout(loadCrawlStatus, 30000);
         setTimeout(loadCrawlStatus, 90000);
       } catch (e) {
         msg.style.background = 'rgba(239,68,68,0.08)';
-        msg.style.color = '#991B1B';
+        msg.style.color = 'var(--badge-danger-text)';
         msg.textContent = e.message;
       } finally {
         setTimeout(() => { btn.disabled = false; }, 3000);
@@ -1509,6 +1552,26 @@
       } else if (e.target.matches('[data-field="bubble_icon_url"]')) {
         updateBubblePreview();
       }
+    });
+
+    // Theme-Toggle
+    function applyTheme(theme) {
+      if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+      try { localStorage.setItem('bs_theme', theme); } catch (e) {}
+      const icon = $('theme-icon');
+      if (icon) {
+        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+    (function initTheme() {
+      const saved = (function(){ try { return localStorage.getItem('bs_theme'); } catch(e){ return null; } })();
+      applyTheme(saved === 'dark' ? 'dark' : 'light');
+    })();
+    $('theme-toggle').addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      applyTheme(cur === 'dark' ? 'light' : 'dark');
     });
 
     // Lucide-Icons initial rendern (robust mit retry bis CDN geladen)
