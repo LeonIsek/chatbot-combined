@@ -774,6 +774,9 @@
           x: pointer.x - mousePointTo.x * newScale,
           y: pointer.y - mousePointTo.y * newScale,
         });
+        // Hit-Canvas explizit neu zeichnen — Stage-Transforms aktualisieren
+        // den visuellen Canvas auto, aber NICHT den Hit-Canvas.
+        LAYOUT_LAYER.batchDraw();
       });
 
       // Custom Stage-Pan (statt Konva-DD-Stage-Drag — eliminiert DD-Race mit Tisch-Groups).
@@ -789,18 +792,34 @@
         };
         container.style.cursor = 'grabbing';
       });
-      LAYOUT_STAGE.on('mousemove touchmove', () => {
+      LAYOUT_STAGE.on('mousemove touchmove', (e) => {
         if (!LAYOUT_PAN) return;
+        // Sicherheitsnetz: wenn keine Maustaste mehr gedrueckt → wir haben mouseup verpasst
+        if (e.evt && typeof e.evt.buttons === 'number' && e.evt.buttons === 0) {
+          LAYOUT_PAN = null;
+          container.style.cursor = 'default';
+          return;
+        }
         const p = LAYOUT_STAGE.getPointerPosition();
         if (!p) return;
         LAYOUT_STAGE.position({
           x: LAYOUT_PAN.stageX + (p.x - LAYOUT_PAN.pointerX),
           y: LAYOUT_PAN.stageY + (p.y - LAYOUT_PAN.pointerY)
         });
+        LAYOUT_LAYER.batchDraw();  // Hit-Canvas mit Pan-Bewegung synchron halten
       });
       LAYOUT_STAGE.on('mouseup touchend mouseleave', () => {
         if (LAYOUT_PAN) { LAYOUT_PAN = null; container.style.cursor = 'default'; }
       });
+      // Window-level Sicherheitsnetz: pointer kann ausserhalb des Stages losgelassen werden
+      // ohne dass Konva-Events feuern → LAYOUT_PAN bliebe haengen → naechster Tisch-Drag interferiert.
+      const _layoutPanCleanup = () => {
+        if (LAYOUT_PAN) { LAYOUT_PAN = null; container.style.cursor = 'default'; }
+      };
+      window.addEventListener('mouseup', _layoutPanCleanup);
+      window.addEventListener('touchend', _layoutPanCleanup);
+      window.addEventListener('touchcancel', _layoutPanCleanup);
+      window.addEventListener('blur', _layoutPanCleanup);
 
       // Date-Picker
       const datePicker = $('layout-date');
