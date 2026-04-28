@@ -918,18 +918,24 @@
     }
 
     function layoutBuildTableNode(resource) {
-      const w = resource.width || 80;
-      const h = resource.height || 80;
+      // Defensiv: width/height koennen aus DB als String "0", null, NaN, fehlend kommen.
+      // Konva.Rect mit width 0 ist unsichtbar fuer Hit-Test → Tisch nicht klickbar/draggable.
+      const wRaw = Number(resource.width);
+      const hRaw = Number(resource.height);
+      const w = (wRaw > 0 ? wRaw : 80);
+      const h = (hRaw > 0 ? hRaw : 80);
+      const xRaw = Number(resource.x);
+      const yRaw = Number(resource.y);
       const occupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
       const isOccupied = occupants.length > 0;
       const fill = isOccupied ? '#fee2e2' : '#f1f5f9';
       const stroke = isOccupied ? '#ef4444' : '#cbd5e1';
 
       const group = new Konva.Group({
-        x: resource.x || 60,
-        y: resource.y || 60,
+        x: Number.isFinite(xRaw) ? xRaw : 60,
+        y: Number.isFinite(yRaw) ? yRaw : 60,
         draggable: true,
-        id: 'table-' + resource.id
+        name: 'table-' + resource.id
       });
       // dragDistance: default (3px) — gibt click-Event Raum vor dragstart, sonst kannst
       // du den Tisch nicht mehr klicken um Edit-Modal zu oeffnen.
@@ -980,8 +986,10 @@
 
       group.on('dragend', async () => {
         const newX = group.x(), newY = group.y();
+        const oldX = Number.isFinite(xRaw) ? xRaw : 60;
+        const oldY = Number.isFinite(yRaw) ? yRaw : 60;
         // Bei effektiv keiner Bewegung (Klick statt Drag): kein Save, kein Toast
-        if (Math.abs(newX - (resource.x || 60)) < 1 && Math.abs(newY - (resource.y || 60)) < 1) return;
+        if (Math.abs(newX - oldX) < 1 && Math.abs(newY - oldY) < 1) return;
         resource.x = newX; resource.y = newY;
         try {
           await api('/api/customer/resources/' + resource.id, {
