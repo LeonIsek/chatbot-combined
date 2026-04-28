@@ -306,24 +306,6 @@
     .icon-lg [data-lucide], [data-lucide].icon-lg { width: 20px; height: 20px; }
     .icon-sm [data-lucide], [data-lucide].icon-sm { width: 14px; height: 14px; }
     button [data-lucide] { margin-right: 6px; }
-    /* Wand-Inspector Panel — fixed top-right in canvas-area */
-    .wall-inspector {
-      position: absolute; top: 22px; right: 22px; z-index: 20;
-      background: #fff; border: 1px solid var(--border); border-radius: 8px;
-      padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-      display: none; align-items: center; gap: 12px;
-      font-size: 13px; color: var(--text);
-    }
-    .wall-inspector.visible { display: inline-flex; }
-    .wall-inspector .wi-label { color: var(--muted); font-size: 12px; }
-    .wall-inspector .wi-len { font-weight: 500; }
-    .wall-inspector .wi-del {
-      background: transparent; border: 1px solid var(--border); border-radius: 6px;
-      padding: 4px 8px; cursor: pointer; color: var(--danger);
-      display: inline-flex; align-items: center; gap: 4px;
-    }
-    .wall-inspector .wi-del:hover { background: #fef2f2; border-color: var(--danger); }
-    .wall-inspector .wi-del [data-lucide] { width: 14px; height: 14px; }
   </style>
 </head>
 <body>
@@ -410,8 +392,6 @@
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
-            <button class="btn hidden" id="layout-wall-add"><i data-lucide="plus"></i> Wand</button>
-            <button class="btn danger hidden" id="layout-wall-delete-all"><i data-lucide="trash-2"></i> Alle Wände löschen</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
             <span class="layout-status" id="layout-status"></span>
@@ -420,13 +400,6 @@
           <div class="layout-grid">
             <div class="canvas-area" id="canvas-area">
               <div id="konva-container"></div>
-              <div id="wall-inspector" class="wall-inspector">
-                <span class="wi-label">Wand</span>
-                <span class="wi-len" id="wi-len">0 px</span>
-                <button type="button" class="wi-del" id="wi-del-btn" title="Wand löschen (Entf)">
-                  <i data-lucide="trash-2"></i> Löschen
-                </button>
-              </div>
               <div class="canvas-legend">
                 <span><span class="dot grey"></span>frei</span>
                 <span><span class="dot red"></span>besetzt</span>
@@ -758,13 +731,6 @@
     let LAYOUT_MODE = 'live';      // 'live' | 'edit'
     let LAYOUT_DATE = new Date().toISOString().slice(0, 10);
     let LAYOUT_EDITING_ID = null;  // 'new' | resource.id | null
-    let LAYOUT_WALLS = [];         // [{ x1, y1, x2, y2 }]
-    let LAYOUT_WALL_START = null;  // {x, y} Startpunkt waehrend Draw-Drag
-    let LAYOUT_WALL_DRAWING = false; // true = gerade wird Drag-to-Draw ausgefuehrt
-    let LAYOUT_WALL_PREVIEW = null;  // Konva.Line Preview waehrend Draw-Drag
-    let LAYOUT_WALL_SELECTED_IDX = null; // index der selektierten Wand (oder null)
-    let LAYOUT_WALL_HOVER_IDX = null;    // index der gehoverten Wand fuer Highlight
-    let LAYOUT_DRAW_PENDING = false;     // true = "+ Wand" geklickt, naechster Drag zeichnet eine Wand (one-shot)
 
     async function loadReservations() {
       // Backward-compat: Init-Sequenz ruft das. Layout-Tab wird lazy initialisiert beim Tab-Switch.
@@ -809,22 +775,6 @@
       // Stage-Drag: nur auf leerem Hintergrund (Konva handhabt automatisch — wenn Group draggable=true,
       // wird Group statt Stage gedragged). Cursor-Style anpassen fuer Visual-Feedback.
       LAYOUT_STAGE.on('mousedown touchstart', (e) => {
-        // [DIAG-P14] Heisenbug-Diagnose: was hat der Pointer getroffen?
-        try {
-          const t = e.target;
-          console.log('[DIAG-P14 STAGE-MOUSEDOWN]', {
-            targetClass: t?.constructor?.name,
-            targetType: t?.getType?.(),
-            targetId: t?.id?.(),
-            targetName: t?.name?.(),
-            targetDraggable: t?.draggable?.(),
-            parentId: t?.getParent?.()?.id?.(),
-            parentDraggable: t?.getParent?.()?.draggable?.(),
-            stageDraggable: LAYOUT_STAGE.draggable(),
-            mode: LAYOUT_MODE,
-            drawPending: LAYOUT_DRAW_PENDING
-          });
-        } catch (err) { console.warn('[DIAG-P14] log fail', err); }
         if (e.target === LAYOUT_STAGE || e.target.getType?.() === 'Stage') {
           container.style.cursor = 'grabbing';
         }
@@ -862,84 +812,10 @@
       // Zoom-Reset
       $('layout-zoom-reset').addEventListener('click', layoutFitToContent);
 
-      $('layout-wall-add').addEventListener('click', layoutStartDrawWall);
-      $('layout-wall-delete-all').addEventListener('click', layoutDeleteAllWalls);
-      // Drag-to-Draw fuer Waende (nur aktiv wenn LAYOUT_DRAW_PENDING)
-      LAYOUT_STAGE.on('mousedown touchstart', layoutHandleWallStart);
-      LAYOUT_STAGE.on('mousemove touchmove', layoutHandleWallMove);
-      LAYOUT_STAGE.on('mouseup touchend', layoutHandleWallEnd);
-      // Inspector-Delete-Button
-      $('wi-del-btn').addEventListener('click', async () => {
-        const idx = LAYOUT_WALL_SELECTED_IDX;
-        if (idx === null) return;
-        LAYOUT_WALLS.splice(idx, 1);
-        layoutDeselectWall();
-        await layoutSaveWalls();
-        layoutDrawTables();
-        layoutStatus('Wand gelöscht', 'success');
-      });
-      // DEL/Backspace = selektierte Wand loeschen
-      document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-        if (LAYOUT_MODE !== 'edit' || LAYOUT_WALL_SELECTED_IDX === null) return;
-        // Nicht feuern wenn Fokus in Input/Textarea
-        const tag = (document.activeElement?.tagName || '').toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable) return;
-        e.preventDefault();
-        $('wi-del-btn').click();
-      });
       // (Inspector-Panel ist fixed top-right und braucht keine dragmove-Synchronisierung)
-      // Esc: aktives Zeichnen abbrechen, sonst Wand-Selektion aufheben
-      document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        if (LAYOUT_DRAW_PENDING) {
-          layoutCancelDraw();
-          layoutDrawTables();
-          layoutStatus('Wand-Zeichnen abgebrochen', 'success');
-          return;
-        }
-        if (LAYOUT_WALL_SELECTED_IDX !== null) {
-          layoutDeselectWall();
-          layoutDrawTables();
-        }
-      });
-
       // Drop-Zone fuer Reservation-Drag
       container.addEventListener('dragover', (e) => e.preventDefault());
       container.addEventListener('drop', layoutHandleDrop);
-
-      // Native Mousemove fuer zuverlaessigen Wand-Hover (Konva-Hit-Detection ist bei Lines flaky)
-      container.addEventListener('mousemove', (ev) => {
-        if (LAYOUT_MODE !== 'edit') return;
-        if (LAYOUT_WALL_DRAWING) return;
-        const idx = layoutFindWallAtPointer(ev.clientX, ev.clientY);
-        if (idx === LAYOUT_WALL_HOVER_IDX) {
-          // Cursor immer aktuell halten auch bei gleichem Hover-Idx
-          container.style.cursor = LAYOUT_DRAW_PENDING ? 'crosshair' : 'grab';
-          return;
-        }
-        LAYOUT_WALL_HOVER_IDX = idx;
-        // Stroke-Widths live updaten ohne layoutDrawTables (vermeidet Listener-Reset)
-        LAYOUT_WALLS.forEach((_, i) => {
-          const node = LAYOUT_LAYER.findOne('#wall-' + i);
-          if (!node) return;
-          if (i === LAYOUT_WALL_SELECTED_IDX) node.strokeWidth(8);
-          else if (i === LAYOUT_WALL_HOVER_IDX) node.strokeWidth(10);
-          else node.strokeWidth(6);
-        });
-        container.style.cursor = LAYOUT_DRAW_PENDING ? 'crosshair' : 'grab';
-        LAYOUT_LAYER.batchDraw();
-      });
-      container.addEventListener('mouseleave', () => {
-        if (LAYOUT_WALL_HOVER_IDX === null) return;
-        LAYOUT_WALL_HOVER_IDX = null;
-        LAYOUT_WALLS.forEach((_, i) => {
-          const node = LAYOUT_LAYER.findOne('#wall-' + i);
-          if (!node) return;
-          node.strokeWidth(i === LAYOUT_WALL_SELECTED_IDX ? 8 : 6);
-        });
-        LAYOUT_LAYER.batchDraw();
-      });
 
       // Resize
       window.addEventListener('resize', () => {
@@ -956,16 +832,9 @@
       });
       $('layout-add-table').classList.toggle('hidden', mode !== 'edit');
       $('layout-save').classList.toggle('hidden', mode !== 'edit');
-      $('layout-wall-add').classList.toggle('hidden', mode !== 'edit');
-      $('layout-wall-delete-all').classList.toggle('hidden', mode !== 'edit');
       $('canvas-area').classList.toggle('edit-mode', mode === 'edit');
-      // Beim Verlassen Edit-Mode: alles deselektieren + Draw abbrechen
-      if (mode !== 'edit') {
-        layoutCancelDraw();
-        layoutDeselectWall();
-      }
       $('canvas-hint').textContent = mode === 'edit'
-        ? 'Drag Tische/Wände zum Verschieben · Klick auf Wand selektiert · "+ Wand" zum Zeichnen · Mausrad zoomen'
+        ? 'Drag Tische zum Verschieben · Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen'
         : 'Drag Reservierung von rechts auf einen Tisch zum Zuweisen · Mausrad zoomen · Drag pannen';
       layoutDrawTables();
     }
@@ -981,7 +850,6 @@
         const data = await api('/api/customer/resources');
         LAYOUT_RESOURCES = data.resources || [];
       } catch (e) { LAYOUT_RESOURCES = []; }
-      LAYOUT_WALLS = (clientData && Array.isArray(clientData.layout_walls)) ? clientData.layout_walls : [];
       try {
         const data = await api('/api/customer/reservations');
         const all = data.reservations || [];
@@ -1006,248 +874,10 @@
 
     function layoutDrawTables() {
       if (!LAYOUT_LAYER) return;
-      // [DIAG-P14] Rebuild-Tracking: jeder Render-Pass loggt was er baut
-      console.log('[DIAG-P14 LAYOUT-DRAW]', {
-        mode: LAYOUT_MODE,
-        drawPending: LAYOUT_DRAW_PENDING,
-        stageDraggable: LAYOUT_STAGE?.draggable?.(),
-        resources: LAYOUT_RESOURCES.map(r => ({
-          id: r.id, shape: r.shape,
-          willBeDraggable: LAYOUT_MODE === 'edit' && !LAYOUT_DRAW_PENDING
-        })),
-        wallSelectedIdx: LAYOUT_WALL_SELECTED_IDX
-      });
       LAYOUT_LAYER.destroyChildren();
-      $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0 && LAYOUT_WALLS.length === 0);
-      // Nicht-selektierte Waende zuerst (unter Tischen)
-      LAYOUT_WALLS.forEach((w, i) => {
-        if (i === LAYOUT_WALL_SELECTED_IDX) return;
-        LAYOUT_LAYER.add(layoutBuildWallNode(w, i));
-      });
+      $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0);
       LAYOUT_RESOURCES.forEach(r => LAYOUT_LAYER.add(layoutBuildTableNode(r)));
-      // Selektierte Wand zuletzt → topmost (Handles ueber Tischen)
-      if (LAYOUT_WALL_SELECTED_IDX !== null && LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX]) {
-        LAYOUT_LAYER.add(layoutBuildWallNode(LAYOUT_WALLS[LAYOUT_WALL_SELECTED_IDX], LAYOUT_WALL_SELECTED_IDX));
-        layoutShowWallInspector(LAYOUT_WALL_SELECTED_IDX);
-      } else {
-        layoutHideWallInspector();
-      }
       LAYOUT_LAYER.draw();
-    }
-
-    function layoutBuildWallNode(wall, idx) {
-      const isSelected = LAYOUT_WALL_SELECTED_IDX === idx;
-      const isHovered = LAYOUT_WALL_HOVER_IDX === idx;
-      const interactive = LAYOUT_MODE === 'edit' && !LAYOUT_DRAW_PENDING;
-      const dx = wall.x2 - wall.x1;
-      const dy = wall.y2 - wall.y1;
-
-      // Wand-Group: x/y = absoluter Anker bei Endpunkt A. Children leben in Group-lokalen Coords.
-      // Effekt: Group-Drag bewegt Linie + Handles synchron via Konva-Transform — kein Sync-Code.
-      const group = new Konva.Group({
-        x: wall.x1,
-        y: wall.y1,
-        draggable: interactive,
-        id: 'wall-group-' + idx,
-        name: 'wall-group'
-      });
-      group.dragDistance(4);
-
-      // Linie lokal von (0,0) zu (dx, dy)
-      const line = new Konva.Line({
-        points: [0, 0, dx, dy],
-        stroke: '#0a0a0a',
-        strokeWidth: isSelected ? 8 : (isHovered ? 10 : 6),
-        lineCap: 'butt',
-        id: 'wall-' + idx,
-        name: 'wall',
-        hitStrokeWidth: 80,
-        strokeScaleEnabled: false,
-        listening: interactive
-      });
-      group.add(line);
-
-      // Handles nur wenn selektiert (sonst optisch ruhiger)
-      if (isSelected && interactive) {
-        const mkHandle = (lx, ly, key) => {
-          const h = new Konva.Circle({
-            x: lx, y: ly, radius: 7,
-            fill: '#ffffff', stroke: '#3b82f6', strokeWidth: 2,
-            draggable: true,
-            name: 'wall-handle',
-            id: 'wall-handle-' + idx + '-' + key
-          });
-          h.dragDistance(2);  // sehr empfindlich, Handle ist klein
-          // KRITISCH: Bubble stoppen damit parent Group's mousedown.konva NICHT triggert.
-          // Sonst wuerden Handle UND Group sich beide in Konva.DD._dragElements registrieren
-          // und es entsteht ein Drag-Race (Handle dragDist 2 vs Group dragDist 4) — manchmal
-          // gewinnt Group, dann wird die ganze Wand bewegt statt nur der Endpunkt.
-          h.on('mousedown touchstart', (e) => { e.cancelBubble = true; });
-          h.on('dragstart', (e) => { e.cancelBubble = true; });
-          h.on('dragmove', () => {
-            const w = LAYOUT_WALLS[idx]; if (!w) return;
-            // Handle-Position ist lokal zu Group; absolute Wand-Coords = group + handle-local
-            const absX = group.x() + h.x();
-            const absY = group.y() + h.y();
-            if (key === 'a') { w.x1 = absX; w.y1 = absY; }
-            else             { w.x2 = absX; w.y2 = absY; }
-            // Linie zwischen Handle-A und Handle-B (lokal)
-            const hA = group.findOne('#wall-handle-' + idx + '-a');
-            const hB = group.findOne('#wall-handle-' + idx + '-b');
-            if (hA && hB) line.points([hA.x(), hA.y(), hB.x(), hB.y()]);
-            layoutShowWallInspector(idx);  // Length live-update
-          });
-          h.on('dragend', async () => {
-            await layoutSaveWalls();
-            // Re-render damit Group-Anker wieder bei wall.x1,wall.y1 sitzt und Handles auf (0,0)/(dx,dy)
-            layoutDrawTables();
-          });
-          return h;
-        };
-        group.add(mkHandle(0, 0, 'a'));
-        group.add(mkHandle(dx, dy, 'b'));
-      }
-
-      // Group-Drag (gesamte Wand verschieben).
-      // Handle-Drag bubbled zur Group, deshalb e.target-Check.
-      group.on('dragstart', (e) => {
-        if (e.target?.name?.() === 'wall-handle') return;
-        LAYOUT_WALL_SELECTED_IDX = idx;
-        layoutHideWallInspector();
-      });
-      group.on('dragend', async (e) => {
-        if (e.target?.name?.() === 'wall-handle') return;
-        const w = LAYOUT_WALLS[idx]; if (!w) return;
-        const newX = group.x();
-        const newY = group.y();
-        // Effektive Bewegung < 1px = "verklickt" (Drag-Threshold ueberschritten aber zurueck).
-        // Kein Save, Wand bleibt wo sie war, Selection-State bleibt konsistent.
-        if (Math.abs(newX - w.x1) < 1 && Math.abs(newY - w.y1) < 1) {
-          group.position({ x: w.x1, y: w.y1 });  // sicherstellen dass keine sub-px-Drift bleibt
-          if (LAYOUT_WALL_SELECTED_IDX !== idx) layoutSelectWall(idx);
-          else layoutShowWallInspector(idx);
-          return;
-        }
-        const oldDx = w.x2 - w.x1;
-        const oldDy = w.y2 - w.y1;
-        w.x1 = newX;
-        w.y1 = newY;
-        w.x2 = newX + oldDx;
-        w.y2 = newY + oldDy;
-        await layoutSaveWalls();
-        if (LAYOUT_WALL_SELECTED_IDX !== idx) layoutSelectWall(idx);
-        else layoutShowWallInspector(idx);
-      });
-      group.on('click tap', (e) => {
-        if (e.target?.name?.() === 'wall-handle') return;
-        // Toggle: zweiter Klick auf bereits selektierter Wand = abwaehlen
-        if (LAYOUT_WALL_SELECTED_IDX === idx) {
-          layoutDeselectWall();
-          layoutDrawTables();
-          return;
-        }
-        layoutSelectWall(idx);
-      });
-
-      return group;
-    }
-
-    // Punkt-zu-Strecke-Distanz (in Welt-Coords)
-    function layoutPointToWallDistance(px, py, wall) {
-      const dx = wall.x2 - wall.x1, dy = wall.y2 - wall.y1;
-      const len2 = dx*dx + dy*dy;
-      if (len2 < 1) return Math.hypot(px - wall.x1, py - wall.y1);
-      let t = ((px - wall.x1) * dx + (py - wall.y1) * dy) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const fx = wall.x1 + t * dx, fy = wall.y1 + t * dy;
-      return Math.hypot(px - fx, py - fy);
-    }
-
-    function layoutFindWallAtPointer(clientX, clientY) {
-      if (!LAYOUT_STAGE) return -1;
-      const rect = $('konva-container').getBoundingClientRect();
-      const sx = clientX - rect.left, sy = clientY - rect.top;
-      const scale = LAYOUT_STAGE.scaleX();
-      const wx = (sx - LAYOUT_STAGE.x()) / scale;
-      const wy = (sy - LAYOUT_STAGE.y()) / scale;
-      const threshold = 18 / scale;  // 18px screen-space unabhaengig vom Zoom
-      let bestIdx = -1, bestDist = Infinity;
-      LAYOUT_WALLS.forEach((w, i) => {
-        const d = layoutPointToWallDistance(wx, wy, w);
-        if (d < threshold && d < bestDist) { bestDist = d; bestIdx = i; }
-      });
-      return bestIdx;
-    }
-
-
-    function layoutSelectWall(idx) {
-      LAYOUT_WALL_SELECTED_IDX = idx;
-      layoutDrawTables();
-      layoutShowWallInspector(idx);
-    }
-
-    function layoutDeselectWall() {
-      LAYOUT_WALL_SELECTED_IDX = null;
-      layoutHideWallInspector();
-    }
-
-    function layoutShowWallInspector(idx) {
-      const panel = $('wall-inspector');
-      const lenEl = $('wi-len');
-      if (!panel || idx === null || idx === undefined || !LAYOUT_WALLS[idx]) {
-        if (panel) panel.classList.remove('visible');
-        return;
-      }
-      const w = LAYOUT_WALLS[idx];
-      const len = Math.round(Math.hypot(w.x2 - w.x1, w.y2 - w.y1));
-      if (lenEl) lenEl.textContent = len + ' px';
-      panel.classList.add('visible');
-    }
-
-    function layoutHideWallInspector() {
-      const panel = $('wall-inspector');
-      if (panel) panel.classList.remove('visible');
-    }
-
-    async function layoutSaveWalls() {
-      try {
-        await api('/api/customer/client', {
-          method: 'PATCH',
-          body: JSON.stringify({ layout_walls: LAYOUT_WALLS })
-        });
-        if (clientData) clientData.layout_walls = LAYOUT_WALLS;
-      } catch (e) {
-        console.warn('[layout] saveWalls failed:', e);
-      }
-    }
-
-    // Bricht aktiven Draw-Pending-Modus ab (one-shot)
-    function layoutCancelDraw() {
-      LAYOUT_DRAW_PENDING = false;
-      LAYOUT_WALL_DRAWING = false;
-      LAYOUT_WALL_START = null;
-      if (LAYOUT_WALL_PREVIEW) {
-        LAYOUT_WALL_PREVIEW.destroy();
-        LAYOUT_WALL_PREVIEW = null;
-        if (LAYOUT_LAYER) LAYOUT_LAYER.batchDraw();
-      }
-      // Stage-Pan wieder aktivieren (waehrend Zeichnen war es deaktiviert)
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(true);
-      const btn = $('layout-wall-add');
-      if (btn) {
-        btn.classList.remove('primary');
-        btn.innerHTML = '<i data-lucide="plus"></i> Wand';
-        if (window.lucide) lucide.createIcons();
-      }
-      const cont = $('konva-container');
-      if (cont) cont.style.cursor = 'grab';
-    }
-
-    function layoutWorldCoords() {
-      const p = LAYOUT_STAGE.getPointerPosition();
-      if (!p) return null;
-      const s = LAYOUT_STAGE.scaleX();
-      return { x: (p.x - LAYOUT_STAGE.x()) / s, y: (p.y - LAYOUT_STAGE.y()) / s };
     }
 
     // Reset = Pan auf einen fixen Default-Punkt im freien Raum (world origin in Container-Mitte).
@@ -1257,109 +887,6 @@
       const cw = LAYOUT_STAGE.width(), ch = LAYOUT_STAGE.height();
       LAYOUT_STAGE.position({ x: cw / 2, y: ch / 2 });
       layoutStatus('Ansicht resettet', 'success');
-    }
-
-    // Toggle: einmal druecken = aktiv und bleibt, bis erneut Knopf oder Esc
-    function layoutStartDrawWall() {
-      if (LAYOUT_MODE !== 'edit') return;
-      // Toggle: erneut klicken bricht Draw-Pending ab
-      if (LAYOUT_DRAW_PENDING) { layoutCancelDraw(); layoutDrawTables(); return; }
-      LAYOUT_DRAW_PENDING = true;
-      // Stage-Pan disabled waehrend Zeichnen
-      if (LAYOUT_STAGE) LAYOUT_STAGE.draggable(false);
-      const cont = $('konva-container');
-      if (cont) cont.style.cursor = 'crosshair';
-      const btn = $('layout-wall-add');
-      if (btn) {
-        btn.classList.add('primary');
-        btn.innerHTML = '<i data-lucide="x"></i> Abbrechen';
-        if (window.lucide) lucide.createIcons();
-      }
-      // Wand-Selektion aufheben damit Tische/Wand-Lines nicht stoeren
-      layoutDeselectWall();
-      layoutDrawTables();
-      layoutStatus('Drag eine Linie um die Wand zu zeichnen · Esc bricht ab', 'success');
-    }
-
-    async function layoutDeleteAllWalls() {
-      if (!LAYOUT_WALLS.length) {
-        layoutStatus('Keine Wände vorhanden', 'success');
-        return;
-      }
-      if (!confirm('Wirklich ALLE Wände löschen? Das kann nicht rückgängig gemacht werden.')) return;
-      LAYOUT_WALLS.length = 0;
-      LAYOUT_WALL_SELECTED_IDX = null;
-      LAYOUT_WALL_HOVER_IDX = null;
-      await layoutSaveWalls();
-      layoutDrawTables();
-      layoutStatus('Alle Wände gelöscht', 'success');
-    }
-
-    async function layoutHandleWallStart(e) {
-      if (LAYOUT_MODE !== 'edit') return;
-      const tname = e.target?.name?.();
-      // Klick/Drag auf Handle oder Wand → Konva-Listener uebernehmen (Drag/Select)
-      if (tname === 'wall-handle' || tname === 'wall') return;
-      // Klick auf Tisch oder andere Shape → ignorieren
-      if (e.target !== LAYOUT_STAGE) return;
-      // Fallback fuer kleine Waende: Konva-Hit verfehlt aber native mousemove fand eine Wand
-      if (!LAYOUT_DRAW_PENDING && LAYOUT_WALL_HOVER_IDX !== null) {
-        e.cancelBubble = true;
-        layoutSelectWall(LAYOUT_WALL_HOVER_IDX);
-        return;
-      }
-      // Klick auf leere Stage → bestehende Selektion aufheben
-      if (LAYOUT_WALL_SELECTED_IDX !== null) {
-        layoutDeselectWall();
-        layoutDrawTables();
-      }
-      // Wand zeichnen NUR wenn DRAW_PENDING aktiv (one-shot via "+ Wand"-Button)
-      if (!LAYOUT_DRAW_PENDING) return;
-      const w = layoutWorldCoords();
-      if (!w) return;
-      LAYOUT_WALL_DRAWING = true;
-      LAYOUT_WALL_START = w;
-      LAYOUT_WALL_PREVIEW = new Konva.Line({
-        points: [w.x, w.y, w.x, w.y],
-        stroke: '#0a0a0a', strokeWidth: 6, lineCap: 'butt',
-        dash: [10, 6], listening: false
-      });
-      LAYOUT_LAYER.add(LAYOUT_WALL_PREVIEW);
-      LAYOUT_LAYER.batchDraw();
-    }
-
-    function layoutHandleWallMove(e) {
-      if (!LAYOUT_WALL_DRAWING || !LAYOUT_WALL_PREVIEW || !LAYOUT_WALL_START) return;
-      const w = layoutWorldCoords();
-      if (!w) return;
-      LAYOUT_WALL_PREVIEW.points([LAYOUT_WALL_START.x, LAYOUT_WALL_START.y, w.x, w.y]);
-      LAYOUT_LAYER.batchDraw();
-    }
-
-    async function layoutHandleWallEnd(e) {
-      if (!LAYOUT_WALL_DRAWING) return;
-      LAYOUT_WALL_DRAWING = false;
-      if (LAYOUT_WALL_PREVIEW) {
-        LAYOUT_WALL_PREVIEW.destroy();
-        LAYOUT_WALL_PREVIEW = null;
-      }
-      const start = LAYOUT_WALL_START;
-      LAYOUT_WALL_START = null;
-      if (!start) { LAYOUT_LAYER.batchDraw(); return; }
-      const w = layoutWorldCoords();
-      if (!w) { layoutCancelDraw(); layoutDrawTables(); return; }
-      const dx = w.x - start.x, dy = w.y - start.y;
-      const len = Math.sqrt(dx*dx + dy*dy);
-      if (len < 20) {  // zu kurz → Klick statt Drag, Draw bleibt pending
-        layoutDrawTables();
-        return;
-      }
-      LAYOUT_WALLS.push({ x1: start.x, y1: start.y, x2: w.x, y2: w.y });
-      await layoutSaveWalls();
-      // One-Shot: nach erfolgreichem Zeichnen Modus beenden
-      layoutCancelDraw();
-      layoutDrawTables();
-      layoutStatus('Wand hinzugefügt', 'success');
     }
 
     function layoutBuildTableNode(resource) {
@@ -1373,7 +900,7 @@
       const group = new Konva.Group({
         x: resource.x || 60,
         y: resource.y || 60,
-        draggable: LAYOUT_MODE === 'edit' && !LAYOUT_DRAW_PENDING,
+        draggable: LAYOUT_MODE === 'edit',
         id: 'table-' + resource.id
       });
 
@@ -1421,19 +948,7 @@
         }));
       }
 
-      // [DIAG-P14] Tisch-Drag-Lifecycle: feuert dragstart ueberhaupt?
-      group.on('dragstart', () => {
-        console.log('[DIAG-P14 TISCH-DRAGSTART]', {
-          resourceId: resource.id,
-          shape: resource.shape,
-          groupId: group.id(),
-          groupDraggable: group.draggable(),
-          stageDraggable: LAYOUT_STAGE.draggable()
-        });
-      });
-
       group.on('dragend', async () => {
-        console.log('[DIAG-P14 TISCH-DRAGEND]', { resourceId: resource.id, shape: resource.shape });
         if (LAYOUT_MODE !== 'edit') return;
         const newX = group.x(), newY = group.y();
         // Bei effektiv keiner Bewegung (Klick statt Drag): kein Save, kein Toast
