@@ -800,6 +800,22 @@
       // Stage-Drag: nur auf leerem Hintergrund (Konva handhabt automatisch — wenn Group draggable=true,
       // wird Group statt Stage gedragged). Cursor-Style anpassen fuer Visual-Feedback.
       LAYOUT_STAGE.on('mousedown touchstart', (e) => {
+        // [DIAG-P14] Heisenbug-Diagnose: was hat der Pointer getroffen?
+        try {
+          const t = e.target;
+          console.log('[DIAG-P14 STAGE-MOUSEDOWN]', {
+            targetClass: t?.constructor?.name,
+            targetType: t?.getType?.(),
+            targetId: t?.id?.(),
+            targetName: t?.name?.(),
+            targetDraggable: t?.draggable?.(),
+            parentId: t?.getParent?.()?.id?.(),
+            parentDraggable: t?.getParent?.()?.draggable?.(),
+            stageDraggable: LAYOUT_STAGE.draggable(),
+            mode: LAYOUT_MODE,
+            wallMode: LAYOUT_WALL_MODE
+          });
+        } catch (err) { console.warn('[DIAG-P14] log fail', err); }
         if (e.target === LAYOUT_STAGE || e.target.getType?.() === 'Stage') {
           container.style.cursor = 'grabbing';
         }
@@ -969,6 +985,17 @@
 
     function layoutDrawTables() {
       if (!LAYOUT_LAYER) return;
+      // [DIAG-P14] Rebuild-Tracking: jeder Render-Pass loggt was er baut
+      console.log('[DIAG-P14 LAYOUT-DRAW]', {
+        mode: LAYOUT_MODE,
+        wallMode: LAYOUT_WALL_MODE,
+        stageDraggable: LAYOUT_STAGE?.draggable?.(),
+        resources: LAYOUT_RESOURCES.map(r => ({
+          id: r.id, shape: r.shape,
+          willBeDraggable: LAYOUT_MODE === 'edit' && !LAYOUT_WALL_MODE
+        })),
+        wallSelectedIdx: LAYOUT_WALL_SELECTED_IDX
+      });
       LAYOUT_LAYER.destroyChildren();
       $('konva-container').classList.toggle('empty', LAYOUT_RESOURCES.length === 0 && LAYOUT_WALLS.length === 0);
       // Wände zuerst rendern (damit Tische darüber liegen)
@@ -1356,7 +1383,19 @@
         }));
       }
 
+      // [DIAG-P14] Tisch-Drag-Lifecycle: feuert dragstart ueberhaupt?
+      group.on('dragstart', () => {
+        console.log('[DIAG-P14 TISCH-DRAGSTART]', {
+          resourceId: resource.id,
+          shape: resource.shape,
+          groupId: group.id(),
+          groupDraggable: group.draggable(),
+          stageDraggable: LAYOUT_STAGE.draggable()
+        });
+      });
+
       group.on('dragend', async () => {
+        console.log('[DIAG-P14 TISCH-DRAGEND]', { resourceId: resource.id, shape: resource.shape });
         if (LAYOUT_MODE !== 'edit') return;
         const newX = group.x(), newY = group.y();
         // Bei effektiv keiner Bewegung (Klick statt Drag): kein Save, kein Toast
