@@ -69,17 +69,16 @@
     }
     header button:hover { background: #1A1A1A; }
     .icon-btn {
-      width: 32px; padding: 0;
+      width: 32px; padding: 0 !important;
       display: grid; place-items: center;
     }
     .icon-btn i, .icon-btn svg {
       width: 16px; height: 16px; display: block; margin: 0;
       grid-column: 1; grid-row: 1; place-self: center;
     }
-    /* Optical-Correction: Lucide-Mond-Sichel ist im viewBox links-unten verschoben,
-       wirkt damit "zu links" trotz korrekt zentrierter SVG-Box. translateX-shift
-       gleicht das aus. Sun ist symmetrisch — kein Korrektur dort. */
-    .icon-btn.moon-mode svg, .icon-btn.moon-mode i { transform: translateX(2px); }
+    /* Theme-Icon: smooth flip zwischen light (rechte Haelfte gefuellt) und dark (linke Haelfte). */
+    #theme-icon { transition: transform 220ms ease; }
+    #theme-icon.flipped { transform: scaleX(-1); }
 
     main { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .hidden { display: none !important; }
@@ -425,7 +424,13 @@
         <button id="logout-btn">Abmelden</button>
       </div>
       <button id="theme-toggle" type="button" class="icon-btn" aria-label="Theme wechseln" title="Theme wechseln">
-        <i data-lucide="moon" id="theme-icon"></i>
+        <!-- Eigenes Half-Moon-SVG: garantiert zentriert in 16x16 box. Toggle per scaleX(-1) zwischen
+             rechte-Haelfte-gefuellt (light) und linke-Haelfte-gefuellt (dark). -->
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="6.5"/>
+          <path d="M8 1.5 A 6.5 6.5 0 0 1 8 14.5 Z" fill="currentColor" stroke="none"/>
+        </svg>
       </button>
     </div>
   </header>
@@ -1757,20 +1762,14 @@
       }
     });
 
-    // Theme-Toggle
+    // Theme-Toggle: eigenes half-moon SVG, toggle per scaleX(-1) zwischen
+    // rechts-gefuellt (light) und links-gefuellt (dark). Kein Lucide-Replacement mehr.
     function applyTheme(theme) {
       if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
       else document.documentElement.removeAttribute('data-theme');
       try { localStorage.setItem('bs_theme', theme); } catch (e) {}
       const icon = $('theme-icon');
-      if (icon) {
-        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
-        if (window.lucide) lucide.createIcons();
-      }
-      // Optical-Correction-Class: Mond-Mode (light theme zeigt Mond) braucht translateX-shift,
-      // weil Lucide-Sichel im viewBox links-unten verschoben ist. Sun-Mode kein shift.
-      const btn = $('theme-toggle');
-      if (btn) btn.classList.toggle('moon-mode', theme !== 'dark');
+      if (icon) icon.classList.toggle('flipped', theme === 'dark');
     }
     (function initTheme() {
       const saved = (function(){ try { return localStorage.getItem('bs_theme'); } catch(e){ return null; } })();
