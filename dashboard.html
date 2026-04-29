@@ -1163,15 +1163,33 @@
         layoutStatus('Reservation muss auf einen Tisch fallen', 'error');
         return;
       }
+      // Multi-Tisch: pruefen ob Tisch schon zugewiesen ist → Drop toggelt (entfernt).
+      // Sonst additiv hinzufuegen, damit Reservation auf mehrere Tische verteilt werden kann.
+      const reservation = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
+      if (!reservation) return;
+      const alreadyAssigned = (reservation.assignedResources || []).some(ar => ar.id === target.id);
       try {
-        await api('/api/customer/reservations/' + resvId + '/assign', {
-          method: 'POST',
-          body: JSON.stringify({ resource_id: target.id, replace: true })
-        });
+        if (alreadyAssigned) {
+          await api('/api/customer/reservations/' + resvId + '/assign/' + target.id, { method: 'DELETE' });
+          layoutStatus(target.label + ' entfernt', 'success');
+        } else {
+          await api('/api/customer/reservations/' + resvId + '/assign', {
+            method: 'POST',
+            body: JSON.stringify({ resource_id: target.id, replace: false })
+          });
+          // Kapazitaets-Hint: Σ Tisch-Capacity ≥ guests?
+          const newTotalCap = (reservation.assignedResources || [])
+            .reduce((sum, ar) => sum + (Number(ar.capacity) || 0), 0) + (Number(target.capacity) || 0);
+          const guests = Number(reservation.guests) || 0;
+          if (guests > 0 && newTotalCap < guests) {
+            layoutStatus(target.label + ' hinzugefuegt — ' + newTotalCap + '/' + guests + ' Plaetze, weiterer Tisch noetig', 'success');
+          } else {
+            layoutStatus('Zugewiesen an ' + target.label, 'success');
+          }
+        }
         await layoutRefresh();
-        layoutStatus('Zugewiesen an ' + target.label, 'success');
       } catch (err) {
-        layoutStatus('Zuweisung fehlgeschlagen: ' + err.message, 'error');
+        layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
       }
     }
 
