@@ -24,7 +24,8 @@
       --border: #E5E5E5; --accent: #0A0A0A; --success: #10B981; --danger: #EF4444; --warn: #F59E0B;
       --radius: 12px; --radius-lg: 16px;
       --canvas-bg: #fafbfc; --canvas-grid: #e2e8f0;
-      --table-bg: #f1f5f9; --table-border: #cbd5e1; --table-text: #0a0a0a;
+      /* Frei = gruen (einladend, "kann hier zugewiesen werden"). Belegt = rot ("dieser Tisch ist vergeben"). */
+      --table-bg: #ecfdf5; --table-border: #6ee7b7; --table-text: #064e3b;
       --table-occ-bg: #fee2e2; --table-occ-border: #ef4444; --table-occ-time: #b91c1c;
       --table-cap: #737373; --origin-color: #cbd5e1;
       --badge-success-text: #047857; --badge-danger-text: #991B1B; --badge-warn-text: #B45309;
@@ -38,7 +39,8 @@
       --on-accent: #0a0a0a;
       --success: #34d399; --danger: #f87171; --warn: #fbbf24;
       --canvas-bg: #0f0f0f; --canvas-grid: #262626;
-      --table-bg: #1f1f1f; --table-border: #404040; --table-text: #fafafa;
+      /* Dark: gedaempfte Gruen-Toene fuer freie Tische, gleicher rot-Akzent fuer belegte */
+      --table-bg: #0f2620; --table-border: #047857; --table-text: #d1fae5;
       --table-occ-bg: #3b1f1f; --table-occ-border: #ef4444; --table-occ-time: #fca5a5;
       --table-cap: #a3a3a3; --origin-color: #525252;
       --badge-success-text: #34d399; --badge-danger-text: #fca5a5; --badge-warn-text: #fbbf24;
@@ -286,25 +288,36 @@
       cursor: grab; user-select: none; -webkit-user-select: none;
       font-family: inherit; font-size: 13px; font-weight: 700; color: var(--table-text);
       touch-action: none;
-      transition: box-shadow 120ms;
+      transition: box-shadow 120ms, background 220ms, border-color 220ms;
     }
     .canvas-area.edit-mode .layout-table:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
     .canvas-area:not(.edit-mode) .layout-table { cursor: default; }
     .layout-table.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: none; }
     .layout-table.occupied { background: var(--table-occ-bg); border-color: var(--table-occ-border); }
     .layout-table.circle { border-radius: 50%; }
+    .layout-table .lt-label { font-size: 13px; }
     .layout-table .lt-cap { font-size: 11px; color: var(--table-cap); font-weight: 500; margin-top: 2px; }
-    .layout-table .lt-chips {
-      position: absolute; left: 4px; right: 4px; top: 22px; bottom: 18px;
-      display: flex; flex-direction: column; gap: 2px; overflow: hidden;
-      pointer-events: auto;
+    /* Bei belegtem Tisch: Label/Capacity klein in Ecken, Chips bekommen Hauptraum */
+    .layout-table.occupied .lt-label {
+      position: absolute; top: 3px; left: 6px;
+      font-size: 9px; font-weight: 500; opacity: 0.65;
     }
+    .layout-table.occupied .lt-cap {
+      position: absolute; top: 3px; right: 6px;
+      font-size: 9px; margin: 0; opacity: 0.65;
+    }
+    .layout-table .lt-chips {
+      position: absolute; left: 4px; right: 4px; top: 22px; bottom: 6px;
+      display: flex; flex-direction: column; gap: 2px; overflow: hidden;
+      pointer-events: auto; justify-content: center;
+    }
+    .layout-table.occupied .lt-chips { top: 16px; bottom: 4px; }
     .layout-table .lt-chip {
-      background: rgba(99, 102, 241, 0.18);
-      color: #4338ca;
+      background: rgba(255, 255, 255, 0.7);
+      color: #991b1b;
       border-radius: 4px;
-      padding: 2px 4px;
-      font-size: 9px;
+      padding: 3px 5px;
+      font-size: 11px;
       font-weight: 600;
       text-align: center;
       white-space: nowrap;
@@ -314,15 +327,35 @@
       user-select: none; -webkit-user-select: none;
       line-height: 1.3;
     }
-    .layout-table .lt-chip:hover { background: rgba(99, 102, 241, 0.32); }
+    .layout-table .lt-chip:hover { background: rgba(255, 255, 255, 0.95); }
     .layout-table .lt-chip.dragging { opacity: 0.35; cursor: grabbing; }
     [data-theme="dark"] .layout-table .lt-chip {
-      background: rgba(99, 102, 241, 0.30);
-      color: #c7c9ff;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fecaca;
     }
-    [data-theme="dark"] .layout-table .lt-chip:hover { background: rgba(99, 102, 241, 0.45); }
+    [data-theme="dark"] .layout-table .lt-chip:hover { background: rgba(255, 255, 255, 0.20); }
     .layout-table.highlighted { box-shadow: 0 0 0 3px #6366f1; z-index: 5; }
     .res-card.highlighted { box-shadow: 0 0 0 2px #6366f1; }
+
+    /* Drop-Zone-Highlight: waehrend ein Drag aktiv ist, alle Tische mit
+       gestricheltem Rahmen markieren — der hovered Tisch bekommt solid + Tint. */
+    body.drag-active .layout-table {
+      outline: 2px dashed rgba(99, 102, 241, 0.5);
+      outline-offset: 2px;
+      transition: outline-color 120ms;
+    }
+    body.drag-active .layout-table:hover {
+      outline-color: #6366f1;
+      outline-style: solid;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+    }
+    /* Drop-Pulse: kurze Animation auf dem Tisch nach erfolgreichem Drop */
+    @keyframes drop-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5); }
+      40%  { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+    .layout-table.just-dropped { animation: drop-pulse 600ms ease-out; }
     .layout-origin {
       position: absolute; left: -8px; top: -1px; width: 16px; height: 2px;
       background: var(--origin-color); pointer-events: none;
@@ -368,14 +401,18 @@
       font-size: 13px; font-weight: 600; color: var(--muted);
       letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 12px;
     }
+    /* Reservation-Karte: gruen wenn offen (= TODO, Tisch noch zuzuweisen),
+       rot wenn assigned (= belegt, abgehakt). Wirt-Sicht: gruen=offen, rot=erledigt. */
     .res-card {
-      background: var(--bg); border: 1px solid var(--border);
+      background: #ecfdf5; border: 1.5px solid #6ee7b7;
       border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
-      cursor: grab; transition: all 120ms;
+      cursor: grab; transition: all 220ms;
     }
+    [data-theme="dark"] .res-card { background: #0f2620; border-color: #047857; }
     .res-card:active { cursor: grabbing; }
     .res-card.dragging { opacity: 0.5; }
-    .res-card.assigned { border-color: var(--success); background: #ecfdf5; }
+    .res-card.assigned { background: #fee2e2; border-color: #ef4444; }
+    [data-theme="dark"] .res-card.assigned { background: #3b1f1f; border-color: #ef4444; }
     .res-card-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 2px; line-height: 1.3; }
     .res-card-time { font-weight: 600; font-size: 13px; color: var(--muted); }
     .res-card-detail { font-size: 11px; color: var(--muted); margin-top: 2px; opacity: 0.85; }
@@ -1056,6 +1093,7 @@
       div.dataset.tableId = resource.id;
 
       const lbl = document.createElement('span');
+      lbl.className = 'lt-label';
       lbl.textContent = resource.label || '';
       div.appendChild(lbl);
 
@@ -1078,11 +1116,20 @@
           const time = (resv.start_time || '').slice(0, 5);
           // Name-Hierarchie wie in der Karte: name > email-vorname > note
           const namePart = (resv.name && resv.name.trim())
-            ? resv.name.trim().slice(0, 10)
-            : (resv.email ? resv.email.split('@')[0].slice(0, 10) : (resv.note ? resv.note.slice(0, 10) : ''));
+            ? resv.name.trim().slice(0, 12)
+            : (resv.email ? resv.email.split('@')[0].slice(0, 12) : (resv.note ? resv.note.slice(0, 12) : ''));
           const guestsTxt = (resv.guests || '?') + 'P';
           chip.textContent = namePart ? (time + ' ' + namePart + ' ' + guestsTxt) : (time + ' ' + guestsTxt);
-          chip.title = (resv.name || resv.email || resv.note || 'Reservation') + ' (' + (resv.guests || '?') + ' Personen)';
+          // Detaillierter Tooltip mit allen Reservation-Infos
+          const ttParts = [
+            (resv.name && resv.name.trim()) ? resv.name.trim() : '(kein Name)',
+            time + ' Uhr',
+            (resv.guests || '?') + ' Personen'
+          ];
+          if (resv.email) ttParts.push(resv.email);
+          if (resv.duration_minutes) ttParts.push(resv.duration_minutes + ' Min');
+          if (resv.note) ttParts.push('Notiz: ' + resv.note);
+          chip.title = ttParts.join(' · ');
 
           // Verhindern dass Tisch-Edit-Pointer-Drag startet wenn man Chip greift.
           chip.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -1092,8 +1139,12 @@
             e.dataTransfer.setData('application/x-from-resource', String(resource.id));
             e.dataTransfer.effectAllowed = 'move';
             chip.classList.add('dragging');
+            document.body.classList.add('drag-active');
           });
-          chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+          chip.addEventListener('dragend', () => {
+            chip.classList.remove('dragging');
+            document.body.classList.remove('drag-active');
+          });
 
           // Hover-Highlight: zeige verbundene Reservation-Karte in Liste
           chip.addEventListener('mouseenter', () => {
@@ -1210,8 +1261,12 @@
         e.dataTransfer.setData('text/plain', String(r.id));
         e.dataTransfer.effectAllowed = 'move';
         card.classList.add('dragging');
+        document.body.classList.add('drag-active');
       });
-      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.body.classList.remove('drag-active');
+      });
 
       // Hover-Highlight: zeige im Layout welche Tische zur dieser Reservation gehoeren.
       card.addEventListener('mouseenter', () => {
@@ -1278,6 +1333,7 @@
       // PFAD A — Chip-Drag (Drag-Source war ein Chip auf einem Tisch): Move oder Remove.
       if (fromResourceId) {
         try {
+          let pulseTargetId = null;
           if (!target) {
             // Drop ins Leere → entferne nur vom Ursprungs-Tisch (nicht ALLE Zuweisungen!)
             await api('/api/customer/reservations/' + resvId + '/assign/' + fromResourceId, { method: 'DELETE' });
@@ -1293,8 +1349,10 @@
               body: JSON.stringify({ resource_id: target.id, replace: false })
             });
             layoutStatus('verschoben zu ' + target.label, 'success');
+            pulseTargetId = target.id;
           }
           await layoutRefresh();
+          if (pulseTargetId) layoutPulseTable(pulseTargetId);
         } catch (err) {
           layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
         }
@@ -1308,6 +1366,7 @@
       }
       const alreadyAssigned = (reservation.assignedResources || []).some(ar => ar.id === target.id);
       try {
+        let pulseTargetId = null;
         if (alreadyAssigned) {
           await api('/api/customer/reservations/' + resvId + '/assign/' + target.id, { method: 'DELETE' });
           layoutStatus(target.label + ' entfernt', 'success');
@@ -1324,11 +1383,21 @@
           } else {
             layoutStatus('Zugewiesen an ' + target.label, 'success');
           }
+          pulseTargetId = target.id;
         }
         await layoutRefresh();
+        if (pulseTargetId) layoutPulseTable(pulseTargetId);
       } catch (err) {
         layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
       }
+    }
+
+    // Drop-Pulse: kurze Animation auf dem Tisch nach erfolgreichem Drop
+    function layoutPulseTable(tableId) {
+      const node = document.querySelector('.layout-table[data-table-id="' + tableId + '"]');
+      if (!node) return;
+      node.classList.add('just-dropped');
+      setTimeout(() => node.classList.remove('just-dropped'), 650);
     }
 
     function layoutAddTable() {
