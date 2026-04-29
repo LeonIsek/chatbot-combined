@@ -1449,33 +1449,62 @@
       const sel = LAYOUT_SELECTED_RESV;
       const fresh = LAYOUT_RESERVATIONS.find(x => x.id === sel.id) || sel;
       const isAssigned = (fresh.assignedResources || []).some(ar => ar.id === resource.id);
+
+      // ===== OPTIMISTIC UPDATE: UI sofort, Server-Call im Hintergrund =====
+      // Backup der zu mutierenden Stellen für Revert bei Server-Fehler
+      const beforeFreshArs = [...(fresh.assignedResources || [])];
+      const beforeBucket = LAYOUT_ASSIGNMENTS[resource.id] ? [...LAYOUT_ASSIGNMENTS[resource.id]] : null;
+
+      // Lokal mutieren
+      if (isAssigned) {
+        fresh.assignedResources = (fresh.assignedResources || []).filter(ar => ar.id !== resource.id);
+        if (LAYOUT_ASSIGNMENTS[resource.id]) {
+          LAYOUT_ASSIGNMENTS[resource.id] = LAYOUT_ASSIGNMENTS[resource.id].filter(r => r.id !== sel.id);
+          if (LAYOUT_ASSIGNMENTS[resource.id].length === 0) delete LAYOUT_ASSIGNMENTS[resource.id];
+        }
+      } else {
+        fresh.assignedResources = [...(fresh.assignedResources || []), resource];
+        LAYOUT_ASSIGNMENTS[resource.id] = [...(LAYOUT_ASSIGNMENTS[resource.id] || []), fresh];
+      }
+
+      // Sofort UI rendern — synchron, instant feedback
+      layoutDrawTables();
+      layoutRenderReservations();
+      updateAssignBanner();
+
+      // Status-Toast + Pulse sofort
+      if (isAssigned) {
+        layoutStatus(resource.label + ' entfernt', 'success');
+      } else {
+        const newCap = fresh.assignedResources.reduce((s, ar) => s + (Number(ar.capacity) || 0), 0);
+        const guests = Number(sel.guests) || 0;
+        if (guests > 0 && newCap < guests) {
+          layoutStatus(resource.label + ' zugewiesen — ' + newCap + '/' + guests + 'P, weiterer Tisch nötig', 'success');
+        } else {
+          layoutStatus('Zugewiesen an ' + resource.label, 'success');
+        }
+        layoutPulseTable(resource.id);
+      }
+
+      // Server-Sync im Hintergrund
       try {
-        let pulseId = null;
         if (isAssigned) {
           await api('/api/customer/reservations/' + sel.id + '/assign/' + resource.id, { method: 'DELETE' });
-          layoutStatus(resource.label + ' entfernt', 'success');
         } else {
           await api('/api/customer/reservations/' + sel.id + '/assign', {
             method: 'POST',
             body: JSON.stringify({ resource_id: resource.id, replace: false })
           });
-          const newCap = (fresh.assignedResources || [])
-            .reduce((sum, ar) => sum + (Number(ar.capacity) || 0), 0) + (Number(resource.capacity) || 0);
-          const guests = Number(sel.guests) || 0;
-          if (guests > 0 && newCap < guests) {
-            layoutStatus(resource.label + ' zugewiesen — ' + newCap + '/' + guests + 'P, weiterer Tisch nötig', 'success');
-          } else {
-            layoutStatus('Zugewiesen an ' + resource.label, 'success');
-          }
-          pulseId = resource.id;
         }
-        // Refresh ZUERST, dann auf neu-erstelltem Tisch-Node pulsen
-        await layoutRefresh();
-        if (pulseId) layoutPulseTable(pulseId);
-        // Banner mit neuen Zahlen rendern, Selection bleibt aktiv für weitere Klicks
-        updateAssignBanner();
       } catch (err) {
-        layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
+        // Revert: Backup wiederherstellen, dann re-render
+        fresh.assignedResources = beforeFreshArs;
+        if (beforeBucket === null) delete LAYOUT_ASSIGNMENTS[resource.id];
+        else LAYOUT_ASSIGNMENTS[resource.id] = beforeBucket;
+        layoutDrawTables();
+        layoutRenderReservations();
+        updateAssignBanner();
+        layoutStatus('Fehlgeschlagen: ' + err.message + ' — zurueckgesetzt', 'error');
       }
     }
 
