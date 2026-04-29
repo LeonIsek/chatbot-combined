@@ -390,15 +390,17 @@
       outline-color: #ef4444;
       box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
     }
-    /* Diag-Panel fuer walkinSave-Debugging (temp, kann nach Fix entfernt werden) */
+    /* Diag-Panel fuer walkinSave-Debugging (temp, kann nach Fix entfernt werden).
+       Sichtbar by-default damit Leon ohne Save-Klick sieht ob das Setup geladen ist.
+       Hide-Button entfernt dann manuell. */
     #diag-panel {
       position: fixed; top: 8px; right: 8px; width: 380px; max-height: 70vh;
       background: rgba(15,23,42,0.97); color: #e2e8f0; border: 1px solid #334155;
       border-radius: 6px; font-family: ui-monospace,Menlo,Consolas,monospace;
-      font-size: 11px; line-height: 1.4; z-index: 99999; display: none;
+      font-size: 11px; line-height: 1.4; z-index: 99999; display: flex;
       flex-direction: column;
     }
-    #diag-panel.show { display: flex; }
+    #diag-panel.hidden { display: none; }
     #diag-panel-head { display: flex; gap: 6px; padding: 6px 8px; background: #1e293b; }
     #diag-panel-head strong { flex: 1; color: #f1f5f9; font-size: 12px; }
     #diag-panel-head button { background: #334155; color: #e2e8f0; border: 0; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; }
@@ -2010,17 +2012,24 @@
       const panel = document.getElementById('diag-panel');
       const copyBtn = document.getElementById('diag-copy-btn');
       const closeBtn = document.getElementById('diag-close-btn');
-      let raw = '';
+      if (!body || !panel || !copyBtn || !closeBtn) {
+        console.error('[diag] elements missing', { body: !!body, panel: !!panel, copyBtn: !!copyBtn, closeBtn: !!closeBtn });
+        return;
+      }
+      let raw = '=== Diag-Panel READY ===\nWenn du das hier siehst, ist der Setup live.\nKlick "Bearbeiten" auf einer Reservation, dann "Speichern" — output erscheint hier.\n';
+      body.textContent = raw;
       window.diagShow = function(label, data) {
         let block = '\n=== ' + label + ' ===\n';
         try { block += (typeof data === 'string') ? data : JSON.stringify(data, null, 2); }
         catch(e) { block += '[stringify failed: ' + e.message + ']'; }
         raw += block + '\n';
         body.textContent = raw;
-        panel.classList.add('show');
         body.scrollTop = body.scrollHeight;
       };
-      window.diagClear = function() { raw = ''; body.textContent = ''; };
+      window.diagClear = function() {
+        raw = '=== Diag run ' + new Date().toISOString() + ' ===\n';
+        body.textContent = raw;
+      };
       copyBtn.addEventListener('click', async () => {
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2037,7 +2046,7 @@
           copyBtn.textContent = 'Fail: ' + e.message;
         }
       });
-      closeBtn.addEventListener('click', () => panel.classList.remove('show'));
+      closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
     })();
   </script>
 </body>
