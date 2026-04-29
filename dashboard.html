@@ -76,6 +76,10 @@
       width: 16px; height: 16px; display: block; margin: 0;
       grid-column: 1; grid-row: 1; place-self: center;
     }
+    /* Optical-Correction: Lucide-Mond-Sichel ist im viewBox links-unten verschoben,
+       wirkt damit "zu links" trotz korrekt zentrierter SVG-Box. translateX-shift
+       gleicht das aus. Sun ist symmetrisch — kein Korrektur dort. */
+    .icon-btn.moon-mode svg, .icon-btn.moon-mode i { transform: translateX(2px); }
 
     main { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .hidden { display: none !important; }
@@ -1763,6 +1767,10 @@
         icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
         if (window.lucide) lucide.createIcons();
       }
+      // Optical-Correction-Class: Mond-Mode (light theme zeigt Mond) braucht translateX-shift,
+      // weil Lucide-Sichel im viewBox links-unten verschoben ist. Sun-Mode kein shift.
+      const btn = $('theme-toggle');
+      if (btn) btn.classList.toggle('moon-mode', theme !== 'dark');
     }
     (function initTheme() {
       const saved = (function(){ try { return localStorage.getItem('bs_theme'); } catch(e){ return null; } })();
