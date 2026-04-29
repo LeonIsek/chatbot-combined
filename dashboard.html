@@ -323,12 +323,11 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      cursor: grab;
+      cursor: pointer;
       user-select: none; -webkit-user-select: none;
       line-height: 1.3;
     }
-    .layout-table .lt-chip:hover { background: rgba(255, 255, 255, 0.95); }
-    .layout-table .lt-chip.dragging { opacity: 0.35; cursor: grabbing; }
+    .layout-table .lt-chip:hover { background: rgba(255, 255, 255, 0.95); transform: scale(1.04); }
     [data-theme="dark"] .layout-table .lt-chip {
       background: rgba(255, 255, 255, 0.12);
       color: #fecaca;
@@ -337,17 +336,59 @@
     .layout-table.highlighted { box-shadow: 0 0 0 3px #6366f1; z-index: 5; }
     .res-card.highlighted { box-shadow: 0 0 0 2px #6366f1; }
 
-    /* Drop-Zone-Highlight: waehrend ein Drag aktiv ist, alle Tische mit
-       gestricheltem Rahmen markieren — der hovered Tisch bekommt solid + Tint. */
-    body.drag-active .layout-table {
+    /* Assign-Mode: aktive Reservation selektiert, Tische werden klickbar */
+    .assign-banner {
+      position: sticky; top: 0; z-index: 20;
+      background: linear-gradient(90deg, #6366f1, #4f46e5);
+      color: #fff;
+      padding: 12px 16px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; font-size: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+      animation: banner-slide-in 180ms ease-out;
+    }
+    .assign-banner.hidden { display: none; }
+    .assign-banner-text { flex: 1; }
+    .assign-banner-text strong { font-weight: 700; }
+    .assign-banner-done {
+      background: #fff; color: #4f46e5; font-weight: 600;
+      border: 0; padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      font-size: 13px; white-space: nowrap;
+    }
+    .assign-banner-done:hover { background: #f3f4f6; }
+    @keyframes banner-slide-in {
+      from { transform: translateY(-8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .res-card.selected {
+      outline: 3px solid #6366f1;
+      outline-offset: 2px;
+      background: rgba(99,102,241,0.08);
+    }
+    [data-theme="dark"] .res-card.selected {
+      background: rgba(99,102,241,0.18);
+    }
+    /* Im Assign-Mode: alle Tische klickbar, schon-zugewiesene haben grünen Rahmen */
+    body.assign-mode .layout-table {
       outline: 2px dashed rgba(99, 102, 241, 0.5);
       outline-offset: 2px;
-      transition: outline-color 120ms;
+      cursor: pointer !important;
+      transition: outline-color 120ms, box-shadow 120ms;
     }
-    body.drag-active .layout-table:hover {
+    body.assign-mode .layout-table:hover {
       outline-color: #6366f1;
       outline-style: solid;
+      outline-width: 3px;
       box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+    }
+    body.assign-mode .layout-table.is-assigned {
+      outline: 3px solid #10b981;
+      outline-offset: 2px;
+    }
+    body.assign-mode .layout-table.is-assigned:hover {
+      outline-color: #ef4444;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
     }
     /* Drop-Pulse: kurze Animation auf dem Tisch nach erfolgreichem Drop */
     @keyframes drop-pulse {
@@ -406,11 +447,13 @@
     .res-card {
       background: #ecfdf5; border: 1.5px solid #6ee7b7;
       border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
-      cursor: grab; transition: all 220ms;
+      cursor: pointer; transition: all 180ms;
+    }
+    .res-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
     [data-theme="dark"] .res-card { background: #0f2620; border-color: #047857; }
-    .res-card:active { cursor: grabbing; }
-    .res-card.dragging { opacity: 0.5; }
     .res-card.assigned { background: #fee2e2; border-color: #ef4444; }
     [data-theme="dark"] .res-card.assigned { background: #3b1f1f; border-color: #ef4444; }
     .res-card-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 2px; line-height: 1.3; }
@@ -550,6 +593,11 @@
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
             <span class="layout-status" id="layout-status"></span>
+          </div>
+
+          <div id="assign-banner" class="assign-banner hidden">
+            <span class="assign-banner-text" id="assign-banner-text"></span>
+            <button class="assign-banner-done" id="assign-banner-done">Fertig</button>
           </div>
 
           <div class="layout-grid">
@@ -886,6 +934,7 @@
     let LAYOUT_WORLD = null;
     let LAYOUT_PAN = { x: 0, y: 0 };
     let LAYOUT_SCALE = 1;
+    let LAYOUT_SELECTED_RESV = null; // Click-to-Assign: selektierte Reservation oder null
     function layoutApplyTransform() {
       if (!LAYOUT_WORLD) return;
       LAYOUT_WORLD.style.transform =
@@ -998,10 +1047,16 @@
       // Zoom-Reset
       $('layout-zoom-reset').addEventListener('click', layoutFitToContent);
 
-      // (Inspector-Panel ist fixed top-right und braucht keine dragmove-Synchronisierung)
-      // Drop-Zone fuer Reservation-Drag
-      container.addEventListener('dragover', (e) => e.preventDefault());
-      container.addEventListener('drop', layoutHandleDrop);
+      // Banner Done-Button + ESC: Assign-Mode beenden
+      $('assign-banner-done').addEventListener('click', deselectReservationForAssign);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && LAYOUT_SELECTED_RESV) {
+          // Nicht durchschalten wenn Modal offen (Modal-Cancel hat eigene Logik)
+          const anyModalOpen = document.querySelector('.modal-backdrop.visible');
+          if (anyModalOpen) return;
+          deselectReservationForAssign();
+        }
+      });
 
       // Resize: nichts zu tun, Viewport ist 100% breit via CSS
 
@@ -1010,6 +1065,10 @@
 
     function layoutSwitchMode(mode) {
       LAYOUT_MODE = mode;
+      // Beim Wechsel zu Edit-Mode: Assign-Mode beenden (Tische werden draggable, kein Klick-Assign).
+      if (mode === 'edit' && LAYOUT_SELECTED_RESV) {
+        deselectReservationForAssign();
+      }
       document.querySelectorAll('.mode-toggle button').forEach(b => {
         b.classList.toggle('active', b.dataset.mode === mode);
       });
@@ -1018,14 +1077,23 @@
       $('canvas-area').classList.toggle('edit-mode', mode === 'edit');
       $('canvas-hint').textContent = mode === 'edit'
         ? 'Drag Tische zum Verschieben · Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen'
-        : 'Drag Reservierung von rechts auf einen Tisch zum Zuweisen · Mausrad zoomen · Drag pannen';
+        : 'Klick Reservation rechts → dann Tische klicken zum Zuweisen · Mausrad zoomen · Drag pannen';
       layoutDrawTables();
     }
 
     async function layoutRefresh() {
       await layoutLoadAll();
+      // Falls die selektierte Reservation nach Refresh weg ist (geloescht/anderes Datum) → Assign-Mode beenden
+      if (LAYOUT_SELECTED_RESV) {
+        const stillExists = LAYOUT_RESERVATIONS.some(r => r.id === LAYOUT_SELECTED_RESV.id);
+        if (!stillExists) {
+          LAYOUT_SELECTED_RESV = null;
+          document.body.classList.remove('assign-mode');
+        }
+      }
       layoutDrawTables();
       layoutRenderReservations();
+      updateAssignBanner();
     }
 
     async function layoutLoadAll() {
@@ -1086,6 +1154,13 @@
       div.className = 'layout-table' +
         (resource.shape === 'circle' ? ' circle' : '') +
         (isOccupied ? ' occupied' : '');
+      // Wenn Assign-Mode aktiv und dieser Tisch der selektierten Reservation schon zugewiesen ist:
+      // is-assigned → CSS faerbt outline gruen (entfernen-Zustand bei Klick).
+      if (LAYOUT_SELECTED_RESV) {
+        const sel = LAYOUT_RESERVATIONS.find(x => x.id === LAYOUT_SELECTED_RESV.id) || LAYOUT_SELECTED_RESV;
+        const isAssignedToSel = (sel.assignedResources || []).some(ar => ar.id === resource.id);
+        if (isAssignedToSel) div.classList.add('is-assigned');
+      }
       div.style.left = x + 'px';
       div.style.top = y + 'px';
       div.style.width = w + 'px';
@@ -1103,16 +1178,14 @@
       div.appendChild(cap);
 
       if (isOccupied) {
-        // Reservation-Chips: pro Reservation einen kompakten draggable Chip mit Zeit + Name + Personen.
-        // User kann Chip von Tisch zu Tisch ziehen (move) oder ins Leere (entfernen).
+        // Reservation-Chips: pro Reservation ein klickbarer Chip mit Zeit + Name + Personen.
+        // Klick selektiert die zugehoerige Reservation in den Assign-Mode.
         const chips = document.createElement('div');
         chips.className = 'lt-chips';
         occupants.forEach(resv => {
           const chip = document.createElement('div');
           chip.className = 'lt-chip';
-          chip.draggable = true;
           chip.dataset.resvId = resv.id;
-          chip.dataset.fromResourceId = resource.id;
           const time = (resv.start_time || '').slice(0, 5);
           // Name-Hierarchie wie in der Karte: name > email-vorname > note
           const namePart = (resv.name && resv.name.trim())
@@ -1131,19 +1204,20 @@
           if (resv.note) ttParts.push('Notiz: ' + resv.note);
           chip.title = ttParts.join(' · ');
 
-          // Verhindern dass Tisch-Edit-Pointer-Drag startet wenn man Chip greift.
+          // Click-to-Assign: Chip klicken → diese Reservation selektieren (Assign-Mode).
+          // Pointerdown stoppen damit Tisch-Pointer-Drag im Edit-Mode nicht losgeht.
           chip.addEventListener('pointerdown', (e) => e.stopPropagation());
-          chip.addEventListener('dragstart', (e) => {
+          chip.addEventListener('click', (e) => {
             e.stopPropagation();
-            e.dataTransfer.setData('text/plain', String(resv.id));
-            e.dataTransfer.setData('application/x-from-resource', String(resource.id));
-            e.dataTransfer.effectAllowed = 'move';
-            chip.classList.add('dragging');
-            document.body.classList.add('drag-active');
-          });
-          chip.addEventListener('dragend', () => {
-            chip.classList.remove('dragging');
-            document.body.classList.remove('drag-active');
+            // In Live-Mode: chip-click selektiert die zugehoerige Reservation
+            if (LAYOUT_MODE === 'edit') return;
+            // Finde aktuellste Version aus LAYOUT_RESERVATIONS (mit assignedResources)
+            const fresh = LAYOUT_RESERVATIONS.find(x => String(x.id) === String(resv.id)) || resv;
+            if (LAYOUT_SELECTED_RESV && LAYOUT_SELECTED_RESV.id === fresh.id) {
+              deselectReservationForAssign();
+            } else {
+              selectReservationForAssign(fresh);
+            }
           });
 
           // Hover-Highlight: zeige verbundene Reservation-Karte in Liste
@@ -1213,6 +1287,15 @@
       div.addEventListener('pointerup', (e) => endDrag(e, false));
       div.addEventListener('pointercancel', (e) => endDrag(e, true));
 
+      // Click-to-Assign: in Live-Mode + Reservation-selektiert → Tisch zuweisen/entfernen.
+      // Edit-Mode-Klicks oeffnen das Edit-Modal via endDrag (oben).
+      div.addEventListener('click', (e) => {
+        if (LAYOUT_MODE === 'edit') return;
+        if (!LAYOUT_SELECTED_RESV) return;
+        e.stopPropagation();
+        tableAssignClick(resource);
+      });
+
       return div;
     }
 
@@ -1237,7 +1320,7 @@
       const card = document.createElement('div');
       card.className = 'res-card';
       if (r.assignedResources?.length > 0) card.classList.add('assigned');
-      card.draggable = true;
+      if (LAYOUT_SELECTED_RESV && LAYOUT_SELECTED_RESV.id === r.id) card.classList.add('selected');
       card.dataset.resvId = r.id;
       const time = r.start_time ? r.start_time.slice(0, 5) : '—';
       const tableInfo = (r.assignedResources || []).map(a => a.label).join(', ');
@@ -1257,15 +1340,15 @@
           ${r.assignedResources?.length > 0 ? '<button data-action="unassign">Tisch lösen</button>' : ''}
           <button data-action="delete" class="danger">Löschen</button>
         </div>`;
-      card.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', String(r.id));
-        e.dataTransfer.effectAllowed = 'move';
-        card.classList.add('dragging');
-        document.body.classList.add('drag-active');
-      });
-      card.addEventListener('dragend', () => {
-        card.classList.remove('dragging');
-        document.body.classList.remove('drag-active');
+      // Click-to-Assign: Karte klicken → in den Assign-Mode für diese Reservation gehen.
+      card.addEventListener('click', (e) => {
+        // Action-Buttons (Bearbeiten/Lösen/Löschen) nicht unterdrücken
+        if (e.target.closest('button')) return;
+        if (LAYOUT_SELECTED_RESV && LAYOUT_SELECTED_RESV.id === r.id) {
+          deselectReservationForAssign();
+        } else {
+          selectReservationForAssign(r);
+        }
       });
 
       // Hover-Highlight: zeige im Layout welche Tische zur dieser Reservation gehoeren.
@@ -1306,99 +1389,78 @@
       return card;
     }
 
-    async function layoutHandleDrop(e) {
-      e.preventDefault();
-      const resvId = e.dataTransfer.getData('text/plain');
-      // fromResourceId nur gesetzt wenn Drag-Source ein Chip auf einem Tisch war (Move/Remove-Pfad).
-      // Drag aus der Reservation-Liste setzt das nicht (Add-Pfad).
-      const fromResourceId = e.dataTransfer.getData('application/x-from-resource') || '';
-      console.log('[drop] resvId=' + resvId + ' fromResource=' + fromResourceId + ' LAYOUT_VIEWPORT=' + !!LAYOUT_VIEWPORT);
-      if (!resvId) {
-        layoutStatus('Drop ohne Reservation-ID — bitte direkt auf den Tisch ziehen', 'error');
-        return;
-      }
-      if (!LAYOUT_VIEWPORT) return;
-      const rect = LAYOUT_VIEWPORT.getBoundingClientRect();
-      // World-Koordinaten = (Screen - Pan) / Scale
-      const px = (e.clientX - rect.left - LAYOUT_PAN.x) / LAYOUT_SCALE;
-      const py = (e.clientY - rect.top - LAYOUT_PAN.y) / LAYOUT_SCALE;
-      // finde Resource an Position
-      // Hit-Test mit kleiner Toleranz (12px Pad), HTML5-Drop-Position kann
-      // bei Mausrelease leicht knapp neben dem Tisch landen.
-      const PAD = 12;
-      let target = null;
-      for (const r of LAYOUT_RESOURCES) {
-        const rx = r.x || 60, ry = r.y || 60;
-        const rw = r.width || 80, rh = r.height || 80;
-        if (px >= rx - PAD && px <= rx + rw + PAD && py >= ry - PAD && py <= ry + rh + PAD) {
-          target = r; break;
-        }
-      }
-      console.log('[drop] world-pos=(' + Math.round(px) + ',' + Math.round(py) + ') target=' + (target ? target.label : 'NONE'));
+    // Click-to-Assign: Reservation selektieren / abwählen / Banner aktualisieren.
+    function selectReservationForAssign(r) {
+      LAYOUT_SELECTED_RESV = r;
+      document.body.classList.add('assign-mode');
+      updateAssignBanner();
+      layoutDrawTables();
+      layoutRenderReservations();
+    }
 
-      const reservation = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
-      if (!reservation) {
-        layoutStatus('Reservation-Daten nicht gefunden — Seite neu laden', 'error');
-        return;
-      }
+    function deselectReservationForAssign() {
+      LAYOUT_SELECTED_RESV = null;
+      document.body.classList.remove('assign-mode');
+      updateAssignBanner();
+      layoutDrawTables();
+      layoutRenderReservations();
+    }
 
-      // PFAD A — Chip-Drag (Drag-Source war ein Chip auf einem Tisch): Move oder Remove.
-      if (fromResourceId) {
-        try {
-          let pulseTargetId = null;
-          if (!target) {
-            // Drop ins Leere → entferne nur vom Ursprungs-Tisch (nicht ALLE Zuweisungen!)
-            await api('/api/customer/reservations/' + resvId + '/assign/' + fromResourceId, { method: 'DELETE' });
-            layoutStatus('Tisch geloest', 'success');
-          } else if (String(target.id) === String(fromResourceId)) {
-            // Drop auf gleichen Tisch → kein Effekt, kein Status-Spam
-            return;
-          } else {
-            // Move: DELETE alt, POST neu (additiv falls Reservation noch andere Tische hat)
-            await api('/api/customer/reservations/' + resvId + '/assign/' + fromResourceId, { method: 'DELETE' });
-            await api('/api/customer/reservations/' + resvId + '/assign', {
-              method: 'POST',
-              body: JSON.stringify({ resource_id: target.id, replace: false })
-            });
-            layoutStatus('verschoben zu ' + target.label, 'success');
-            pulseTargetId = target.id;
-          }
-          await layoutRefresh();
-          if (pulseTargetId) layoutPulseTable(pulseTargetId);
-        } catch (err) {
-          layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
-        }
+    function updateAssignBanner() {
+      const banner = $('assign-banner');
+      const text = $('assign-banner-text');
+      if (!LAYOUT_SELECTED_RESV) {
+        banner.classList.add('hidden');
         return;
       }
+      const r = LAYOUT_SELECTED_RESV;
+      const fresh = LAYOUT_RESERVATIONS.find(x => x.id === r.id) || r;
+      const assigned = fresh.assignedResources || [];
+      const totalCap = assigned.reduce((s, ar) => s + (Number(ar.capacity) || 0), 0);
+      const guests = Number(r.guests) || 0;
+      const time = (r.start_time || '').slice(0, 5);
+      const name = (r.name && r.name.trim()) || (r.email ? r.email.split('@')[0] : 'Gast');
+      let status;
+      if (assigned.length === 0) {
+        status = 'Klicke einen oder mehrere Tische zum Zuweisen';
+      } else if (guests > 0 && totalCap >= guests) {
+        status = assigned.map(a => a.label).join(' + ') + ' · ' + totalCap + '/' + guests + 'P komplett';
+      } else if (guests > 0) {
+        status = assigned.map(a => a.label).join(' + ') + ' · ' + totalCap + '/' + guests + 'P, noch ' + (guests - totalCap) + ' Plätze';
+      } else {
+        status = assigned.map(a => a.label).join(' + ');
+      }
+      text.innerHTML = '<strong>' + escapeHtml(name) + '</strong> · ' + escapeHtml(time) + ' Uhr · ' + escapeHtml(guests + 'P') + ' — ' + escapeHtml(status);
+      banner.classList.remove('hidden');
+    }
 
-      // PFAD B — Karten-Drag aus Reservation-Liste: Add oder Toggle-Off.
-      if (!target) {
-        layoutStatus('Reservation muss auf einen Tisch fallen', 'error');
-        return;
-      }
-      const alreadyAssigned = (reservation.assignedResources || []).some(ar => ar.id === target.id);
+    async function tableAssignClick(resource) {
+      if (!LAYOUT_SELECTED_RESV) return;
+      const sel = LAYOUT_SELECTED_RESV;
+      const fresh = LAYOUT_RESERVATIONS.find(x => x.id === sel.id) || sel;
+      const isAssigned = (fresh.assignedResources || []).some(ar => ar.id === resource.id);
       try {
-        let pulseTargetId = null;
-        if (alreadyAssigned) {
-          await api('/api/customer/reservations/' + resvId + '/assign/' + target.id, { method: 'DELETE' });
-          layoutStatus(target.label + ' entfernt', 'success');
+        if (isAssigned) {
+          await api('/api/customer/reservations/' + sel.id + '/assign/' + resource.id, { method: 'DELETE' });
+          layoutStatus(resource.label + ' entfernt', 'success');
         } else {
-          await api('/api/customer/reservations/' + resvId + '/assign', {
+          await api('/api/customer/reservations/' + sel.id + '/assign', {
             method: 'POST',
-            body: JSON.stringify({ resource_id: target.id, replace: false })
+            body: JSON.stringify({ resource_id: resource.id, replace: false })
           });
-          const newTotalCap = (reservation.assignedResources || [])
-            .reduce((sum, ar) => sum + (Number(ar.capacity) || 0), 0) + (Number(target.capacity) || 0);
-          const guests = Number(reservation.guests) || 0;
-          if (guests > 0 && newTotalCap < guests) {
-            layoutStatus(target.label + ' hinzugefuegt — ' + newTotalCap + '/' + guests + ' Plaetze, weiterer Tisch noetig', 'success');
+          const newCap = (fresh.assignedResources || [])
+            .reduce((sum, ar) => sum + (Number(ar.capacity) || 0), 0) + (Number(resource.capacity) || 0);
+          const guests = Number(sel.guests) || 0;
+          if (guests > 0 && newCap < guests) {
+            layoutStatus(resource.label + ' zugewiesen — ' + newCap + '/' + guests + 'P, weiterer Tisch nötig', 'success');
           } else {
-            layoutStatus('Zugewiesen an ' + target.label, 'success');
+            layoutStatus('Zugewiesen an ' + resource.label, 'success');
           }
-          pulseTargetId = target.id;
+          layoutPulseTable(resource.id);
         }
         await layoutRefresh();
-        if (pulseTargetId) layoutPulseTable(pulseTargetId);
+        // Re-render Banner mit neuen Zahlen, Selection bleibt aktiv für weitere Klicks
+        updateAssignBanner();
       } catch (err) {
         layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
       }
