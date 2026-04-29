@@ -1105,14 +1105,24 @@
         const data = await api('/api/customer/reservations');
         const all = data.reservations || [];
         LAYOUT_RESERVATIONS = all.filter(r => r.date === LAYOUT_DATE);
+        // Resource-Lookup-Map für Auflösung der Assignment-Shapes
+        const resourceById = {};
+        LAYOUT_RESOURCES.forEach(r => { resourceById[r.id] = r; });
         // Bulk fetch assignments
         LAYOUT_ASSIGNMENTS = {};
         const results = await Promise.all(LAYOUT_RESERVATIONS.map(r =>
-          api('/api/customer/reservations/' + r.id + '/resources').catch(() => ({ resources: [] }))
+          api('/api/customer/reservations/' + r.id + '/resources').catch(() => ({ assignments: [] }))
         ));
         results.forEach((res, i) => {
-          LAYOUT_RESERVATIONS[i].assignedResources = res.resources || [];
-          (res.resources || []).forEach(ar => {
+          // Backend gibt { assignments: [{resource_id, created_at}] } zurueck — wir resolven
+          // gegen LAYOUT_RESOURCES zu vollen Resource-Objekten (id, label, capacity, x, y...).
+          // Defensiv: falls Backend-Shape sich aendert (resources statt assignments), beides handeln.
+          const list = res.assignments || res.resources || [];
+          const resolved = list
+            .map(a => resourceById[a.resource_id || a.id])
+            .filter(Boolean);
+          LAYOUT_RESERVATIONS[i].assignedResources = resolved;
+          resolved.forEach(ar => {
             if (!LAYOUT_ASSIGNMENTS[ar.id]) LAYOUT_ASSIGNMENTS[ar.id] = [];
             LAYOUT_ASSIGNMENTS[ar.id].push(LAYOUT_RESERVATIONS[i]);
           });
@@ -1440,6 +1450,7 @@
       const fresh = LAYOUT_RESERVATIONS.find(x => x.id === sel.id) || sel;
       const isAssigned = (fresh.assignedResources || []).some(ar => ar.id === resource.id);
       try {
+        let pulseId = null;
         if (isAssigned) {
           await api('/api/customer/reservations/' + sel.id + '/assign/' + resource.id, { method: 'DELETE' });
           layoutStatus(resource.label + ' entfernt', 'success');
@@ -1456,10 +1467,12 @@
           } else {
             layoutStatus('Zugewiesen an ' + resource.label, 'success');
           }
-          layoutPulseTable(resource.id);
+          pulseId = resource.id;
         }
+        // Refresh ZUERST, dann auf neu-erstelltem Tisch-Node pulsen
         await layoutRefresh();
-        // Re-render Banner mit neuen Zahlen, Selection bleibt aktiv für weitere Klicks
+        if (pulseId) layoutPulseTable(pulseId);
+        // Banner mit neuen Zahlen rendern, Selection bleibt aktiv für weitere Klicks
         updateAssignBanner();
       } catch (err) {
         layoutStatus('Aktion fehlgeschlagen: ' + err.message, 'error');
