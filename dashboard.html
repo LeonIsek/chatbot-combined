@@ -1640,8 +1640,10 @@
       console.log('[walkinSave] mode=' + (WALKIN_EDITING_ID ? 'EDIT id=' + WALKIN_EDITING_ID : 'NEW') + ' payload=', payload);
       try {
         if (WALKIN_EDITING_ID) {
+          // ID festhalten BEVOR walkinClose sie zu null macht
+          const editingId = WALKIN_EDITING_ID;
           // Direkter fetch statt api(), damit wir Status + Body separat sehen koennen
-          const url = BACKEND + '/api/customer/reservations/' + WALKIN_EDITING_ID;
+          const url = BACKEND + '/api/customer/reservations/' + editingId;
           const headers = { 'Content-Type': 'application/json' };
           if (getToken()) headers['Authorization'] = 'Bearer ' + getToken();
           const fetchRes = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(payload) });
@@ -1659,9 +1661,24 @@
             $('layout-date').value = date;
           }
           await layoutRefresh();
-          // Verify: wurde DB tatsaechlich geupdated?
-          const fresh = LAYOUT_RESERVATIONS.find(x => String(x.id) === String(WALKIN_EDITING_ID || payload.id));
-          window.diagShow && window.diagShow('post-refresh DB-state', fresh || '[nicht in Liste — anderer Datum?]');
+          // Verify: wurde DB tatsaechlich geupdated? — mit korrekter editingId
+          window.diagShow && window.diagShow('LAYOUT_DATE after refresh', LAYOUT_DATE);
+          window.diagShow && window.diagShow('LAYOUT_RESERVATIONS count', LAYOUT_RESERVATIONS.length);
+          const fresh = LAYOUT_RESERVATIONS.find(x => String(x.id) === String(editingId));
+          window.diagShow && window.diagShow('post-refresh fresh-by-id', fresh || '[nicht in gefilterter Liste]');
+          // Hole ALLE Reservations (ungefilltert) um zu pruefen ob sie noch existiert mit anderem Datum
+          try {
+            const allRaw = await fetch(BACKEND + '/api/customer/reservations', { headers: { 'Authorization': 'Bearer ' + getToken() } });
+            const allData = await allRaw.json();
+            const allList = allData.reservations || [];
+            const fromAll = allList.find(x => String(x.id) === String(editingId));
+            window.diagShow && window.diagShow('GET-all r#' + editingId, fromAll || '[nicht in DB]');
+            // Sample-Datums um Format zu sehen
+            const dates = allList.slice(0, 3).map(r => ({ id: r.id, date: r.date, start_time: r.start_time, name: r.name, note: r.note, guests: r.guests }));
+            window.diagShow && window.diagShow('sample first 3 from DB', dates);
+          } catch (e) {
+            window.diagShow && window.diagShow('GET-all FAIL', e.message);
+          }
           layoutStatus('Reservation aktualisiert', 'success');
           return;
         }
