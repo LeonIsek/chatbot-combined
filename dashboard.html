@@ -242,6 +242,28 @@
       margin-bottom: 16px; border: 1px solid var(--border);
     }
     .layout-toolbar input[type="date"] { width: auto; padding: 6px 10px; }
+    .layout-toolbar input[type="time"] { width: auto; padding: 6px 10px; font-family: inherit; }
+    .time-stepper { display: flex; align-items: center; gap: 4px; }
+    .time-stepper button.tstep {
+      width: 28px; height: 28px; padding: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+      color: var(--muted); font-family: inherit;
+    }
+    .time-stepper button.tstep:hover { background: var(--bg); color: var(--text); }
+    .time-stepper button.tnow {
+      padding: 6px 12px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
+      color: var(--muted); font-family: inherit;
+    }
+    .time-stepper button.tnow:hover { background: var(--bg); color: var(--text); }
+    .view-toggle {
+      padding: 6px 12px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
+      color: var(--muted); font-family: inherit;
+    }
+    .view-toggle:hover { background: var(--bg); color: var(--text); }
+    .view-toggle.active { background: var(--text); color: var(--on-accent); border-color: var(--text); }
     .mode-toggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     .mode-toggle button {
       padding: 8px 14px; background: var(--surface); color: var(--muted); border: none;
@@ -585,6 +607,14 @@
           <div class="layout-toolbar">
             <label style="font-size:13px;color:var(--muted);">Datum</label>
             <input type="date" id="layout-date"/>
+            <label style="font-size:13px;color:var(--muted);margin-left:6px;">Zeit</label>
+            <div class="time-stepper">
+              <button class="tstep" id="layout-time-prev" title="-15 Min" type="button">‹</button>
+              <input type="time" id="layout-time" step="900" value="19:00"/>
+              <button class="tstep" id="layout-time-next" title="+15 Min" type="button">›</button>
+              <button class="tnow" id="layout-time-now" type="button">Jetzt</button>
+            </div>
+            <button class="view-toggle active" id="layout-view-toggle" title="Toggle Sicht: aktive Stunde / alle Reservationen heute" type="button">Sicht: aktive Stunde</button>
             <div class="mode-toggle">
               <button data-mode="live" class="active" id="mode-live-btn">Live-Sicht</button>
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
@@ -935,6 +965,44 @@
     let LAYOUT_PAN = { x: 0, y: 0 };
     let LAYOUT_SCALE = 1;
     let LAYOUT_SELECTED_RESV = null; // Click-to-Assign: selektierte Reservation oder null
+    let LAYOUT_TIME = '19:00';        // Time-Slot-Filter "HH:MM"
+    let LAYOUT_TIME_MODE = 'slot';    // 'slot' = nur aktive im Zeitfenster | 'all' = alle des Tages
+
+    // Helper: HH:MM → Minuten seit 00:00
+    function parseTimeToMin(t) {
+      if (!t) return null;
+      const m = String(t).match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      return Number(m[1]) * 60 + Number(m[2]);
+    }
+    // Helper: Minuten → "HH:MM"
+    function minToTime(min) {
+      const m = ((min % 1440) + 1440) % 1440;
+      return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+    // Default-Zeit: bei heutigem Datum auf "now" gerundet (15min), sonst 19:00
+    function computeDefaultLayoutTime() {
+      const today = new Date().toISOString().slice(0, 10);
+      if (LAYOUT_DATE === today) {
+        const now = new Date();
+        const total = now.getHours() * 60 + now.getMinutes();
+        const rounded = Math.round(total / 15) * 15;
+        // Service-Range klippen: 11:00 bis 23:45
+        const clamped = Math.max(11 * 60, Math.min(23 * 60 + 45, rounded));
+        return minToTime(clamped);
+      }
+      return '19:00';
+    }
+    // Reservation aktiv im Zeitfenster (slot)?
+    function isResvActiveAtSlot(resv, slotHHMM) {
+      const start = parseTimeToMin(resv.start_time);
+      if (start == null) return false;
+      const dur = Number(resv.duration_minutes) > 0 ? Number(resv.duration_minutes) : 90;
+      const end = start + dur;
+      const slot = parseTimeToMin(slotHHMM);
+      if (slot == null) return false;
+      return slot >= start && slot < end;
+    }
     function layoutApplyTransform() {
       if (!LAYOUT_WORLD) return;
       LAYOUT_WORLD.style.transform =
@@ -1023,7 +1091,68 @@
       datePicker.value = LAYOUT_DATE;
       datePicker.addEventListener('change', (e) => {
         LAYOUT_DATE = e.target.value;
+        // Time auf neuen Default berechnen wenn Datum wechselt
+        LAYOUT_TIME = computeDefaultLayoutTime();
+        $('layout-time').value = LAYOUT_TIME;
         layoutRefresh();
+      });
+
+      // Time-Stepper
+      LAYOUT_TIME = computeDefaultLayoutTime();
+      const timeInput = $('layout-time');
+      timeInput.value = LAYOUT_TIME;
+      timeInput.addEventListener('change', () => {
+        LAYOUT_TIME = timeInput.value || '19:00';
+        layoutDrawTables();
+        layoutRenderReservations();
+        updateAssignBanner();
+        updateCanvasHint();
+      });
+      $('layout-time-prev').addEventListener('click', () => {
+        const m = parseTimeToMin(LAYOUT_TIME);
+        LAYOUT_TIME = minToTime((m == null ? 19 * 60 : m) - 15);
+        timeInput.value = LAYOUT_TIME;
+        layoutDrawTables();
+        layoutRenderReservations();
+        updateAssignBanner();
+        updateCanvasHint();
+      });
+      $('layout-time-next').addEventListener('click', () => {
+        const m = parseTimeToMin(LAYOUT_TIME);
+        LAYOUT_TIME = minToTime((m == null ? 19 * 60 : m) + 15);
+        timeInput.value = LAYOUT_TIME;
+        layoutDrawTables();
+        layoutRenderReservations();
+        updateAssignBanner();
+        updateCanvasHint();
+      });
+      $('layout-time-now').addEventListener('click', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        if (LAYOUT_DATE !== today) {
+          // Wenn nicht heute: zuerst auf heute springen
+          LAYOUT_DATE = today;
+          datePicker.value = today;
+        }
+        LAYOUT_TIME = computeDefaultLayoutTime();
+        timeInput.value = LAYOUT_TIME;
+        layoutRefresh();
+      });
+      // Sicht-Toggle: slot vs all
+      const viewToggle = $('layout-view-toggle');
+      viewToggle.addEventListener('click', () => {
+        LAYOUT_TIME_MODE = (LAYOUT_TIME_MODE === 'slot') ? 'all' : 'slot';
+        viewToggle.classList.toggle('active', LAYOUT_TIME_MODE === 'slot');
+        viewToggle.textContent = (LAYOUT_TIME_MODE === 'slot')
+          ? 'Sicht: aktive Stunde'
+          : 'Sicht: alle heute';
+        // Time-Stepper sichtbar nur wenn slot-mode (visuell deutlich)
+        $('layout-time-prev').style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
+        $('layout-time-next').style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
+        timeInput.style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
+        layoutDrawTables();
+        layoutRenderReservations();
+        updateAssignBanner();
+        updateCanvasHint();
       });
 
       // Mode-Toggle
@@ -1063,6 +1192,18 @@
       layoutRefresh();
     }
 
+    function updateCanvasHint() {
+      const hint = $('canvas-hint');
+      if (!hint) return;
+      if (LAYOUT_MODE === 'edit') {
+        hint.textContent = 'Drag Tische zum Verschieben · Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen';
+        return;
+      }
+      hint.textContent = (LAYOUT_TIME_MODE === 'slot')
+        ? ('Sicht ' + LAYOUT_TIME + ' · Klick Reservation rechts → Tische klicken zum Zuweisen')
+        : 'Sicht: alle heute · Klick Reservation rechts → Tische klicken zum Zuweisen';
+    }
+
     function layoutSwitchMode(mode) {
       LAYOUT_MODE = mode;
       // Beim Wechsel zu Edit-Mode: Assign-Mode beenden (Tische werden draggable, kein Klick-Assign).
@@ -1075,9 +1216,7 @@
       $('layout-add-table').classList.toggle('hidden', mode !== 'edit');
       $('layout-save').classList.toggle('hidden', mode !== 'edit');
       $('canvas-area').classList.toggle('edit-mode', mode === 'edit');
-      $('canvas-hint').textContent = mode === 'edit'
-        ? 'Drag Tische zum Verschieben · Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen'
-        : 'Klick Reservation rechts → dann Tische klicken zum Zuweisen · Mausrad zoomen · Drag pannen';
+      updateCanvasHint();
       layoutDrawTables();
     }
 
@@ -1094,6 +1233,7 @@
       layoutDrawTables();
       layoutRenderReservations();
       updateAssignBanner();
+      updateCanvasHint();
     }
 
     async function layoutLoadAll() {
@@ -1157,7 +1297,12 @@
       const xRaw = Number(resource.x), yRaw = Number(resource.y);
       const x = Number.isFinite(xRaw) ? xRaw : 60;
       const y = Number.isFinite(yRaw) ? yRaw : 60;
-      const occupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
+      // Im Slot-Mode nur Reservationen anzeigen die in der gewaehlten Stunde aktiv sind.
+      // Im All-Mode (full-Tag): alle Zuweisungen.
+      const allOccupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
+      const occupants = (LAYOUT_TIME_MODE === 'slot')
+        ? allOccupants.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME))
+        : allOccupants;
       const isOccupied = occupants.length > 0;
 
       const div = document.createElement('div');
@@ -1314,13 +1459,25 @@
       const count = $('resv-list-count');
       const empty = $('resv-today-empty');
       list.innerHTML = '';
-      count.textContent = '(' + LAYOUT_RESERVATIONS.length + ')';
-      if (LAYOUT_RESERVATIONS.length === 0) {
+      // Im Slot-Mode nur aktive Reservationen anzeigen, im All-Mode alle des Tages
+      const filtered = (LAYOUT_TIME_MODE === 'slot')
+        ? LAYOUT_RESERVATIONS.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME))
+        : LAYOUT_RESERVATIONS;
+      // Count zeigt aktiv/total bei Slot-Mode
+      if (LAYOUT_TIME_MODE === 'slot') {
+        count.textContent = '(' + filtered.length + ' um ' + LAYOUT_TIME + ' · ' + LAYOUT_RESERVATIONS.length + ' total heute)';
+      } else {
+        count.textContent = '(' + LAYOUT_RESERVATIONS.length + ')';
+      }
+      if (filtered.length === 0) {
         empty.classList.remove('hidden');
+        empty.textContent = (LAYOUT_TIME_MODE === 'slot')
+          ? ('Keine Reservationen aktiv um ' + LAYOUT_TIME + ' · "Sicht" wechseln um alle zu sehen')
+          : 'Keine Reservierungen für dieses Datum';
         return;
       }
       empty.classList.add('hidden');
-      const sorted = [...LAYOUT_RESERVATIONS].sort((a, b) =>
+      const sorted = [...filtered].sort((a, b) =>
         (a.start_time || '').localeCompare(b.start_time || ''));
       sorted.forEach(r => list.appendChild(layoutBuildResvCard(r)));
       if (window.lucide) lucide.createIcons();
@@ -1630,7 +1787,8 @@
       $('walkin-save').textContent = 'Reservation eintragen';
       $('walkin-name').value = '';
       $('walkin-date').value = LAYOUT_DATE;
-      $('walkin-time').value = '19:00';
+      // Default-Zeit aus dem Slider — falls Wirt aktuell auf "20:00" guckt und Walk-In eintraegt, ist das richtig
+      $('walkin-time').value = LAYOUT_TIME || '19:00';
       $('walkin-guests').value = 2;
       $('walkin-duration').value = '';
       $('walkin-email').value = '';
