@@ -1312,23 +1312,35 @@
       // fromResourceId nur gesetzt wenn Drag-Source ein Chip auf einem Tisch war (Move/Remove-Pfad).
       // Drag aus der Reservation-Liste setzt das nicht (Add-Pfad).
       const fromResourceId = e.dataTransfer.getData('application/x-from-resource') || '';
-      if (!resvId || !LAYOUT_VIEWPORT) return;
+      console.log('[drop] resvId=' + resvId + ' fromResource=' + fromResourceId + ' LAYOUT_VIEWPORT=' + !!LAYOUT_VIEWPORT);
+      if (!resvId) {
+        layoutStatus('Drop ohne Reservation-ID — bitte direkt auf den Tisch ziehen', 'error');
+        return;
+      }
+      if (!LAYOUT_VIEWPORT) return;
       const rect = LAYOUT_VIEWPORT.getBoundingClientRect();
       // World-Koordinaten = (Screen - Pan) / Scale
       const px = (e.clientX - rect.left - LAYOUT_PAN.x) / LAYOUT_SCALE;
       const py = (e.clientY - rect.top - LAYOUT_PAN.y) / LAYOUT_SCALE;
       // finde Resource an Position
+      // Hit-Test mit kleiner Toleranz (12px Pad), HTML5-Drop-Position kann
+      // bei Mausrelease leicht knapp neben dem Tisch landen.
+      const PAD = 12;
       let target = null;
       for (const r of LAYOUT_RESOURCES) {
         const rx = r.x || 60, ry = r.y || 60;
         const rw = r.width || 80, rh = r.height || 80;
-        if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+        if (px >= rx - PAD && px <= rx + rw + PAD && py >= ry - PAD && py <= ry + rh + PAD) {
           target = r; break;
         }
       }
+      console.log('[drop] world-pos=(' + Math.round(px) + ',' + Math.round(py) + ') target=' + (target ? target.label : 'NONE'));
 
       const reservation = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
-      if (!reservation) return;
+      if (!reservation) {
+        layoutStatus('Reservation-Daten nicht gefunden — Seite neu laden', 'error');
+        return;
+      }
 
       // PFAD A — Chip-Drag (Drag-Source war ein Chip auf einem Tisch): Move oder Remove.
       if (fromResourceId) {
@@ -1528,12 +1540,14 @@
         note: note || null,
         duration_minutes: duration_minutes || null
       };
+      console.log('[walkinSave] mode=' + (WALKIN_EDITING_ID ? 'EDIT id=' + WALKIN_EDITING_ID : 'NEW') + ' payload=', payload);
       try {
         if (WALKIN_EDITING_ID) {
-          await api('/api/customer/reservations/' + WALKIN_EDITING_ID, {
+          const result = await api('/api/customer/reservations/' + WALKIN_EDITING_ID, {
             method: 'PATCH',
             body: JSON.stringify(payload)
           });
+          console.log('[walkinSave] PATCH result:', result);
           walkinClose();
           if (date !== LAYOUT_DATE) {
             LAYOUT_DATE = date;
@@ -1555,7 +1569,8 @@
         await layoutRefresh();
         layoutStatus('Reservation eingetragen', 'success');
       } catch (err) {
-        alert('Fehler: ' + err.message);
+        console.error('[walkinSave] Fehler:', err);
+        layoutStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
       }
     }
 
