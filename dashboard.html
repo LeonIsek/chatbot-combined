@@ -356,6 +356,19 @@
     }
     [data-theme="dark"] .layout-table .lt-chip:hover { background: rgba(255, 255, 255, 0.20); }
     .layout-table.highlighted { box-shadow: 0 0 0 3px #6366f1; z-index: 5; }
+    /* Doppelbelegung im aktuellen Slot: deutlich orangener Warn-Indikator */
+    .layout-table.slot-conflict {
+      outline: 2px solid #f59e0b;
+      outline-offset: 1px;
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+    }
+    .layout-table.slot-conflict::after {
+      content: '!';
+      position: absolute; bottom: 2px; right: 4px;
+      width: 14px; height: 14px; line-height: 14px; text-align: center;
+      background: #f59e0b; color: #fff;
+      border-radius: 50%; font-size: 10px; font-weight: 700;
+    }
     .res-card.highlighted { box-shadow: 0 0 0 2px #6366f1; }
 
     /* Assign-Mode: aktive Reservation selektiert, Tische werden klickbar */
@@ -1003,6 +1016,32 @@
       if (slot == null) return false;
       return slot >= start && slot < end;
     }
+    // Zwei Reservationen ueberlappen sich zeitlich?
+    function reservationsOverlap(a, b) {
+      const aStart = parseTimeToMin(a.start_time);
+      const bStart = parseTimeToMin(b.start_time);
+      if (aStart == null || bStart == null) return false;
+      const aDur = Number(a.duration_minutes) > 0 ? Number(a.duration_minutes) : 90;
+      const bDur = Number(b.duration_minutes) > 0 ? Number(b.duration_minutes) : 90;
+      const aEnd = aStart + aDur;
+      const bEnd = bStart + bDur;
+      return aStart < bEnd && bStart < aEnd;
+    }
+    // Konflikt-Check: gibt's eine bereits zugewiesene Reservation am Tisch die mit `resv` zeitlich kollidiert?
+    function findAssignmentConflict(resv, resourceId) {
+      const bucket = LAYOUT_ASSIGNMENTS[resourceId] || [];
+      for (const other of bucket) {
+        if (String(other.id) === String(resv.id)) continue; // sich selbst ignorieren
+        if (reservationsOverlap(resv, other)) return other;
+      }
+      return null;
+    }
+    // Tisch hat im aktuellen Slot mehr als eine aktive Reservation? (Doppelbelegungs-Warnung in der UI)
+    function tableHasSlotConflict(resourceId) {
+      const bucket = LAYOUT_ASSIGNMENTS[resourceId] || [];
+      const activeNow = bucket.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
+      return activeNow.length > 1;
+    }
     function layoutApplyTransform() {
       if (!LAYOUT_WORLD) return;
       LAYOUT_WORLD.style.transform =
@@ -1305,10 +1344,17 @@
         : allOccupants;
       const isOccupied = occupants.length > 0;
 
+      // Slot-Konflikt: Tisch hat im aktuellen Zeitfenster mehr als eine aktive Reservation?
+      const hasConflict = LAYOUT_TIME_MODE === 'slot' && tableHasSlotConflict(resource.id);
+
       const div = document.createElement('div');
       div.className = 'layout-table' +
         (resource.shape === 'circle' ? ' circle' : '') +
-        (isOccupied ? ' occupied' : '');
+        (isOccupied ? ' occupied' : '') +
+        (hasConflict ? ' slot-conflict' : '');
+      if (hasConflict) {
+        div.title = 'Doppelbelegung in dieser Stunde — bitte pruefen';
+      }
       // Wenn Assign-Mode aktiv und dieser Tisch der selektierten Reservation schon zugewiesen ist:
       // is-assigned → CSS faerbt outline gruen (entfernen-Zustand bei Klick).
       if (LAYOUT_SELECTED_RESV) {
@@ -1640,6 +1686,22 @@
       const sel = LAYOUT_SELECTED_RESV;
       const fresh = LAYOUT_RESERVATIONS.find(x => x.id === sel.id) || sel;
       const isAssigned = (fresh.assignedResources || []).some(ar => ar.id === resource.id);
+
+      // ===== KONFLIKT-CHECK: nur beim ASSIGN (nicht beim Entfernen) =====
+      if (!isAssigned) {
+        const conflict = findAssignmentConflict(fresh, resource.id);
+        if (conflict) {
+          const cStart = (conflict.start_time || '').slice(0, 5);
+          const cDur = Number(conflict.duration_minutes) > 0 ? Number(conflict.duration_minutes) : 90;
+          const cEnd = minToTime(parseTimeToMin(conflict.start_time) + cDur);
+          const cName = (conflict.name && conflict.name.trim()) || (conflict.email ? conflict.email.split('@')[0] : 'Gast');
+          layoutStatus(
+            resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName + ' — Zuweisung blockiert',
+            'error'
+          );
+          return;
+        }
+      }
 
       // ===== OPTIMISTIC UPDATE: UI sofort, Server-Call im Hintergrund =====
       // Backup der zu mutierenden Stellen für Revert bei Server-Fehler
