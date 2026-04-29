@@ -373,8 +373,9 @@
     .res-card:active { cursor: grabbing; }
     .res-card.dragging { opacity: 0.5; }
     .res-card.assigned { border-color: var(--success); background: #ecfdf5; }
-    .res-card-time { font-weight: 600; font-size: 14px; }
-    .res-card-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .res-card-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 2px; line-height: 1.3; }
+    .res-card-time { font-weight: 600; font-size: 13px; color: var(--muted); }
+    .res-card-detail { font-size: 11px; color: var(--muted); margin-top: 2px; opacity: 0.85; }
     .res-card-table {
       font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 500;
     }
@@ -652,11 +653,15 @@
         </div>
       </div>
 
-      <!-- Modal: Walk-In / Telefon-Reservation manuell anlegen -->
+      <!-- Modal: Reservation eintragen ODER bestehende bearbeiten -->
       <div class="modal-backdrop" id="walkin-modal">
         <div class="modal">
-          <h3>Reservation manuell eintragen</h3>
-          <p class="section-hint" style="margin-bottom:14px;font-size:12px;color:var(--muted);">Telefonisch, Walk-In oder per WhatsApp — hier eintragen wenn der Bot sie nicht erfasst hat.</p>
+          <h3 id="walkin-modal-title">Reservation manuell eintragen</h3>
+          <p class="section-hint" id="walkin-modal-hint" style="margin-bottom:14px;font-size:12px;color:var(--muted);">Telefonisch, Walk-In oder per WhatsApp — hier eintragen wenn der Bot sie nicht erfasst hat.</p>
+          <div class="field">
+            <label>Name des Gasts</label>
+            <input type="text" id="walkin-name" placeholder="z.B. Müller, Leon Schmidt, Tisch Beck"/>
+          </div>
           <div class="field-row">
             <div class="field">
               <label>Datum</label>
@@ -1062,12 +1067,13 @@
           chip.dataset.resvId = resv.id;
           chip.dataset.fromResourceId = resource.id;
           const time = (resv.start_time || '').slice(0, 5);
-          const namePart = resv.email
-            ? resv.email.split('@')[0].slice(0, 10)
-            : (resv.note ? resv.note.slice(0, 10) : '');
+          // Name-Hierarchie wie in der Karte: name > email-vorname > note
+          const namePart = (resv.name && resv.name.trim())
+            ? resv.name.trim().slice(0, 10)
+            : (resv.email ? resv.email.split('@')[0].slice(0, 10) : (resv.note ? resv.note.slice(0, 10) : ''));
           const guestsTxt = (resv.guests || '?') + 'P';
           chip.textContent = namePart ? (time + ' ' + namePart + ' ' + guestsTxt) : (time + ' ' + guestsTxt);
-          chip.title = (resv.email || resv.note || 'Reservation') + ' (' + (resv.guests || '?') + ' Personen)';
+          chip.title = (resv.name || resv.email || resv.note || 'Reservation') + ' (' + (resv.guests || '?') + ' Personen)';
 
           // Verhindern dass Tisch-Edit-Pointer-Drag startet wenn man Chip greift.
           chip.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -1175,11 +1181,19 @@
       card.dataset.resvId = r.id;
       const time = r.start_time ? r.start_time.slice(0, 5) : '—';
       const tableInfo = (r.assignedResources || []).map(a => a.label).join(', ');
+      // Name-Hierarchie: r.name (manuell gesetzt) → email-vorname (Bot-Reservation) → "Gast"
+      const displayName = r.name && r.name.trim()
+        ? r.name.trim()
+        : (r.email ? r.email.split('@')[0] : 'Gast');
+      // Detail-Zeile zeigt zusaetzliche Info wenn name + email vorhanden, sonst note
+      const detail = r.name && r.email ? r.email : (r.note || '');
       card.innerHTML = `
+        <div class="res-card-name">${escapeHtml(displayName)}</div>
         <div class="res-card-time">${time} · ${r.guests || '?'} P</div>
-        <div class="res-card-detail">${escapeHtml(r.email || 'kein Kontakt')}</div>
+        ${detail ? `<div class="res-card-detail">${escapeHtml(detail)}</div>` : ''}
         ${tableInfo ? `<div class="res-card-table"><i data-lucide="arrow-right" class="icon-sm"></i> ${escapeHtml(tableInfo)}</div>` : ''}
         <div class="res-card-actions">
+          <button data-action="edit">Bearbeiten</button>
           ${r.assignedResources?.length > 0 ? '<button data-action="unassign">Tisch lösen</button>' : ''}
           <button data-action="delete" class="danger">Löschen</button>
         </div>`;
@@ -1207,6 +1221,10 @@
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const action = btn.dataset.action;
+          if (action === 'edit') {
+            walkinOpenEdit(r);
+            return;
+          }
           if (action === 'delete') {
             if (!confirm('Reservation wirklich löschen?')) return;
             try {
@@ -1374,8 +1392,15 @@
       }
     }
 
-    // ===== Walk-In / Telefon-Reservation manuell anlegen =====
+    // ===== Reservation Modal — NEW (Walk-In) ODER EDIT (bestehend) =====
+    let WALKIN_EDITING_ID = null;
+
     function walkinOpen() {
+      WALKIN_EDITING_ID = null;
+      $('walkin-modal-title').textContent = 'Reservation manuell eintragen';
+      $('walkin-modal-hint').textContent = 'Telefonisch, Walk-In oder per WhatsApp — hier eintragen wenn der Bot sie nicht erfasst hat.';
+      $('walkin-save').textContent = 'Reservation eintragen';
+      $('walkin-name').value = '';
       $('walkin-date').value = LAYOUT_DATE;
       $('walkin-time').value = '19:00';
       $('walkin-guests').value = 2;
@@ -1383,11 +1408,32 @@
       $('walkin-email').value = '';
       $('walkin-note').value = '';
       $('walkin-modal').classList.add('visible');
+      setTimeout(() => $('walkin-name').focus(), 50);
     }
+
+    function walkinOpenEdit(r) {
+      WALKIN_EDITING_ID = r.id;
+      $('walkin-modal-title').textContent = 'Reservation bearbeiten';
+      $('walkin-modal-hint').textContent = 'Aenderungen werden gespeichert sobald du auf "Speichern" klickst.';
+      $('walkin-save').textContent = 'Speichern';
+      $('walkin-name').value = r.name || '';
+      $('walkin-date').value = r.date || LAYOUT_DATE;
+      $('walkin-time').value = (r.start_time || '').slice(0, 5) || '19:00';
+      $('walkin-guests').value = r.guests || 1;
+      $('walkin-duration').value = r.duration_minutes || '';
+      $('walkin-email').value = r.email || '';
+      $('walkin-note').value = r.note || '';
+      $('walkin-modal').classList.add('visible');
+      setTimeout(() => $('walkin-name').focus(), 50);
+    }
+
     function walkinClose() {
       $('walkin-modal').classList.remove('visible');
+      WALKIN_EDITING_ID = null;
     }
+
     async function walkinSave() {
+      const name = $('walkin-name').value.trim();
       const date = $('walkin-date').value;
       const start_time = $('walkin-time').value;
       const guests = parseInt($('walkin-guests').value, 10) || 1;
@@ -1395,13 +1441,35 @@
       const email = $('walkin-email').value.trim();
       const note = $('walkin-note').value.trim();
       if (!date || !start_time) { alert('Datum und Uhrzeit sind Pflicht'); return; }
+      const payload = {
+        name: name || null,
+        date,
+        start_time,
+        guests,
+        email: email || null,
+        note: note || null,
+        duration_minutes: duration_minutes || null
+      };
       try {
+        if (WALKIN_EDITING_ID) {
+          await api('/api/customer/reservations/' + WALKIN_EDITING_ID, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+          });
+          walkinClose();
+          if (date !== LAYOUT_DATE) {
+            LAYOUT_DATE = date;
+            $('layout-date').value = date;
+          }
+          await layoutRefresh();
+          layoutStatus('Reservation aktualisiert', 'success');
+          return;
+        }
         await api('/api/customer/reservations', {
           method: 'POST',
-          body: JSON.stringify({ date, start_time, guests, email: email || undefined, note: note || undefined, duration_minutes: duration_minutes || undefined })
+          body: JSON.stringify(payload)
         });
         walkinClose();
-        // Datum auf den neuen Eintrag schwenken falls anders
         if (date !== LAYOUT_DATE) {
           LAYOUT_DATE = date;
           $('layout-date').value = date;
