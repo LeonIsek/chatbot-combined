@@ -1389,10 +1389,44 @@
               await layoutRefresh();
             } catch (err) { alert(err.message); }
           } else if (action === 'unassign') {
-            for (const ar of r.assignedResources) {
-              await api('/api/customer/reservations/' + r.id + '/assign/' + ar.id, { method: 'DELETE' });
+            // Optimistic Update: lokal alle Zuweisungen entfernen, sofort rendern, DELETEs parallel im Hintergrund
+            const toRemove = [...(r.assignedResources || [])];
+            if (toRemove.length === 0) return;
+            // Backup für Revert
+            const backupArs = toRemove.map(ar => ar);
+            const backupBuckets = {};
+            toRemove.forEach(ar => {
+              backupBuckets[ar.id] = LAYOUT_ASSIGNMENTS[ar.id] ? [...LAYOUT_ASSIGNMENTS[ar.id]] : null;
+            });
+            // Lokal mutieren
+            r.assignedResources = [];
+            toRemove.forEach(ar => {
+              if (LAYOUT_ASSIGNMENTS[ar.id]) {
+                LAYOUT_ASSIGNMENTS[ar.id] = LAYOUT_ASSIGNMENTS[ar.id].filter(x => x.id !== r.id);
+                if (LAYOUT_ASSIGNMENTS[ar.id].length === 0) delete LAYOUT_ASSIGNMENTS[ar.id];
+              }
+            });
+            layoutDrawTables();
+            layoutRenderReservations();
+            updateAssignBanner();
+            layoutStatus(toRemove.length + ' Tisch' + (toRemove.length === 1 ? '' : 'e') + ' geloest', 'success');
+            // Server-Sync parallel
+            try {
+              await Promise.all(toRemove.map(ar =>
+                api('/api/customer/reservations/' + r.id + '/assign/' + ar.id, { method: 'DELETE' })
+              ));
+            } catch (err) {
+              // Revert
+              r.assignedResources = backupArs;
+              Object.keys(backupBuckets).forEach(id => {
+                if (backupBuckets[id] === null) delete LAYOUT_ASSIGNMENTS[id];
+                else LAYOUT_ASSIGNMENTS[id] = backupBuckets[id];
+              });
+              layoutDrawTables();
+              layoutRenderReservations();
+              updateAssignBanner();
+              layoutStatus('Loesen fehlgeschlagen: ' + err.message + ' — zurueckgesetzt', 'error');
             }
-            await layoutRefresh();
           }
         });
       });
