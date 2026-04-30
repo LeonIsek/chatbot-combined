@@ -642,6 +642,11 @@
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird fuer Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
+              Standard-Dauer
+              <input type="number" id="layout-default-duration" min="15" max="480" step="15" style="width:64px;padding:4px 6px;text-align:right;" />
+              min
+            </span>
             <span class="layout-status" id="layout-status"></span>
           </div>
 
@@ -974,6 +979,35 @@
       // color text mirror
       const colorText = get('[data-field="bubble_color_text"]');
       if (colorText) colorText.value = clientData.bubble_color || '#0A0A0A';
+      // Layout-Toolbar: Standard-Dauer
+      const ddInput = $('layout-default-duration');
+      if (ddInput) ddInput.value = clientDefaultDuration();
+    }
+
+    // Standard-Dauer: Auto-Save bei Blur/Change. Bei ungueltigem Wert revert.
+    async function saveDefaultDuration() {
+      const inp = $('layout-default-duration');
+      if (!inp) return;
+      const v = parseInt(inp.value, 10);
+      if (!Number.isFinite(v) || v < 15 || v > 480) {
+        inp.value = clientDefaultDuration();
+        layoutStatus('Standard-Dauer: 15–480 Min', 'error');
+        return;
+      }
+      if (v === Number(clientData?.default_duration_minutes)) return; // no-op
+      try {
+        await api('/api/customer/client', {
+          method: 'PATCH',
+          body: JSON.stringify({ default_duration_minutes: v })
+        });
+        clientData.default_duration_minutes = v;
+        layoutStatus('Standard-Dauer: ' + v + ' Min', 'success');
+        // Konflikt-Visualisierung kann sich aendern
+        if (typeof layoutDrawTables === 'function') layoutDrawTables();
+      } catch (e) {
+        inp.value = clientDefaultDuration();
+        layoutStatus('Speichern fehlgeschlagen: ' + e.message, 'error');
+      }
     }
 
     // ===== Phase R: Layout-Canvas + Live-Reservation-View =====
@@ -1017,19 +1051,25 @@
     function isResvActiveAtSlot(resv, slotHHMM) {
       const start = parseTimeToMin(resv.start_time);
       if (start == null) return false;
-      const dur = Number(resv.duration_minutes) > 0 ? Number(resv.duration_minutes) : 90;
+      const dur = Number(resv.duration_minutes) > 0 ? Number(resv.duration_minutes) : clientDefaultDuration();
       const end = start + dur;
       const slot = parseTimeToMin(slotHHMM);
       if (slot == null) return false;
       return slot >= start && slot < end;
+    }
+    // Default-Reservation-Dauer aus Client-Settings (Fallback 90 wenn nicht gesetzt).
+    function clientDefaultDuration() {
+      const v = Number(clientData?.default_duration_minutes);
+      return v > 0 ? v : 90;
     }
     // Zwei Reservationen ueberlappen sich zeitlich?
     function reservationsOverlap(a, b) {
       const aStart = parseTimeToMin(a.start_time);
       const bStart = parseTimeToMin(b.start_time);
       if (aStart == null || bStart == null) return false;
-      const aDur = Number(a.duration_minutes) > 0 ? Number(a.duration_minutes) : 90;
-      const bDur = Number(b.duration_minutes) > 0 ? Number(b.duration_minutes) : 90;
+      const dDef = clientDefaultDuration();
+      const aDur = Number(a.duration_minutes) > 0 ? Number(a.duration_minutes) : dDef;
+      const bDur = Number(b.duration_minutes) > 0 ? Number(b.duration_minutes) : dDef;
       const aEnd = aStart + aDur;
       const bEnd = bStart + bDur;
       return aStart < bEnd && bStart < aEnd;
@@ -1062,7 +1102,7 @@
       const synth = {
         id: editingId,
         start_time: newStartTime,
-        duration_minutes: Number(newDuration) > 0 ? Number(newDuration) : 90
+        duration_minutes: Number(newDuration) > 0 ? Number(newDuration) : clientDefaultDuration()
       };
       for (const ar of assignedRes) {
         const conflict = findAssignmentConflict(synth, ar.id);
@@ -1242,6 +1282,14 @@
 
       // Zoom-Reset
       $('layout-zoom-reset').addEventListener('click', layoutFitToContent);
+
+      // Standard-Dauer auto-save bei Blur und Enter
+      const ddInput = $('layout-default-duration');
+      if (ddInput) {
+        ddInput.addEventListener('change', saveDefaultDuration);
+        ddInput.addEventListener('blur', saveDefaultDuration);
+        ddInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ddInput.blur(); });
+      }
 
       // Banner Done-Button + ESC: Assign-Mode beenden
       $('assign-banner-done').addEventListener('click', deselectReservationForAssign);
@@ -1720,7 +1768,7 @@
         const conflict = findAssignmentConflict(fresh, resource.id);
         if (conflict) {
           const cStart = (conflict.start_time || '').slice(0, 5);
-          const cDur = Number(conflict.duration_minutes) > 0 ? Number(conflict.duration_minutes) : 90;
+          const cDur = Number(conflict.duration_minutes) > 0 ? Number(conflict.duration_minutes) : clientDefaultDuration();
           const cEnd = minToTime(parseTimeToMin(conflict.start_time) + cDur);
           const cName = (conflict.name && conflict.name.trim()) || (conflict.email ? conflict.email.split('@')[0] : 'Gast');
           layoutStatus(
@@ -1901,6 +1949,7 @@
       $('walkin-time').value = LAYOUT_TIME || '19:00';
       $('walkin-guests').value = 2;
       $('walkin-duration').value = '';
+      $('walkin-duration').placeholder = 'z.B. ' + clientDefaultDuration();
       $('walkin-email').value = '';
       $('walkin-note').value = '';
       $('walkin-modal').classList.add('visible');
@@ -1917,6 +1966,7 @@
       $('walkin-time').value = (r.start_time || '').slice(0, 5) || '19:00';
       $('walkin-guests').value = r.guests || 1;
       $('walkin-duration').value = r.duration_minutes || '';
+      $('walkin-duration').placeholder = 'z.B. ' + clientDefaultDuration();
       $('walkin-email').value = r.email || '';
       $('walkin-note').value = r.note || '';
       $('walkin-modal').classList.add('visible');
@@ -1959,7 +2009,7 @@
           if (editConflict) {
             const c = editConflict.conflict;
             const cStart = (c.start_time || '').slice(0, 5);
-            const cDur = Number(c.duration_minutes) > 0 ? Number(c.duration_minutes) : 90;
+            const cDur = Number(c.duration_minutes) > 0 ? Number(c.duration_minutes) : clientDefaultDuration();
             const cEnd = minToTime(parseTimeToMin(c.start_time) + cDur);
             const cName = (c.name && c.name.trim()) || (c.email ? c.email.split('@')[0] : 'Gast');
             const editId = WALKIN_EDITING_ID;
