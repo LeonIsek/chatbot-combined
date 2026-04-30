@@ -263,13 +263,15 @@
       color: var(--muted); font-family: inherit;
     }
     .time-stepper button.tnow:hover { background: var(--bg); color: var(--text); }
-    .view-toggle {
-      padding: 6px 12px; background: var(--surface); border: 1px solid var(--border);
-      border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
-      color: var(--muted); font-family: inherit;
+    /* View-Toggle-Group: Tagesplan / Tisch-Plan (Outlook-Kalender-Mental-Modell) */
+    .view-toggle-group { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .view-toggle-group button {
+      padding: 8px 14px; background: var(--surface); color: var(--muted); border: none;
+      cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit;
+      transition: all 120ms; min-height: 36px;
     }
-    .view-toggle:hover { background: var(--bg); color: var(--text); }
-    .view-toggle.active { background: var(--text); color: var(--on-accent); border-color: var(--text); }
+    .view-toggle-group button.active { background: var(--text); color: var(--on-accent); }
+    .view-toggle-group button:hover:not(.active) { background: var(--bg); color: var(--text); }
     .mode-toggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     .mode-toggle button {
       padding: 8px 14px; background: var(--surface); color: var(--muted); border: none;
@@ -304,6 +306,105 @@
       display: grid; grid-template-columns: 1fr 280px; gap: 14px;
     }
     @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
+    .layout-main { min-width: 0; /* erlaubt overflow im child */ }
+
+    /* ============ TAGESPLAN (Timeline-Sicht, Outlook-Kalender-Style) ============ */
+    .tagesplan {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); position: relative;
+      overflow: auto; max-height: 70vh;
+    }
+    .tagesplan-empty {
+      padding: 40px 20px; text-align: center; color: var(--muted);
+      font-size: 14px; font-style: italic;
+    }
+    .tagesplan-header {
+      display: flex; position: sticky; top: 0; z-index: 3;
+      background: var(--bg); border-bottom: 2px solid var(--border);
+      min-width: max-content;
+    }
+    .tagesplan-header .tg-corner {
+      flex: 0 0 140px; padding: 10px 12px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      position: sticky; left: 0; z-index: 4;
+      background: var(--bg); border-right: 1px solid var(--border);
+      display: flex; align-items: center;
+    }
+    .tagesplan-header .tg-times {
+      display: flex; flex: 1;
+    }
+    .tagesplan-header .tg-time-cell {
+      flex: 0 0 var(--tg-cell-w, 50px);
+      padding: 8px 0; font-size: 11px; color: var(--muted);
+      text-align: center;
+      border-left: 1px solid var(--border);
+    }
+    .tagesplan-header .tg-time-cell.hour {
+      border-left: 1px solid var(--text);
+      font-weight: 600; color: var(--text);
+    }
+    .tagesplan-body { min-width: max-content; }
+    .tg-row {
+      display: flex; border-bottom: 1px solid var(--border);
+      min-height: 56px; /* iPad-touch-freundlich */
+    }
+    .tg-row-label {
+      flex: 0 0 140px; padding: 10px 12px;
+      position: sticky; left: 0; z-index: 2;
+      background: var(--bg); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; justify-content: center;
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }
+    .tg-row-label .tg-cap { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .tg-cells {
+      position: relative; flex: 1; display: flex; min-width: 0;
+    }
+    .tg-cell {
+      flex: 0 0 var(--tg-cell-w, 50px);
+      border-left: 1px solid var(--border);
+      cursor: pointer; transition: background 120ms;
+      min-height: 56px;
+    }
+    .tg-cell.hour { border-left: 1px solid var(--text); opacity: 1; }
+    .tg-cell:hover { background: rgba(99, 102, 241, 0.10); }
+    .tg-cell:active { background: rgba(99, 102, 241, 0.18); }
+    .tg-cell.lunch-break { background: repeating-linear-gradient(
+      45deg, transparent, transparent 6px,
+      rgba(0,0,0,0.04) 6px, rgba(0,0,0,0.04) 12px); cursor: default;
+    }
+    .tg-cell.lunch-break:hover { background: repeating-linear-gradient(
+      45deg, transparent, transparent 6px,
+      rgba(0,0,0,0.04) 6px, rgba(0,0,0,0.04) 12px); }
+
+    /* Reservation-Block: positioned absolute over tg-cells */
+    .tg-block {
+      position: absolute; top: 4px; bottom: 4px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff; border-radius: 6px;
+      padding: 6px 10px; font-size: 12px; font-weight: 600;
+      display: flex; flex-direction: column; justify-content: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer; box-shadow: 0 1px 4px rgba(79, 70, 229, 0.35);
+      transition: transform 100ms, box-shadow 100ms;
+      z-index: 1;
+    }
+    .tg-block:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(79, 70, 229, 0.45); z-index: 2; }
+    .tg-block .tg-block-name { font-weight: 700; line-height: 1.1; }
+    .tg-block .tg-block-meta { font-size: 10px; opacity: 0.85; line-height: 1.1; margin-top: 2px; }
+    .tg-block.conflict { outline: 2px solid #ef4444; outline-offset: -2px; }
+    .tg-block.unassigned { background: linear-gradient(135deg, #94a3b8, #64748b); }
+    [data-theme="dark"] .tg-block { box-shadow: 0 1px 4px rgba(99, 102, 241, 0.5); }
+
+    /* Mobile: Phone (<768px) → Tagesplan-Toggle versteckt, Floor-only */
+    @media (max-width: 767px) {
+      .view-toggle-group [data-view="timeline"] { display: none; }
+      .tagesplan { display: none !important; }
+    }
+    @media (max-width: 1023px) and (min-width: 768px) {
+      /* iPad-Portrait: Cell-Breite reduziert */
+      .tagesplan { --tg-cell-w: 44px; }
+    }
 
     .canvas-area {
       background: var(--surface); border: 1px solid var(--border);
@@ -652,7 +753,10 @@
               <button class="tstep" id="layout-time-next" title="+15 Min" type="button">›</button>
               <button class="tnow" id="layout-time-now" type="button">Jetzt</button>
             </div>
-            <button class="view-toggle active" id="layout-view-toggle" title="Toggle Sicht: aktive Stunde / alle Reservationen heute" type="button">Sicht: aktive Stunde</button>
+            <div class="view-toggle-group" role="tablist">
+              <button data-view="timeline" class="active" id="view-timeline-btn" type="button" role="tab" title="Tagesplan: Tische als Zeilen, Zeit als Spalten — wie Outlook-Kalender">Tagesplan</button>
+              <button data-view="floor" id="view-floor-btn" type="button" role="tab" title="Tisch-Plan: räumliche Sicht des Restaurants">Tisch-Plan</button>
+            </div>
             <div class="mode-toggle">
               <button data-mode="live" class="active" id="mode-live-btn">Live-Sicht</button>
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
@@ -674,13 +778,22 @@
           </div>
 
           <div class="layout-grid">
-            <div class="canvas-area" id="canvas-area">
-              <div id="konva-container"></div>
-              <div class="canvas-legend">
-                <span><span class="dot grey"></span>frei</span>
-                <span><span class="dot red"></span>besetzt</span>
-                <span><span class="dot orange"></span>bald reserviert</span>
-                <span style="margin-left:auto;font-style:italic;" id="canvas-hint">Im Edit-Mode: drag Tische, Klick zum Bearbeiten</span>
+            <div class="layout-main">
+              <!-- Tagesplan-Sicht: Timeline mit Tischen × Zeit (Outlook-Kalender-Style) -->
+              <div class="tagesplan" id="tagesplan-view">
+                <div class="tagesplan-header" id="tagesplan-header"></div>
+                <div class="tagesplan-body" id="tagesplan-body"></div>
+                <div class="tagesplan-empty hidden" id="tagesplan-empty">Heute geschlossen — auf Tisch-Plan wechseln um Layout zu sehen.</div>
+              </div>
+              <!-- Tisch-Plan-Sicht: räumlicher Floor-Plan -->
+              <div class="canvas-area hidden" id="canvas-area">
+                <div id="konva-container"></div>
+                <div class="canvas-legend">
+                  <span><span class="dot grey"></span>frei</span>
+                  <span><span class="dot red"></span>besetzt</span>
+                  <span><span class="dot orange"></span>bald reserviert</span>
+                  <span style="margin-left:auto;font-style:italic;" id="canvas-hint">Im Edit-Mode: drag Tische, Klick zum Bearbeiten</span>
+                </div>
               </div>
             </div>
 
@@ -1038,7 +1151,15 @@
     let LAYOUT_SCALE = 1;
     let LAYOUT_SELECTED_RESV = null; // Click-to-Assign: selektierte Reservation oder null
     let LAYOUT_TIME = '19:00';        // Time-Slot-Filter "HH:MM"
-    let LAYOUT_TIME_MODE = 'slot';    // 'slot' = nur aktive im Zeitfenster | 'all' = alle des Tages
+    // Haupt-Sicht-Toggle: 'timeline' = Tagesplan (Outlook-Kalender-Style),
+    // 'floor' = Tisch-Plan (räumlicher Floor-Plan). Persistiert in localStorage.
+    let LAYOUT_VIEW = (function() {
+      try { return localStorage.getItem('botswiss-layout-view') || 'timeline'; }
+      catch (e) { return 'timeline'; }
+    })();
+    // Tagesplan-Granularität in Minuten (Push 2 macht das switchbar)
+    let TG_GRANULARITY = 30;
+    let TG_CELL_WIDTH = 50; // px pro Spalte
 
     // Helper: HH:MM → Minuten seit 00:00
     function parseTimeToMin(t) {
@@ -1125,7 +1246,6 @@
     // Slot+default_duration → gibt die naechste Reservations-Startzeit (HH:MM)
     // zurueck. Nur sinnvoll im Slot-Mode. null wenn Tisch lange genug frei.
     function tableNextOccupiedSoon(resourceId) {
-      if (LAYOUT_TIME_MODE !== 'slot') return null;
       const bucket = LAYOUT_ASSIGNMENTS[resourceId] || [];
       const slotMin = parseTimeToMin(LAYOUT_TIME);
       if (slotMin == null) return null;
@@ -1137,6 +1257,264 @@
       if (upcoming == null) return null;
       if (upcoming - slotMin >= dDef) return null;
       return minToTime(upcoming);
+    }
+
+    // ============ TAGESPLAN — Service-Hours-Helper (auto aus opening_hours) ============
+    // Heuristisches Parsing: nimm alle HH:MM aus dem Text, derive min/max.
+    // Filter auf heutigen Wochentag wenn moeglich (DE-Abkuerzungen Mo/Di/Mi/Do/Fr/Sa/So).
+    // Fallback bei Fehlschlag: 11:00-23:00. Ruhetag/closed → isClosed=true.
+    function parseServiceHours(opening_hours, dateStr) {
+      const FALLBACK = { startMin: 11*60, endMin: 23*60, isClosed: false };
+      const text = String(opening_hours || '').trim();
+      if (!text) return FALLBACK;
+      const dow = (function() {
+        // Map JS getDay() (0=Sun..6=Sat) → DE-Abkuerzungen
+        const d = new Date(dateStr + 'T12:00:00');
+        return ['So','Mo','Di','Mi','Do','Fr','Sa'][d.getDay()];
+      })();
+      // Zeile pro Zeile pruefen welche fuer heute relevant ist
+      const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+      let candidate = null;
+      for (const line of lines) {
+        // Direkter Match: "Mo Ruhetag" oder "Mo-Fr 11:30-22:00" oder "Di-Do 11:30-14:00 & 17:30-22:00"
+        if (lineMatchesDay(line, dow)) { candidate = line; break; }
+      }
+      // Wenn nichts spezifisch → nutze ganzen Text als Pool
+      const pool = candidate || text;
+      // Closed?
+      if (/ruhetag|geschlossen|closed/i.test(pool) && !/\d{1,2}:\d{2}/.test(pool)) {
+        return { startMin: FALLBACK.startMin, endMin: FALLBACK.endMin, isClosed: true };
+      }
+      // Alle HH:MM aus pool extrahieren
+      const matches = pool.match(/\b(\d{1,2}):(\d{2})\b/g) || [];
+      if (matches.length < 2) return FALLBACK;
+      const mins = matches.map(s => {
+        const [h, m] = s.split(':').map(Number);
+        return h * 60 + m;
+      });
+      let startMin = Math.min(...mins);
+      let endMin = Math.max(...mins);
+      // Auf 30-Min-Boundary erweitern (start abrunden, end aufrunden)
+      startMin = Math.floor(startMin / 30) * 30;
+      endMin = Math.ceil(endMin / 30) * 30;
+      // Sanity: mindestens 2h Window
+      if (endMin - startMin < 120) return FALLBACK;
+      return { startMin, endMin, isClosed: false };
+    }
+    function lineMatchesDay(line, dow) {
+      // dow: "Mo", "Di", ...
+      // Match patterns: "Mo " | "Mo-Fr" | "Mo, Di"
+      const days = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+      const idx = days.indexOf(dow);
+      if (idx < 0) return false;
+      // Range "Mo-Fr"
+      const rangeMatch = line.match(/(Mo|Di|Mi|Do|Fr|Sa|So)\s*-\s*(Mo|Di|Mi|Do|Fr|Sa|So)/i);
+      if (rangeMatch) {
+        const a = days.indexOf(rangeMatch[1]);
+        const b = days.indexOf(rangeMatch[2]);
+        if (a >= 0 && b >= 0 && a <= idx && idx <= b) return true;
+      }
+      // Direkt am Anfang oder mit Komma/Whitespace
+      const re = new RegExp('(^|[\\s,;])' + dow + '(\\s|,|:|\\.|$)');
+      return re.test(line);
+    }
+
+    // Tagesplan: synthetische Reservation fuer "frei"-Click → Walk-In-Modal
+    function walkinOpenForCell(resource, timeHHMM) {
+      WALKIN_AUTO_ASSIGN_RESOURCE_ID = resource.id;
+      walkinOpen();
+      $('walkin-time').value = timeHHMM;
+      $('walkin-guests').value = Math.min(Number(resource.capacity) || 2, 4);
+      $('walkin-modal-hint').textContent = 'Tisch ' + (resource.label || 'Tisch') + ' · ' + timeHHMM + ' — wird automatisch zugewiesen.';
+    }
+
+    function tagesplanRender() {
+      const wrap = $('tagesplan-view');
+      const header = $('tagesplan-header');
+      const body = $('tagesplan-body');
+      const empty = $('tagesplan-empty');
+      if (!wrap || !header || !body) return;
+
+      // CSS-Variable fuer Cell-Width setzen (bei Granularitaet-Switch in Push 2 dynamic)
+      wrap.style.setProperty('--tg-cell-w', TG_CELL_WIDTH + 'px');
+
+      const sh = parseServiceHours(clientData?.opening_hours, LAYOUT_DATE);
+      if (sh.isClosed) {
+        header.innerHTML = '';
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        empty.textContent = 'Heute geschlossen (Ruhetag) — auf Tisch-Plan wechseln um Layout zu sehen, oder Reservation manuell eintragen.';
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const startMin = sh.startMin;
+      const endMin = sh.endMin;
+      const gran = TG_GRANULARITY;
+      const numCells = Math.ceil((endMin - startMin) / gran);
+
+      // === Header: Time-Labels ===
+      let headerHtml = '<div class="tg-corner">Tisch</div><div class="tg-times">';
+      for (let i = 0; i < numCells; i++) {
+        const m = startMin + i * gran;
+        const isHour = m % 60 === 0;
+        headerHtml += '<div class="tg-time-cell' + (isHour ? ' hour' : '') + '">'
+          + (isHour ? minToTime(m) : '')
+          + '</div>';
+      }
+      headerHtml += '</div>';
+      header.innerHTML = headerHtml;
+
+      // === Body: pro Tisch eine Zeile ===
+      if (LAYOUT_RESOURCES.length === 0) {
+        body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">'
+          + 'Noch keine Tische konfiguriert. Wechsle auf "Tisch-Plan" und füge Tische hinzu.</div>';
+        return;
+      }
+
+      let bodyHtml = '';
+      const resources = [...LAYOUT_RESOURCES].sort((a, b) => {
+        // Sortiere nach Label natuerlich (Tisch 1, 2, 3 ... 10, 11)
+        return String(a.label || '').localeCompare(String(b.label || ''), undefined, { numeric: true });
+      });
+
+      for (const r of resources) {
+        const cap = Number(r.capacity) || 0;
+        bodyHtml += '<div class="tg-row" data-resource-id="' + escapeHtml(String(r.id)) + '">';
+        bodyHtml += '<div class="tg-row-label">' + escapeHtml(r.label || '?')
+          + '<span class="tg-cap">' + (cap ? cap + 'P' : '—') + '</span></div>';
+        bodyHtml += '<div class="tg-cells">';
+
+        // Background-Cells (klickbar)
+        for (let i = 0; i < numCells; i++) {
+          const m = startMin + i * gran;
+          const isHour = m % 60 === 0;
+          const timeLabel = minToTime(m);
+          bodyHtml += '<div class="tg-cell' + (isHour ? ' hour' : '') + '" '
+            + 'data-time="' + timeLabel + '" '
+            + 'title="Klick → Reservation um ' + timeLabel + ' fuer ' + escapeHtml(r.label || 'Tisch') + '"'
+            + '></div>';
+        }
+
+        // Reservierungs-Bloecke (absolute positioned ueber Cells)
+        const bucket = LAYOUT_ASSIGNMENTS[r.id] || [];
+        for (const resv of bucket) {
+          const block = renderTagesplanBlock(resv, r, bucket, startMin, endMin, gran);
+          if (block) bodyHtml += block;
+        }
+        bodyHtml += '</div></div>';
+      }
+
+      // === "Unzugewiesen"-Zeile fuer Reservationen ohne Tisch ===
+      const unassigned = LAYOUT_RESERVATIONS.filter(r =>
+        !r.assignedResources || r.assignedResources.length === 0);
+      if (unassigned.length > 0) {
+        bodyHtml += '<div class="tg-row" data-resource-id="">';
+        bodyHtml += '<div class="tg-row-label" style="color:var(--muted);font-style:italic;">Unzugewiesen<span class="tg-cap">' + unassigned.length + '</span></div>';
+        bodyHtml += '<div class="tg-cells">';
+        for (let i = 0; i < numCells; i++) {
+          bodyHtml += '<div class="tg-cell lunch-break"></div>';
+        }
+        for (const resv of unassigned) {
+          const block = renderTagesplanBlock(resv, null, [], startMin, endMin, gran, true);
+          if (block) bodyHtml += block;
+        }
+        bodyHtml += '</div></div>';
+      }
+
+      body.innerHTML = bodyHtml;
+
+      // Click-Handler: leere Zelle → Walk-In, Block → Edit
+      body.querySelectorAll('.tg-cell').forEach(cell => {
+        cell.addEventListener('click', (e) => {
+          if (cell.classList.contains('lunch-break')) return;
+          const row = cell.closest('.tg-row');
+          const rid = row?.dataset.resourceId;
+          if (!rid) return;
+          const resource = LAYOUT_RESOURCES.find(x => String(x.id) === String(rid));
+          if (!resource) return;
+          const time = cell.dataset.time;
+          walkinOpenForCell(resource, time);
+        });
+      });
+      body.querySelectorAll('.tg-block').forEach(block => {
+        block.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rid = block.dataset.resvId;
+          const resv = LAYOUT_RESERVATIONS.find(x => String(x.id) === String(rid));
+          if (resv) walkinOpenEdit(resv);
+        });
+      });
+    }
+
+    // Render einen Reservation-Block als HTML-String (absolute positioned).
+    // unassigned=true → graue Variante fuer Unzugewiesen-Zeile.
+    function renderTagesplanBlock(resv, resource, bucket, startMin, endMin, gran, unassigned) {
+      const rStart = parseTimeToMin(resv.start_time);
+      if (rStart == null) return null;
+      const rDur = Number(resv.duration_minutes) > 0 ? Number(resv.duration_minutes) : clientDefaultDuration();
+      const rEnd = rStart + rDur;
+      // Clipping: ausserhalb Service-Window → skip
+      if (rEnd <= startMin || rStart >= endMin) return null;
+      const visStart = Math.max(rStart, startMin);
+      const visEnd = Math.min(rEnd, endMin);
+      const offsetCells = (visStart - startMin) / gran;
+      const widthCells = (visEnd - visStart) / gran;
+      const left = (offsetCells * TG_CELL_WIDTH).toFixed(1);
+      const width = Math.max(widthCells * TG_CELL_WIDTH - 2, 30).toFixed(1); // min 30px für Lesbarkeit
+      const name = (resv.name && resv.name.trim())
+        ? resv.name.trim()
+        : (resv.email ? resv.email.split('@')[0] : 'Gast');
+      const guests = (resv.guests || '?') + 'P';
+      const timeRange = (resv.start_time || '').slice(0,5) + '-' + minToTime(rEnd);
+      // Konflikt-Marker: ueberlappt mit anderem Block in gleichem bucket?
+      let isConflict = false;
+      if (bucket && bucket.length > 1) {
+        for (const other of bucket) {
+          if (String(other.id) === String(resv.id)) continue;
+          if (reservationsOverlap(resv, other)) { isConflict = true; break; }
+        }
+      }
+      const cls = 'tg-block'
+        + (isConflict ? ' conflict' : '')
+        + (unassigned ? ' unassigned' : '');
+      const tooltip = name + ' · ' + guests + ' · ' + timeRange
+        + (resv.note ? ' · ' + resv.note : '')
+        + (isConflict ? ' · KONFLIKT' : '');
+      return '<div class="' + cls + '" data-resv-id="' + escapeHtml(String(resv.id)) + '" '
+        + 'style="left:' + left + 'px;width:' + width + 'px;" '
+        + 'title="' + escapeHtml(tooltip) + '">'
+        + '<div class="tg-block-name">' + escapeHtml(name) + '</div>'
+        + '<div class="tg-block-meta">' + escapeHtml(timeRange + ' · ' + guests) + '</div>'
+        + '</div>';
+    }
+
+    function layoutSwitchView(view) {
+      LAYOUT_VIEW = view;
+      try { localStorage.setItem('botswiss-layout-view', view); } catch (e) {}
+      // UI-Toggle visualisieren
+      document.querySelectorAll('.view-toggle-group [data-view]').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === view);
+      });
+      // Container ein/aus
+      const tg = $('tagesplan-view');
+      const fp = $('canvas-area');
+      if (view === 'timeline') {
+        if (tg) tg.classList.remove('hidden');
+        if (fp) fp.classList.add('hidden');
+        tagesplanRender();
+      } else {
+        if (tg) tg.classList.add('hidden');
+        if (fp) fp.classList.remove('hidden');
+        // Floor-Plan lazy-init beim ersten Switch (Konva braucht visiblen Container)
+        if (!LAYOUT_VIEWPORT) {
+          setTimeout(() => { layoutInitOnce(); layoutDrawTables(); }, 30);
+        } else {
+          layoutDrawTables();
+        }
+      }
+      // Reservation-Liste rechts re-rendert je Sicht (alle vs aktive)
+      layoutRenderReservations();
     }
     // Edit-Modal Konflikt-Check: synthetische Reservation mit neuen Zeit-Werten
     // gegen bestehende Assignments an allen aktuell zugewiesenen Tischen pruefen.
@@ -1293,22 +1671,9 @@
         timeInput.value = LAYOUT_TIME;
         layoutRefresh();
       });
-      // Sicht-Toggle: slot vs all
-      const viewToggle = $('layout-view-toggle');
-      viewToggle.addEventListener('click', () => {
-        LAYOUT_TIME_MODE = (LAYOUT_TIME_MODE === 'slot') ? 'all' : 'slot';
-        viewToggle.classList.toggle('active', LAYOUT_TIME_MODE === 'slot');
-        viewToggle.textContent = (LAYOUT_TIME_MODE === 'slot')
-          ? 'Sicht: aktive Stunde'
-          : 'Sicht: alle heute';
-        // Time-Stepper sichtbar nur wenn slot-mode (visuell deutlich)
-        $('layout-time-prev').style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
-        $('layout-time-next').style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
-        timeInput.style.opacity = LAYOUT_TIME_MODE === 'slot' ? '1' : '0.4';
-        layoutDrawTables();
-        layoutRenderReservations();
-        updateAssignBanner();
-        updateCanvasHint();
+      // View-Toggle: Tagesplan vs Tisch-Plan
+      document.querySelectorAll('.view-toggle-group [data-view]').forEach(btn => {
+        btn.addEventListener('click', () => layoutSwitchView(btn.dataset.view));
       });
 
       // Mode-Toggle
@@ -1364,9 +1729,7 @@
         hint.textContent = 'Drag Tische zum Verschieben · Klick zum Bearbeiten · Mausrad zoomen · Hintergrund-Drag pannen';
         return;
       }
-      hint.textContent = (LAYOUT_TIME_MODE === 'slot')
-        ? ('Sicht ' + LAYOUT_TIME + ' · Klick Reservation rechts → Tische klicken zum Zuweisen')
-        : 'Sicht: alle heute · Klick Reservation rechts → Tische klicken zum Zuweisen';
+      hint.textContent = 'Klick Reservation rechts → Tische klicken zum Zuweisen · oder freier Tisch → Walk-In';
     }
 
     function layoutSwitchMode(mode) {
@@ -1395,10 +1758,12 @@
           document.body.classList.remove('assign-mode');
         }
       }
-      layoutDrawTables();
+      // Floor-Plan-DOM kann lazy initialisiert sein (nur bei View=floor)
+      if (LAYOUT_VIEWPORT) layoutDrawTables();
       layoutRenderReservations();
       updateAssignBanner();
       updateCanvasHint();
+      tagesplanRender();
     }
 
     async function layoutLoadAll() {
@@ -1462,22 +1827,17 @@
       const xRaw = Number(resource.x), yRaw = Number(resource.y);
       const x = Number.isFinite(xRaw) ? xRaw : 60;
       const y = Number.isFinite(yRaw) ? yRaw : 60;
-      // Im Slot-Mode nur Reservationen anzeigen die in der gewaehlten Stunde aktiv sind.
-      // Im All-Mode (full-Tag): alle Zuweisungen.
+      // Floor-Plan zeigt nur Reservationen aktiv im aktuellen LAYOUT_TIME-Slot.
+      // Tagesplan-Sicht uebernimmt die "alle Reservationen heute"-Aufgabe.
       const allOccupants = LAYOUT_ASSIGNMENTS[resource.id] || [];
-      const occupants = (LAYOUT_TIME_MODE === 'slot')
-        ? allOccupants.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME))
-        : allOccupants;
+      const occupants = allOccupants.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
       const isOccupied = occupants.length > 0;
 
-      // Slot-Konflikt: Tisch hat im aktuellen Zeitfenster mehr als eine aktive Reservation?
-      const hasConflict = LAYOUT_TIME_MODE === 'slot' && tableHasSlotConflict(resource.id);
+      // Slot-Konflikt: Tisch hat mehr als eine aktive Reservation im LAYOUT_TIME-Fenster?
+      const hasConflict = tableHasSlotConflict(resource.id);
 
-      // "Bald belegt": Tisch ist frei zur Slot-Zeit, aber naechste Reservation
-      // kommt zu schnell fuer eine Standard-Dauer. Nur im Slot-Mode + nicht-besetzt.
-      const nextSoon = (!isOccupied && LAYOUT_TIME_MODE === 'slot')
-        ? tableNextOccupiedSoon(resource.id)
-        : null;
+      // "Bald belegt": Tisch frei zur Slot-Zeit, aber naechste Reservation kommt zu schnell.
+      const nextSoon = !isOccupied ? tableNextOccupiedSoon(resource.id) : null;
 
       const div = document.createElement('div');
       div.className = 'layout-table' +
@@ -1663,21 +2023,22 @@
       const count = $('resv-list-count');
       const empty = $('resv-today-empty');
       list.innerHTML = '';
-      // Im Slot-Mode nur aktive Reservationen anzeigen, im All-Mode alle des Tages
-      const filtered = (LAYOUT_TIME_MODE === 'slot')
-        ? LAYOUT_RESERVATIONS.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME))
-        : LAYOUT_RESERVATIONS;
-      // Count zeigt aktiv/total bei Slot-Mode
-      if (LAYOUT_TIME_MODE === 'slot') {
-        count.textContent = '(' + filtered.length + ' um ' + LAYOUT_TIME + ' · ' + LAYOUT_RESERVATIONS.length + ' total heute)';
+      // Tisch-Plan-Sicht: nur Reservationen aktiv im LAYOUT_TIME-Slot.
+      // Tagesplan-Sicht: alle Reservationen heute (Timeline trennt visuell nach Zeit).
+      const showAll = LAYOUT_VIEW === 'timeline';
+      const filtered = showAll
+        ? LAYOUT_RESERVATIONS
+        : LAYOUT_RESERVATIONS.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
+      if (showAll) {
+        count.textContent = '(' + LAYOUT_RESERVATIONS.length + ' heute)';
       } else {
-        count.textContent = '(' + LAYOUT_RESERVATIONS.length + ')';
+        count.textContent = '(' + filtered.length + ' um ' + LAYOUT_TIME + ' · ' + LAYOUT_RESERVATIONS.length + ' total heute)';
       }
       if (filtered.length === 0) {
         empty.classList.remove('hidden');
-        empty.textContent = (LAYOUT_TIME_MODE === 'slot')
-          ? ('Keine Reservationen aktiv um ' + LAYOUT_TIME + ' · "Sicht" wechseln um alle zu sehen')
-          : 'Keine Reservierungen für dieses Datum';
+        empty.textContent = showAll
+          ? 'Keine Reservierungen für dieses Datum'
+          : ('Keine Reservationen aktiv um ' + LAYOUT_TIME);
         return;
       }
       empty.classList.add('hidden');
@@ -2436,8 +2797,12 @@
       get('[data-tab-content="' + btn.dataset.tab + '"]').classList.remove('hidden');
       if (btn.dataset.tab === 'tables') loadResources();
       if (btn.dataset.tab === 'reservations') {
-        // Konva braucht visiblen Container fuer korrekte Groesse
-        setTimeout(() => layoutInitOnce(), 50);
+        // Daten + Render der aktuell gewaehlten Sicht (Tagesplan default).
+        // Floor-Plan-Init ist lazy: erst beim Switch auf Tisch-Plan-Sicht.
+        setTimeout(() => {
+          layoutSwitchView(LAYOUT_VIEW);
+          layoutRefresh();
+        }, 50);
       }
     }));
 
