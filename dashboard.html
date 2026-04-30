@@ -241,6 +241,38 @@
       padding: 12px 14px; background: var(--bg); border-radius: var(--radius);
       margin-bottom: 16px; border: 1px solid var(--border);
     }
+    /* Anruf-Check: schnelle Verfügbarkeits-Suche für Telefon-Anfragen */
+    .quick-check {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      padding: 10px 14px; background: var(--surface); border-radius: var(--radius);
+      margin-bottom: 12px; border: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .quick-check .qc-icon { display: inline-flex; color: var(--muted); }
+    .quick-check .qc-icon svg { width: 16px; height: 16px; }
+    .quick-check .qc-label { color: var(--muted); font-weight: 500; }
+    .quick-check .qc-field {
+      display: inline-flex; align-items: center; gap: 6px; color: var(--text);
+    }
+    .quick-check .qc-field input { padding: 4px 8px; width: auto; font-family: inherit; }
+    .quick-check .qc-field input[type="number"] { width: 60px; text-align: right; }
+    .quick-check .qc-result {
+      display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center;
+      flex: 1; min-width: 0;
+    }
+    .quick-check .qc-empty { color: var(--muted); font-style: italic; }
+    .quick-check .qc-none { color: var(--danger); font-weight: 600; }
+    .quick-check .qc-chip {
+      background: rgba(16,185,129,0.10);
+      border: 1px solid rgba(16,185,129,0.35);
+      color: var(--badge-success-text, #047857);
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 120ms;
+      font-family: inherit;
+    }
+    .quick-check .qc-chip:hover { background: rgba(16,185,129,0.22); transform: translateY(-1px); }
+    [data-theme="dark"] .quick-check .qc-chip { color: #6ee7b7; }
     .layout-toolbar input[type="date"] { width: auto; padding: 6px 10px; }
     .layout-toolbar input[type="time"] { width: auto; padding: 6px 10px; font-family: inherit; }
     .time-stepper { display: flex; align-items: center; gap: 4px; }
@@ -648,6 +680,18 @@
               min
             </span>
             <span class="layout-status" id="layout-status"></span>
+          </div>
+
+          <div class="quick-check" id="quick-check">
+            <span class="qc-icon"><i data-lucide="phone"></i></span>
+            <span class="qc-label">Anruf-Check (Datum oben):</span>
+            <label class="qc-field">Zeit
+              <input type="time" id="qc-time" step="900"/>
+            </label>
+            <label class="qc-field">Personen
+              <input type="number" id="qc-guests" min="1" max="50" value="2"/>
+            </label>
+            <span class="qc-result" id="qc-result"></span>
           </div>
 
           <div id="assign-banner" class="assign-banner hidden">
@@ -1062,6 +1106,71 @@
       const v = Number(clientData?.default_duration_minutes);
       return v > 0 ? v : 90;
     }
+
+    // Anruf-Check: gibt clientseitig freie Tische fuer (LAYOUT_DATE, time, guests)
+    // zurueck. Filter: capacity >= guests UND keine zeitliche Ueberlappung mit
+    // bestehenden Assignments im [time, time+default_duration]-Fenster.
+    // Ergebnis sortiert nach capacity ascending (kleinster passender Tisch zuerst,
+    // damit grosse Tische fuer groesste Gruppen frei bleiben).
+    function quickCheckFindFreeTables(time, guests) {
+      const tStart = parseTimeToMin(time);
+      if (tStart == null || !(guests > 0)) return [];
+      const dDef = clientDefaultDuration();
+      const tEnd = tStart + dDef;
+      const candidates = LAYOUT_RESOURCES
+        .filter(r => Number(r.capacity) >= guests)
+        .filter(r => {
+          const bucket = LAYOUT_ASSIGNMENTS[r.id] || [];
+          return !bucket.some(resv => {
+            const rStart = parseTimeToMin(resv.start_time);
+            if (rStart == null) return false;
+            const rDur = Number(resv.duration_minutes) > 0 ? Number(resv.duration_minutes) : dDef;
+            const rEnd = rStart + rDur;
+            return tStart < rEnd && rStart < tEnd;
+          });
+        });
+      candidates.sort((a, b) => (Number(a.capacity) || 0) - (Number(b.capacity) || 0));
+      return candidates;
+    }
+
+    // Wenn der naechste Slot/Quick-Check-Klick eine Reservation anlegt, soll
+    // sie auto-zugewiesen werden. resource_id wird hier gemerkt; walkinSave
+    // liest und fuehrt POST /assign nach erfolgreicher Reservation-Anlage aus.
+    let WALKIN_AUTO_ASSIGN_RESOURCE_ID = null;
+
+    function quickCheckRender() {
+      const result = $('qc-result');
+      if (!result) return;
+      const time = $('qc-time').value;
+      const guests = parseInt($('qc-guests').value, 10) || 0;
+      if (!time || guests <= 0 || LAYOUT_RESOURCES.length === 0) {
+        result.innerHTML = '<span class="qc-empty">Zeit + Personen eingeben</span>';
+        return;
+      }
+      const free = quickCheckFindFreeTables(time, guests);
+      if (free.length === 0) {
+        result.innerHTML = '<span class="qc-none">Kein Tisch fuer ' + escapeHtml(guests + 'P') + ' um ' + escapeHtml(time) + ' frei</span>';
+        return;
+      }
+      result.innerHTML = free.map(r =>
+        '<button type="button" class="qc-chip" data-rid="' + escapeHtml(String(r.id)) + '" '
+          + 'data-label="' + escapeHtml(r.label || '') + '" '
+          + 'data-cap="' + escapeHtml(String(r.capacity || '')) + '">'
+          + escapeHtml(r.label || '?') + ' (' + escapeHtml(String(r.capacity || '?')) + 'P)'
+          + '</button>'
+      ).join(' ');
+    }
+
+    function quickCheckOpenWalkin(rid, label) {
+      const time = $('qc-time').value;
+      const guests = parseInt($('qc-guests').value, 10) || 2;
+      WALKIN_AUTO_ASSIGN_RESOURCE_ID = rid;
+      walkinOpen();
+      // Quick-Check Werte ueberschreiben Walk-In Defaults
+      $('walkin-time').value = time || $('walkin-time').value;
+      $('walkin-guests').value = guests;
+      $('walkin-modal-hint').textContent = 'Wird nach Speichern automatisch ' + label + ' zugewiesen.';
+    }
     // Zwei Reservationen ueberlappen sich zeitlich?
     function reservationsOverlap(a, b) {
       const aStart = parseTimeToMin(a.start_time);
@@ -1291,6 +1400,22 @@
         ddInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ddInput.blur(); });
       }
 
+      // Anruf-Check: Default Zeit = LAYOUT_TIME, live-Update auf Input-Change
+      const qcTime = $('qc-time');
+      const qcGuests = $('qc-guests');
+      if (qcTime && qcGuests) {
+        qcTime.value = LAYOUT_TIME || '19:30';
+        qcTime.addEventListener('input', quickCheckRender);
+        qcGuests.addEventListener('input', quickCheckRender);
+        // Chip-Klick: Walk-In-Modal vorbefuellt + Auto-Assign nach Save
+        $('qc-result').addEventListener('click', (e) => {
+          const btn = e.target.closest('.qc-chip');
+          if (!btn) return;
+          quickCheckOpenWalkin(btn.dataset.rid, btn.dataset.label);
+        });
+        quickCheckRender();
+      }
+
       // Banner Done-Button + ESC: Assign-Mode beenden
       $('assign-banner-done').addEventListener('click', deselectReservationForAssign);
       document.addEventListener('keydown', (e) => {
@@ -1349,6 +1474,7 @@
       layoutRenderReservations();
       updateAssignBanner();
       updateCanvasHint();
+      if (typeof quickCheckRender === 'function') quickCheckRender();
     }
 
     async function layoutLoadAll() {
@@ -1976,6 +2102,7 @@
     function walkinClose() {
       $('walkin-modal').classList.remove('visible');
       WALKIN_EDITING_ID = null;
+      WALKIN_AUTO_ASSIGN_RESOURCE_ID = null;
     }
 
     async function walkinSave() {
@@ -2033,17 +2160,31 @@
           layoutStatus('Reservation aktualisiert', 'success');
           return;
         }
-        await api('/api/customer/reservations', {
+        const created = await api('/api/customer/reservations', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
+        // Auto-Assign wenn ueber Quick-Check geoeffnet
+        const autoRid = WALKIN_AUTO_ASSIGN_RESOURCE_ID;
+        WALKIN_AUTO_ASSIGN_RESOURCE_ID = null;
+        if (autoRid && created && created.reservation && created.reservation.id) {
+          try {
+            await api('/api/customer/reservations/' + created.reservation.id + '/assign', {
+              method: 'POST',
+              body: JSON.stringify({ resource_id: autoRid, replace: false })
+            });
+          } catch (e) {
+            // Auto-Assign-Fehler ist nicht-fatal: Reservation existiert trotzdem.
+            console.warn('[walkinSave] auto-assign failed:', e.message);
+          }
+        }
         walkinClose();
         if (date !== LAYOUT_DATE) {
           LAYOUT_DATE = date;
           $('layout-date').value = date;
         }
         await layoutRefresh();
-        layoutStatus('Reservation eingetragen', 'success');
+        layoutStatus(autoRid ? 'Reservation eingetragen + Tisch zugewiesen' : 'Reservation eingetragen', 'success');
       } catch (err) {
         // Backend-409 mit Konflikt → Force-Button anbieten (z.B. wenn Zuweisung
         // erst nach Frontend-Pre-Check entstanden ist oder Datum gewechselt hat).
