@@ -408,6 +408,18 @@
       background: #f59e0b; color: #fff;
       border-radius: 50%; font-size: 10px; font-weight: 700;
     }
+    /* "Bald belegt": Tisch frei zur Slot-Zeit, naechste Reservation < default_duration weg.
+       Subtiler Border-Akzent unten + kleines "→HH:MM"-Label. */
+    .layout-table.soon-busy {
+      border-color: #fb923c;
+      box-shadow: inset 0 -3px 0 0 rgba(251, 146, 60, 0.55);
+    }
+    .layout-table .lt-next {
+      position: absolute; bottom: 2px; left: 4px;
+      font-size: 10px; font-weight: 600; color: #c2410c;
+      letter-spacing: 0.2px;
+    }
+    [data-theme="dark"] .layout-table .lt-next { color: #fdba74; }
     .res-card.highlighted { box-shadow: 0 0 0 2px #6366f1; }
 
     /* Assign-Mode: aktive Reservation selektiert, Tische werden klickbar */
@@ -1198,6 +1210,23 @@
       const activeNow = bucket.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
       return activeNow.length > 1;
     }
+    // Tisch ist frei zur Slot-Zeit, aber naechste Reservation startet vor
+    // Slot+default_duration → gibt die naechste Reservations-Startzeit (HH:MM)
+    // zurueck. Nur sinnvoll im Slot-Mode. null wenn Tisch lange genug frei.
+    function tableNextOccupiedSoon(resourceId) {
+      if (LAYOUT_TIME_MODE !== 'slot') return null;
+      const bucket = LAYOUT_ASSIGNMENTS[resourceId] || [];
+      const slotMin = parseTimeToMin(LAYOUT_TIME);
+      if (slotMin == null) return null;
+      const dDef = clientDefaultDuration();
+      const upcoming = bucket
+        .map(r => parseTimeToMin(r.start_time))
+        .filter(t => t != null && t > slotMin)
+        .sort((a, b) => a - b)[0];
+      if (upcoming == null) return null;
+      if (upcoming - slotMin >= dDef) return null;
+      return minToTime(upcoming);
+    }
     // Edit-Modal Konflikt-Check: synthetische Reservation mit neuen Zeit-Werten
     // gegen bestehende Assignments an allen aktuell zugewiesenen Tischen pruefen.
     // Returns { conflict, resource } | null. Skippt wenn newDate !== LAYOUT_DATE
@@ -1549,13 +1578,22 @@
       // Slot-Konflikt: Tisch hat im aktuellen Zeitfenster mehr als eine aktive Reservation?
       const hasConflict = LAYOUT_TIME_MODE === 'slot' && tableHasSlotConflict(resource.id);
 
+      // "Bald belegt": Tisch ist frei zur Slot-Zeit, aber naechste Reservation
+      // kommt zu schnell fuer eine Standard-Dauer. Nur im Slot-Mode + nicht-besetzt.
+      const nextSoon = (!isOccupied && LAYOUT_TIME_MODE === 'slot')
+        ? tableNextOccupiedSoon(resource.id)
+        : null;
+
       const div = document.createElement('div');
       div.className = 'layout-table' +
         (resource.shape === 'circle' ? ' circle' : '') +
         (isOccupied ? ' occupied' : '') +
-        (hasConflict ? ' slot-conflict' : '');
+        (hasConflict ? ' slot-conflict' : '') +
+        (nextSoon ? ' soon-busy' : '');
       if (hasConflict) {
         div.title = 'Doppelbelegung in dieser Stunde — bitte pruefen';
+      } else if (nextSoon) {
+        div.title = 'Frei jetzt — naechste Reservation um ' + nextSoon;
       }
       // Wenn Assign-Mode aktiv und dieser Tisch der selektierten Reservation schon zugewiesen ist:
       // is-assigned → CSS faerbt outline gruen (entfernen-Zustand bei Klick).
@@ -1579,6 +1617,13 @@
       cap.className = 'lt-cap';
       cap.textContent = (resource.capacity || 4) + 'P';
       div.appendChild(cap);
+
+      if (nextSoon) {
+        const nxt = document.createElement('span');
+        nxt.className = 'lt-next';
+        nxt.textContent = '→ ' + nextSoon;
+        div.appendChild(nxt);
+      }
 
       if (isOccupied) {
         // Reservation-Chips: pro Reservation ein klickbarer Chip mit Zeit + Name + Personen.
