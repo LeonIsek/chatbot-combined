@@ -1042,6 +1042,27 @@
       const activeNow = bucket.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
       return activeNow.length > 1;
     }
+    // Edit-Modal Konflikt-Check: synthetische Reservation mit neuen Zeit-Werten
+    // gegen bestehende Assignments an allen aktuell zugewiesenen Tischen pruefen.
+    // Returns { conflict, resource } | null. Skippt wenn newDate !== LAYOUT_DATE
+    // (anderer Tag → Backend-PATCH-Check uebernimmt; clientseitig keine Daten).
+    function findEditConflict(editingId, newDate, newStartTime, newDuration) {
+      if (newDate !== LAYOUT_DATE) return null;
+      const fresh = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(editingId));
+      if (!fresh) return null;
+      const assignedRes = fresh.assignedResources || [];
+      if (assignedRes.length === 0) return null;
+      const synth = {
+        id: editingId,
+        start_time: newStartTime,
+        duration_minutes: Number(newDuration) > 0 ? Number(newDuration) : 90
+      };
+      for (const ar of assignedRes) {
+        const conflict = findAssignmentConflict(synth, ar.id);
+        if (conflict) return { conflict, resource: ar };
+      }
+      return null;
+    }
     function layoutApplyTransform() {
       if (!LAYOUT_WORLD) return;
       LAYOUT_WORLD.style.transform =
@@ -1900,6 +1921,26 @@
       };
       try {
         if (WALKIN_EDITING_ID) {
+          // Konflikt-Check: wuerde die neue Zeit eine zugewiesene Tisch-Belegung
+          // mit anderen Reservationen ueberlappen? (Nur wenn Datum unveraendert.)
+          const editConflict = findEditConflict(
+            WALKIN_EDITING_ID,
+            date,
+            start_time,
+            duration_minutes
+          );
+          if (editConflict) {
+            const c = editConflict.conflict;
+            const cStart = (c.start_time || '').slice(0, 5);
+            const cDur = Number(c.duration_minutes) > 0 ? Number(c.duration_minutes) : 90;
+            const cEnd = minToTime(parseTimeToMin(c.start_time) + cDur);
+            const cName = (c.name && c.name.trim()) || (c.email ? c.email.split('@')[0] : 'Gast');
+            layoutStatus(
+              editConflict.resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName + ' — Speichern blockiert',
+              'error'
+            );
+            return;
+          }
           await api('/api/customer/reservations/' + WALKIN_EDITING_ID, {
             method: 'PATCH',
             body: JSON.stringify(payload)
