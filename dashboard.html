@@ -283,9 +283,16 @@
       transition: opacity 0.2s ease, transform 0.2s ease;
       max-width: 360px;
     }
-    .layout-status.visible { opacity: 1; transform: translateY(0); }
+    .layout-status.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .layout-status.success { border-color: var(--success); color: var(--success); }
     .layout-status.error { border-color: var(--danger); color: var(--danger); }
+    .layout-status .layout-status-action {
+      margin-left: 10px; padding: 4px 10px; border-radius: 6px;
+      border: 1px solid currentColor; background: transparent;
+      color: inherit; font-size: 12px; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: all 120ms;
+    }
+    .layout-status .layout-status-action:hover { background: currentColor; color: var(--on-accent); }
 
     .layout-grid {
       display: grid; grid-template-columns: 1fr 280px; gap: 14px;
@@ -1717,19 +1724,26 @@
           const cEnd = minToTime(parseTimeToMin(conflict.start_time) + cDur);
           const cName = (conflict.name && conflict.name.trim()) || (conflict.email ? conflict.email.split('@')[0] : 'Gast');
           layoutStatus(
-            resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName + ' — Zuweisung blockiert',
-            'error'
+            resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName,
+            'error',
+            { actionLabel: 'Trotzdem zuweisen', onAction: () => performAssign(resource, sel, fresh, true) }
           );
           return;
         }
       }
+      await performAssign(resource, sel, fresh, false);
+    }
+
+    // performAssign: optimistic UI + Server-Sync. force=true uebergibt force=true an
+    // POST /assign (Backend-Konflikt-Check skippen). Auf 409 vom Backend wird der
+    // Toast mit Force-Button erneut angeboten.
+    async function performAssign(resource, sel, fresh, force) {
+      const isAssigned = (fresh.assignedResources || []).some(ar => ar.id === resource.id);
 
       // ===== OPTIMISTIC UPDATE: UI sofort, Server-Call im Hintergrund =====
-      // Backup der zu mutierenden Stellen für Revert bei Server-Fehler
       const beforeFreshArs = [...(fresh.assignedResources || [])];
       const beforeBucket = LAYOUT_ASSIGNMENTS[resource.id] ? [...LAYOUT_ASSIGNMENTS[resource.id]] : null;
 
-      // Lokal mutieren
       if (isAssigned) {
         fresh.assignedResources = (fresh.assignedResources || []).filter(ar => ar.id !== resource.id);
         if (LAYOUT_ASSIGNMENTS[resource.id]) {
@@ -1741,18 +1755,18 @@
         LAYOUT_ASSIGNMENTS[resource.id] = [...(LAYOUT_ASSIGNMENTS[resource.id] || []), fresh];
       }
 
-      // Sofort UI rendern — synchron, instant feedback
       layoutDrawTables();
       layoutRenderReservations();
       updateAssignBanner();
 
-      // Status-Toast + Pulse sofort
       if (isAssigned) {
         layoutStatus(resource.label + ' entfernt', 'success');
       } else {
         const newCap = fresh.assignedResources.reduce((s, ar) => s + (Number(ar.capacity) || 0), 0);
         const guests = Number(sel.guests) || 0;
-        if (guests > 0 && newCap < guests) {
+        if (force) {
+          layoutStatus(resource.label + ' zugewiesen (Doppelbelegung)', 'success');
+        } else if (guests > 0 && newCap < guests) {
           layoutStatus(resource.label + ' zugewiesen — ' + newCap + '/' + guests + 'P, weiterer Tisch nötig', 'success');
         } else {
           layoutStatus('Zugewiesen an ' + resource.label, 'success');
@@ -1765,9 +1779,11 @@
         if (isAssigned) {
           await api('/api/customer/reservations/' + sel.id + '/assign/' + resource.id, { method: 'DELETE' });
         } else {
+          const body = { resource_id: resource.id, replace: false };
+          if (force) body.force = true;
           await api('/api/customer/reservations/' + sel.id + '/assign', {
             method: 'POST',
-            body: JSON.stringify({ resource_id: resource.id, replace: false })
+            body: JSON.stringify(body)
           });
         }
       } catch (err) {
@@ -1778,7 +1794,18 @@
         layoutDrawTables();
         layoutRenderReservations();
         updateAssignBanner();
-        layoutStatus('Fehlgeschlagen: ' + err.message + ' — zurueckgesetzt', 'error');
+        // Backend-409 mit Konflikt → Force-Button anbieten (z.B. wenn Frontend
+        // eine Zuweisung kurz uebersehen hat oder zwischen Tabs nicht synced ist).
+        const isConflict = !force && /Konflikt|belegt/i.test(err.message);
+        if (isConflict && !isAssigned) {
+          layoutStatus(
+            err.message,
+            'error',
+            { actionLabel: 'Trotzdem zuweisen', onAction: () => performAssign(resource, sel, fresh, true) }
+          );
+        } else {
+          layoutStatus('Fehlgeschlagen: ' + err.message + ' — zurueckgesetzt', 'error');
+        }
       }
     }
 
@@ -1935,9 +1962,11 @@
             const cDur = Number(c.duration_minutes) > 0 ? Number(c.duration_minutes) : 90;
             const cEnd = minToTime(parseTimeToMin(c.start_time) + cDur);
             const cName = (c.name && c.name.trim()) || (c.email ? c.email.split('@')[0] : 'Gast');
+            const editId = WALKIN_EDITING_ID;
             layoutStatus(
-              editConflict.resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName + ' — Speichern blockiert',
-              'error'
+              editConflict.resource.label + ' belegt ' + cStart + '-' + cEnd + ' von ' + cName,
+              'error',
+              { actionLabel: 'Trotzdem speichern', onAction: () => walkinForceSave(editId, payload, date) }
             );
             return;
           }
@@ -1966,6 +1995,37 @@
         await layoutRefresh();
         layoutStatus('Reservation eingetragen', 'success');
       } catch (err) {
+        // Backend-409 mit Konflikt → Force-Button anbieten (z.B. wenn Zuweisung
+        // erst nach Frontend-Pre-Check entstanden ist oder Datum gewechselt hat).
+        const isConflict = WALKIN_EDITING_ID && /Konflikt|belegt/i.test(err.message);
+        if (isConflict) {
+          const editId = WALKIN_EDITING_ID;
+          layoutStatus(
+            err.message,
+            'error',
+            { actionLabel: 'Trotzdem speichern', onAction: () => walkinForceSave(editId, payload, date) }
+          );
+        } else {
+          layoutStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
+        }
+      }
+    }
+
+    // Force-Save: Edit-PATCH mit force=true, Backend skippt Konflikt-Check.
+    async function walkinForceSave(editId, payload, date) {
+      try {
+        await api('/api/customer/reservations/' + editId, {
+          method: 'PATCH',
+          body: JSON.stringify({ ...payload, force: true })
+        });
+        walkinClose();
+        if (date !== LAYOUT_DATE) {
+          LAYOUT_DATE = date;
+          $('layout-date').value = date;
+        }
+        await layoutRefresh();
+        layoutStatus('Reservation aktualisiert (Doppelbelegung)', 'success');
+      } catch (err) {
         layoutStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
       }
     }
@@ -1984,18 +2044,38 @@
     }
 
     let LAYOUT_STATUS_TIMER = null;
-    function layoutStatus(text, type) {
+    // opts.actionLabel + opts.onAction → zeigt Button im Toast, kein Auto-Hide
+    // (bleibt 8s), Button-Klick triggert onAction und versteckt Toast.
+    function layoutStatus(text, type, opts) {
       const el = $('layout-status');
       if (!el) return;
-      el.textContent = text;
       el.classList.remove('success', 'error');
       if (type === 'success') el.classList.add('success');
       else if (type === 'error') el.classList.add('error');
+      const hasAction = opts && opts.actionLabel && typeof opts.onAction === 'function';
+      if (hasAction) {
+        el.textContent = '';
+        const span = document.createElement('span');
+        span.textContent = text;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'layout-status-action';
+        btn.textContent = opts.actionLabel;
+        btn.addEventListener('click', () => {
+          el.classList.remove('visible');
+          if (LAYOUT_STATUS_TIMER) { clearTimeout(LAYOUT_STATUS_TIMER); LAYOUT_STATUS_TIMER = null; }
+          try { opts.onAction(); } catch (e) { console.warn('[layoutStatus] action failed:', e); }
+        });
+        el.appendChild(span);
+        el.appendChild(btn);
+      } else {
+        el.textContent = text;
+      }
       el.classList.add('visible');
       if (LAYOUT_STATUS_TIMER) clearTimeout(LAYOUT_STATUS_TIMER);
       LAYOUT_STATUS_TIMER = setTimeout(() => {
         el.classList.remove('visible');
-      }, 2400);
+      }, hasAction ? 8000 : 2400);
     }
 
     async function loadCrawlStatus() {
