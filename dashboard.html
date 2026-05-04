@@ -752,8 +752,8 @@
           <div class="layout-toolbar">
             <label style="font-size:13px;color:var(--muted);">Datum</label>
             <input type="date" id="layout-date"/>
-            <label style="font-size:13px;color:var(--muted);margin-left:6px;">Zeit</label>
-            <div class="time-stepper">
+            <label id="layout-time-label" class="hidden" style="font-size:13px;color:var(--muted);margin-left:6px;">Zeit</label>
+            <div class="time-stepper hidden" id="layout-time-stepper">
               <button class="tstep" id="layout-time-prev" title="-15 Min" type="button">‹</button>
               <input type="time" id="layout-time" step="900" value="19:00"/>
               <button class="tstep" id="layout-time-next" title="+15 Min" type="button">›</button>
@@ -763,13 +763,13 @@
               <button data-view="timeline" class="active" id="view-timeline-btn" type="button" role="tab" title="Tagesplan: Tische als Zeilen, Zeit als Spalten — wie Outlook-Kalender">Tagesplan</button>
               <button data-view="floor" id="view-floor-btn" type="button" role="tab" title="Tisch-Plan: räumliche Sicht des Restaurants">Tisch-Plan</button>
             </div>
-            <div class="mode-toggle">
+            <div class="mode-toggle hidden" id="layout-mode-toggle">
               <button data-mode="live" class="active" id="mode-live-btn">Live-Sicht</button>
               <button data-mode="edit" id="mode-edit-btn">Layout bearbeiten</button>
             </div>
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
-            <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
+            <button class="btn hidden" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
             <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird für Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
               Standard-Dauer
               <input type="number" id="layout-default-duration" min="15" max="480" step="15" style="width:64px;padding:4px 6px;text-align:right;" />
@@ -1639,6 +1639,22 @@
       document.querySelectorAll('.view-toggle-group [data-view]').forEach(b => {
         b.classList.toggle('active', b.dataset.view === view);
       });
+      // Toolbar-Elemente nur in Tisch-Plan-View zeigen: Tagesplan zeigt Zeit als
+      // Spalten (Stepper überflüssig) und Layout-Edit macht nur am Floor-Plan Sinn.
+      const isTimeline = (view === 'timeline');
+      const tlbl = $('layout-time-label');
+      const tstep = $('layout-time-stepper');
+      const mtog = $('layout-mode-toggle');
+      const zoomBtn = $('layout-zoom-reset');
+      if (tlbl) tlbl.classList.toggle('hidden', isTimeline);
+      if (tstep) tstep.classList.toggle('hidden', isTimeline);
+      if (mtog) mtog.classList.toggle('hidden', isTimeline);
+      if (zoomBtn) zoomBtn.classList.toggle('hidden', isTimeline);
+      // Wechsel nach Timeline während Edit-Mode → zurück auf Live-Sicht (sonst
+      // bleiben "+ Tisch"/"Layout speichern" mode-getoggelt im Hintergrund aktiv).
+      if (isTimeline && LAYOUT_MODE === 'edit') {
+        layoutSwitchMode('live');
+      }
       // Container ein/aus
       const tg = $('tagesplan-view');
       const fp = $('canvas-area');
