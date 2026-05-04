@@ -315,8 +315,10 @@
       overflow: auto; max-height: 70vh;
     }
     .tagesplan-empty {
-      padding: 40px 20px; text-align: center; color: var(--muted);
-      font-size: 14px; font-style: italic;
+      padding: 8px 14px; text-align: center; color: var(--muted);
+      font-size: 13px; font-style: italic;
+      background: rgba(99,102,241,0.08); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 4;
     }
     .tagesplan-header {
       display: flex; position: sticky; top: 0; z-index: 3;
@@ -395,6 +397,10 @@
     .tg-block.conflict { outline: 2px solid #ef4444; outline-offset: -2px; }
     .tg-block.unassigned { background: linear-gradient(135deg, #94a3b8, #64748b); }
     [data-theme="dark"] .tg-block { box-shadow: 0 1px 4px rgba(99, 102, 241, 0.5); }
+    .tg-block[draggable="true"] { cursor: grab; }
+    .tg-block.dragging { opacity: 0.45; cursor: grabbing; }
+    .tg-row.drop-target { background: rgba(99, 102, 241, 0.10); }
+    .tg-row.drop-target .tg-row-label { color: #6366f1; font-weight: 700; }
 
     /* Mobile: Phone (<768px) → Tagesplan-Toggle versteckt, Floor-only */
     @media (max-width: 767px) {
@@ -781,9 +787,9 @@
             <div class="layout-main">
               <!-- Tagesplan-Sicht: Timeline mit Tischen × Zeit (Outlook-Kalender-Style) -->
               <div class="tagesplan" id="tagesplan-view">
+                <div class="tagesplan-empty hidden" id="tagesplan-empty"></div>
                 <div class="tagesplan-header" id="tagesplan-header"></div>
                 <div class="tagesplan-body" id="tagesplan-body"></div>
-                <div class="tagesplan-empty hidden" id="tagesplan-empty">Heute geschlossen — auf Tisch-Plan wechseln um Layout zu sehen.</div>
               </div>
               <!-- Tisch-Plan-Sicht: räumlicher Floor-Plan -->
               <div class="canvas-area hidden" id="canvas-area">
@@ -972,6 +978,7 @@
           </div>
           <div class="modal-actions">
             <button class="btn" id="walkin-cancel">Abbrechen</button>
+            <button class="btn" id="walkin-delete" style="color:var(--danger);display:none;">Löschen</button>
             <button class="btn primary" id="walkin-save">Reservation eintragen</button>
           </div>
         </div>
@@ -1279,12 +1286,13 @@
         // Direkter Match: "Mo Ruhetag" oder "Mo-Fr 11:30-22:00" oder "Di-Do 11:30-14:00 & 17:30-22:00"
         if (lineMatchesDay(line, dow)) { candidate = line; break; }
       }
-      // Wenn nichts spezifisch → nutze ganzen Text als Pool
-      const pool = candidate || text;
-      // Closed?
-      if (/ruhetag|geschlossen|closed/i.test(pool) && !/\d{1,2}:\d{2}/.test(pool)) {
+      // Closed-Check NUR auf candidate-Line (day-specific). Wenn keine Line fuer
+      // den Wochentag matched → annehmen offen (FALLBACK), nicht ganzen Text scannen.
+      // Sonst markiert ein einzelnes "Mo Ruhetag" jeden anderen Tag faelschlich als zu.
+      if (candidate && /ruhetag|geschlossen|closed/i.test(candidate) && !/\d{1,2}:\d{2}/.test(candidate)) {
         return { startMin: FALLBACK.startMin, endMin: FALLBACK.endMin, isClosed: true };
       }
+      const pool = candidate || text;
       // Alle HH:MM aus pool extrahieren
       const matches = pool.match(/\b(\d{1,2}):(\d{2})\b/g) || [];
       if (matches.length < 2) return FALLBACK;
@@ -1339,14 +1347,14 @@
       wrap.style.setProperty('--tg-cell-w', TG_CELL_WIDTH + 'px');
 
       const sh = parseServiceHours(clientData?.opening_hours, LAYOUT_DATE);
+      // Auch an Ruhetagen Kalender zeigen — Wirt soll manuelle Reservation eintragen koennen.
+      // isClosed nur als Hint-Banner ueber dem Grid, nicht als Empty-State-Replacement.
       if (sh.isClosed) {
-        header.innerHTML = '';
-        body.innerHTML = '';
         empty.classList.remove('hidden');
-        empty.textContent = 'Heute geschlossen (Ruhetag) — auf Tisch-Plan wechseln um Layout zu sehen, oder Reservation manuell eintragen.';
-        return;
+        empty.textContent = 'Ruhetag — Reservationen trotzdem moeglich. Klick auf eine freie Zelle.';
+      } else {
+        empty.classList.add('hidden');
       }
-      empty.classList.add('hidden');
 
       const startMin = sh.startMin;
       const endMin = sh.endMin;
@@ -1444,7 +1452,128 @@
           const resv = LAYOUT_RESERVATIONS.find(x => String(x.id) === String(rid));
           if (resv) walkinOpenEdit(resv);
         });
+        block.addEventListener('dragstart', (e) => {
+          TG_DRAG_RESV_ID = block.dataset.resvId;
+          const row = block.closest('.tg-row');
+          TG_DRAG_FROM_RESOURCE_ID = row ? (row.dataset.resourceId || '') : '';
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', TG_DRAG_RESV_ID);
+          block.classList.add('dragging');
+        });
+        block.addEventListener('dragend', () => {
+          TG_DRAG_RESV_ID = null;
+          TG_DRAG_FROM_RESOURCE_ID = null;
+          block.classList.remove('dragging');
+          body.querySelectorAll('.tg-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+        });
       });
+      body.querySelectorAll('.tg-row').forEach(row => {
+        row.addEventListener('dragover', (e) => {
+          if (TG_DRAG_RESV_ID == null) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (!row.classList.contains('drop-target')) {
+            body.querySelectorAll('.tg-row.drop-target').forEach(r => r.classList.remove('drop-target'));
+            row.classList.add('drop-target');
+          }
+        });
+        row.addEventListener('drop', async (e) => {
+          if (TG_DRAG_RESV_ID == null) return;
+          e.preventDefault();
+          row.classList.remove('drop-target');
+          const resvId = TG_DRAG_RESV_ID;
+          const fromRid = TG_DRAG_FROM_RESOURCE_ID || '';
+          const toRid = row.dataset.resourceId || '';
+          TG_DRAG_RESV_ID = null;
+          TG_DRAG_FROM_RESOURCE_ID = null;
+          if (!resvId || String(fromRid) === String(toRid)) return;
+          await moveReservationToResource(resvId, fromRid, toRid);
+        });
+      });
+    }
+
+    // Tagesplan-Drag-State (HTML5 DnD): tg-block in andere Zeile droppen → Tisch wechseln.
+    let TG_DRAG_RESV_ID = null;
+    let TG_DRAG_FROM_RESOURCE_ID = null;
+
+    async function moveReservationToResource(resvId, fromRid, toRid) {
+      const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
+      if (!resv) return;
+      // Frontend-Konflikt-Check: ueberlappt resv mit anderer Reservation am Ziel-Tisch?
+      if (toRid) {
+        const targetBucket = (LAYOUT_ASSIGNMENTS[toRid] || []).filter(r => String(r.id) !== String(resvId));
+        const conflict = targetBucket.find(other => reservationsOverlap(resv, other));
+        if (conflict) {
+          const targetResource = LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid));
+          const cStart = (conflict.start_time || '').slice(0, 5);
+          const cName = (conflict.name && conflict.name.trim()) || 'andere Reservation';
+          layoutStatus(
+            (targetResource && targetResource.label || 'Tisch') + ' belegt um ' + cStart + ' von ' + cName,
+            'error',
+            { actionLabel: 'Trotzdem verschieben', onAction: () => moveReservationApply(resvId, fromRid, toRid, true) }
+          );
+          return;
+        }
+      }
+      await moveReservationApply(resvId, fromRid, toRid, false);
+    }
+
+    async function moveReservationApply(resvId, fromRid, toRid, force) {
+      const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
+      if (!resv) return;
+      // Snapshot fuer Revert bei Server-Fehler
+      const beforeAR = [...(resv.assignedResources || [])];
+      const beforeAssign = JSON.parse(JSON.stringify(LAYOUT_ASSIGNMENTS));
+
+      // === Optimistic UI ===
+      if (fromRid && LAYOUT_ASSIGNMENTS[fromRid]) {
+        LAYOUT_ASSIGNMENTS[fromRid] = LAYOUT_ASSIGNMENTS[fromRid].filter(r => String(r.id) !== String(resvId));
+        if (LAYOUT_ASSIGNMENTS[fromRid].length === 0) delete LAYOUT_ASSIGNMENTS[fromRid];
+      }
+      resv.assignedResources = (resv.assignedResources || []).filter(ar => String(ar.id) !== String(fromRid));
+      if (toRid) {
+        const target = LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid));
+        if (target) {
+          LAYOUT_ASSIGNMENTS[toRid] = [...(LAYOUT_ASSIGNMENTS[toRid] || []), resv];
+          resv.assignedResources = [...resv.assignedResources, target];
+        }
+      }
+      tagesplanRender();
+      layoutRenderReservations();
+
+      // === Server-Sync ===
+      try {
+        if (fromRid) {
+          await api('/api/customer/reservations/' + resvId + '/assign/' + fromRid, { method: 'DELETE' });
+        }
+        if (toRid) {
+          const body = { resource_id: toRid, replace: false };
+          if (force) body.force = true;
+          await api('/api/customer/reservations/' + resvId + '/assign', {
+            method: 'POST',
+            body: JSON.stringify(body)
+          });
+        }
+        const targetLabel = toRid
+          ? (LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid)) || {}).label || 'Tisch'
+          : 'Unzugewiesen';
+        layoutStatus(force ? targetLabel + ' verschoben (Doppelbelegung)' : 'Verschoben zu ' + targetLabel, 'success');
+      } catch (err) {
+        // Revert
+        resv.assignedResources = beforeAR;
+        LAYOUT_ASSIGNMENTS = beforeAssign;
+        tagesplanRender();
+        layoutRenderReservations();
+        const isConflict = !force && /Konflikt|belegt/i.test(err.message);
+        if (isConflict && toRid) {
+          layoutStatus(err.message, 'error', {
+            actionLabel: 'Trotzdem verschieben',
+            onAction: () => moveReservationApply(resvId, fromRid, toRid, true)
+          });
+        } else {
+          layoutStatus('Verschieben fehlgeschlagen: ' + err.message, 'error');
+        }
+      }
     }
 
     // Render einen Reservation-Block als HTML-String (absolute positioned).
@@ -1482,6 +1611,7 @@
         + (resv.note ? ' · ' + resv.note : '')
         + (isConflict ? ' · KONFLIKT' : '');
       return '<div class="' + cls + '" data-resv-id="' + escapeHtml(String(resv.id)) + '" '
+        + 'draggable="true" '
         + 'style="left:' + left + 'px;width:' + width + 'px;" '
         + 'title="' + escapeHtml(tooltip) + '">'
         + '<div class="tg-block-name">' + escapeHtml(name) + '</div>'
@@ -1689,10 +1819,10 @@
       $('table-modal-save').addEventListener('click', layoutSaveModal);
       $('table-modal-delete').addEventListener('click', layoutDeleteCurrent);
 
-      // Walk-In-Modal
+      // Walk-In-Modal: walkin-open-btn liegt im Reservations-Tab, hier ok zu binden.
+      // Modal-Buttons (cancel/save/delete) werden separat im Page-Init gebunden,
+      // damit sie unabhaengig von Tab-Open / View-Switch existieren.
       $('walkin-open-btn').addEventListener('click', walkinOpen);
-      $('walkin-cancel').addEventListener('click', walkinClose);
-      $('walkin-save').addEventListener('click', walkinSave);
 
       // Zoom-Reset
       $('layout-zoom-reset').addEventListener('click', layoutFitToContent);
@@ -2386,6 +2516,7 @@
       $('walkin-modal-title').textContent = 'Reservation manuell eintragen';
       $('walkin-modal-hint').textContent = 'Telefonisch, Walk-In oder per WhatsApp — hier eintragen wenn der Bot sie nicht erfasst hat.';
       $('walkin-save').textContent = 'Reservation eintragen';
+      $('walkin-delete').style.display = 'none';
       $('walkin-name').value = '';
       $('walkin-date').value = LAYOUT_DATE;
       // Default-Zeit aus dem Slider — falls Wirt aktuell auf "20:00" guckt und Walk-In eintraegt, ist das richtig
@@ -2404,6 +2535,7 @@
       $('walkin-modal-title').textContent = 'Reservation bearbeiten';
       $('walkin-modal-hint').textContent = 'Aenderungen werden gespeichert sobald du auf "Speichern" klickst.';
       $('walkin-save').textContent = 'Speichern';
+      $('walkin-delete').style.display = '';
       $('walkin-name').value = r.name || '';
       $('walkin-date').value = r.date || LAYOUT_DATE;
       $('walkin-time').value = (r.start_time || '').slice(0, 5) || '19:00';
@@ -2420,6 +2552,22 @@
       $('walkin-modal').classList.remove('visible');
       WALKIN_EDITING_ID = null;
       WALKIN_AUTO_ASSIGN_RESOURCE_ID = null;
+    }
+
+    async function walkinDelete() {
+      if (!WALKIN_EDITING_ID) return;
+      const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(WALKIN_EDITING_ID));
+      const who = resv && (resv.name || (resv.email || '').split('@')[0]) || 'diese Reservation';
+      if (!confirm('Reservation von ' + who + ' wirklich loeschen? Das kann nicht rueckgaengig gemacht werden.')) return;
+      const editId = WALKIN_EDITING_ID;
+      try {
+        await api('/api/customer/reservations/' + editId, { method: 'DELETE' });
+        walkinClose();
+        await layoutRefresh();
+        layoutStatus('Reservation geloescht', 'success');
+      } catch (err) {
+        layoutStatus('Loeschen fehlgeschlagen: ' + err.message, 'error');
+      }
     }
 
     async function walkinSave() {
@@ -2786,6 +2934,21 @@
     }
 
     // ============ Wiring ============
+    // Walk-In/Edit-Modal-Buttons: unbedingt am Page-Init binden, NICHT in layoutInitOnce
+    // (das ist gated und feuert nur beim ersten Reservations-Tab-Open). Ohne diese
+    // Bindings hier: Modal oeffnet, aber Speichern/Abbrechen/Loeschen tun nichts.
+    $('walkin-cancel').addEventListener('click', walkinClose);
+    $('walkin-save').addEventListener('click', walkinSave);
+    $('walkin-delete').addEventListener('click', walkinDelete);
+
+    // Date-Picker Vorausfuellung: muss am Page-Init passieren, weil layoutInitOnce
+    // gated ist und User sonst leeres "tt.mm.jjjj" sieht. Change-Handler bleibt in
+    // layoutInitOnce (laeuft beim ersten Reservations-Tab-Open).
+    {
+      const _dp = document.getElementById('layout-date');
+      if (_dp && !_dp.value) _dp.value = LAYOUT_DATE;
+    }
+
     $('login-request-btn').addEventListener('click', requestLoginEmail);
     $('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') requestLoginEmail(); });
     $('logout-btn').addEventListener('click', () => { setToken(null); showLogin(); });
@@ -2797,11 +2960,12 @@
       get('[data-tab-content="' + btn.dataset.tab + '"]').classList.remove('hidden');
       if (btn.dataset.tab === 'tables') loadResources();
       if (btn.dataset.tab === 'reservations') {
-        // Daten + Render der aktuell gewaehlten Sicht (Tagesplan default).
-        // Floor-Plan-Init ist lazy: erst beim Switch auf Tisch-Plan-Sicht.
+        // layoutInitOnce ist idempotent und bindet ALLE Controls (View-Toggle,
+        // Mode-Toggle, Modal-Buttons, Zeit-Stepper). Wenn das hier nicht laeuft
+        // bleiben walkin-cancel/walkin-save unbound → Modal "soft blocked".
         setTimeout(() => {
+          layoutInitOnce();
           layoutSwitchView(LAYOUT_VIEW);
-          layoutRefresh();
         }, 50);
       }
     }));
