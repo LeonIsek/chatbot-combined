@@ -1557,7 +1557,20 @@
         const targetLabel = toRid
           ? (LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid)) || {}).label || 'Tisch'
           : 'Unzugewiesen';
-        layoutStatus(force ? targetLabel + ' verschoben (Doppelbelegung)' : 'Verschoben zu ' + targetLabel, 'success');
+        const baseMsg = force ? targetLabel + ' verschoben (Doppelbelegung)' : 'Verschoben zu ' + targetLabel;
+        // Capacity-Hint: wenn Ziel-Tisch(e) zusammen weniger Plaetze als Gaeste → non-blocking Notice.
+        // Wirt entscheidet ob er Stuhl dazu schiebt oder weiteren Tisch zuweist.
+        const capCheckCap = (resv.assignedResources || []).reduce((s, ar) => s + (Number(ar.capacity) || 0), 0);
+        const capCheckGuests = Number(resv.guests) || 0;
+        if (toRid && capCheckGuests > 0 && capCheckCap > 0 && capCheckCap < capCheckGuests) {
+          layoutStatus(
+            baseMsg + ' — nur ' + capCheckCap + ' Plaetze fuer ' + capCheckGuests + ' Gaeste, ggf. Stuhl dazu',
+            null,
+            { actionLabel: 'OK', onAction: () => {} }
+          );
+        } else {
+          layoutStatus(baseMsg, 'success');
+        }
       } catch (err) {
         // Revert
         resv.assignedResources = beforeAR;
