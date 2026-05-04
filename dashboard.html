@@ -489,7 +489,7 @@
       background: #f59e0b; color: #fff;
       border-radius: 50%; font-size: 10px; font-weight: 700;
     }
-    /* "Bald belegt": Tisch frei zur Slot-Zeit, naechste Reservation < default_duration weg.
+    /* "Bald belegt": Tisch frei zur Slot-Zeit, nächste Reservation < default_duration weg.
        Subtiler Border-Akzent unten + kleines "→HH:MM"-Label. */
     .layout-table.soon-busy {
       border-color: #fb923c;
@@ -770,7 +770,7 @@
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
-            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird fuer Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird für Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
               Standard-Dauer
               <input type="number" id="layout-default-duration" min="15" max="480" step="15" style="width:64px;padding:4px 6px;text-align:right;" />
               min
@@ -1351,7 +1351,7 @@
       // isClosed nur als Hint-Banner ueber dem Grid, nicht als Empty-State-Replacement.
       if (sh.isClosed) {
         empty.classList.remove('hidden');
-        empty.textContent = 'Ruhetag — Reservationen trotzdem moeglich. Klick auf eine freie Zelle.';
+        empty.textContent = 'Ruhetag — Reservationen trotzdem möglich. Klick auf eine freie Zelle.';
       } else {
         empty.classList.add('hidden');
       }
@@ -1400,7 +1400,7 @@
           const timeLabel = minToTime(m);
           bodyHtml += '<div class="tg-cell' + (isHour ? ' hour' : '') + '" '
             + 'data-time="' + timeLabel + '" '
-            + 'title="Klick → Reservation um ' + timeLabel + ' fuer ' + escapeHtml(r.label || 'Tisch') + '"'
+            + 'title="Klick → Reservation um ' + timeLabel + ' für ' + escapeHtml(r.label || 'Tisch') + '"'
             + '></div>';
         }
 
@@ -1413,7 +1413,7 @@
         bodyHtml += '</div></div>';
       }
 
-      // === "Unzugewiesen"-Zeile fuer Reservationen ohne Tisch ===
+      // === "Unzugewiesen"-Zeile für Reservationen ohne Tisch ===
       const unassigned = LAYOUT_RESERVATIONS.filter(r =>
         !r.assignedResources || r.assignedResources.length === 0);
       if (unassigned.length > 0) {
@@ -1564,7 +1564,7 @@
         const capCheckGuests = Number(resv.guests) || 0;
         if (toRid && capCheckGuests > 0 && capCheckCap > 0 && capCheckCap < capCheckGuests) {
           layoutStatus(
-            baseMsg + ' — nur ' + capCheckCap + ' Plaetze fuer ' + capCheckGuests + ' Gaeste, ggf. Stuhl dazu',
+            baseMsg + ' — nur ' + capCheckCap + ' Plätze für ' + capCheckGuests + ' Gäste, ggf. Stuhl dazu',
             null,
             { actionLabel: 'OK', onAction: () => {} }
           );
@@ -1979,7 +1979,7 @@
       // Slot-Konflikt: Tisch hat mehr als eine aktive Reservation im LAYOUT_TIME-Fenster?
       const hasConflict = tableHasSlotConflict(resource.id);
 
-      // "Bald belegt": Tisch frei zur Slot-Zeit, aber naechste Reservation kommt zu schnell.
+      // "Bald belegt": Tisch frei zur Slot-Zeit, aber nächste Reservation kommt zu schnell.
       const nextSoon = !isOccupied ? tableNextOccupiedSoon(resource.id) : null;
 
       const div = document.createElement('div');
@@ -1991,7 +1991,7 @@
       if (hasConflict) {
         div.title = 'Doppelbelegung in dieser Stunde — bitte pruefen';
       } else if (nextSoon) {
-        div.title = 'Frei jetzt — naechste Reservation um ' + nextSoon;
+        div.title = 'Frei jetzt — nächste Reservation um ' + nextSoon;
       }
       // Wenn Assign-Mode aktiv und dieser Tisch der selektierten Reservation schon zugewiesen ist:
       // is-assigned → CSS faerbt outline gruen (entfernen-Zustand bei Klick).
@@ -2290,7 +2290,7 @@
               layoutDrawTables();
               layoutRenderReservations();
               updateAssignBanner();
-              layoutStatus('Loesen fehlgeschlagen: ' + err.message + ' — zurueckgesetzt', 'error');
+              layoutStatus('Lösen fehlgeschlagen: ' + err.message + ' — zurückgesetzt', 'error');
             }
           }
         });
@@ -2546,7 +2546,7 @@
     function walkinOpenEdit(r) {
       WALKIN_EDITING_ID = r.id;
       $('walkin-modal-title').textContent = 'Reservation bearbeiten';
-      $('walkin-modal-hint').textContent = 'Aenderungen werden gespeichert sobald du auf "Speichern" klickst.';
+      $('walkin-modal-hint').textContent = 'Änderungen werden gespeichert sobald du auf "Speichern" klickst.';
       $('walkin-save').textContent = 'Speichern';
       $('walkin-delete').style.display = '';
       $('walkin-name').value = r.name || '';
@@ -2571,15 +2571,15 @@
       if (!WALKIN_EDITING_ID) return;
       const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(WALKIN_EDITING_ID));
       const who = resv && (resv.name || (resv.email || '').split('@')[0]) || 'diese Reservation';
-      if (!confirm('Reservation von ' + who + ' wirklich loeschen? Das kann nicht rueckgaengig gemacht werden.')) return;
+      if (!confirm('Reservation von ' + who + ' wirklich löschen? Das kann nicht rückgängig gemacht werden.')) return;
       const editId = WALKIN_EDITING_ID;
       try {
         await api('/api/customer/reservations/' + editId, { method: 'DELETE' });
         walkinClose();
         await layoutRefresh();
-        layoutStatus('Reservation geloescht', 'success');
+        layoutStatus('Reservation gelöscht', 'success');
       } catch (err) {
-        layoutStatus('Loeschen fehlgeschlagen: ' + err.message, 'error');
+        layoutStatus('Löschen fehlgeschlagen: ' + err.message, 'error');
       }
     }
 
