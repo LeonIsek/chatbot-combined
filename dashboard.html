@@ -803,7 +803,7 @@
               </div>
             </div>
 
-            <aside class="reservation-list">
+            <aside class="reservation-list" id="reservation-list-aside">
               <button class="btn primary" id="walkin-open-btn" style="width:100%;margin-bottom:12px;font-size:13px;">+ Reservation manuell eintragen</button>
               <h4>Reservierungen <span id="resv-list-count" style="text-transform:none;color:var(--muted);">(0)</span></h4>
               <div id="resv-today-list"></div>
@@ -1639,17 +1639,28 @@
       document.querySelectorAll('.view-toggle-group [data-view]').forEach(b => {
         b.classList.toggle('active', b.dataset.view === view);
       });
-      // Toolbar-Elemente nur in Tisch-Plan-View zeigen: Tagesplan zeigt Zeit als
-      // Spalten (Stepper überflüssig) und Layout-Edit macht nur am Floor-Plan Sinn.
+      // Toolbar je View: Tisch-Plan = nur Layout-Editor (Mode-Toggle + Zoom),
+      // Tagesplan = operativ (Reservations-Liste rechts, Walk-In, CSV).
+      // Zeit-UI in beiden Views weg — Tisch-Plan zeigt "jetzt" automatisch,
+      // Tagesplan zeigt Zeit als Spalten.
       const isTimeline = (view === 'timeline');
       const tlbl = $('layout-time-label');
       const tstep = $('layout-time-stepper');
       const mtog = $('layout-mode-toggle');
       const zoomBtn = $('layout-zoom-reset');
-      if (tlbl) tlbl.classList.toggle('hidden', isTimeline);
-      if (tstep) tstep.classList.toggle('hidden', isTimeline);
+      const aside = $('reservation-list-aside');
+      if (tlbl) tlbl.classList.add('hidden');
+      if (tstep) tstep.classList.add('hidden');
       if (mtog) mtog.classList.toggle('hidden', isTimeline);
       if (zoomBtn) zoomBtn.classList.toggle('hidden', isTimeline);
+      if (aside) aside.classList.toggle('hidden', !isTimeline);
+      // Tisch-Plan zeigt aktuelle Belegung — LAYOUT_TIME auf "jetzt" setzen
+      // (an heutigem Datum auf 15min gerundet, sonst 19:00 als Default).
+      if (!isTimeline) {
+        LAYOUT_TIME = computeDefaultLayoutTime();
+        const ti = $('layout-time');
+        if (ti) ti.value = LAYOUT_TIME;
+      }
       // Wechsel nach Timeline während Edit-Mode → zurück auf Live-Sicht (sonst
       // bleiben "+ Tisch"/"Layout speichern" mode-getoggelt im Hintergrund aktiv).
       if (isTimeline && LAYOUT_MODE === 'edit') {
