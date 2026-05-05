@@ -2242,22 +2242,10 @@
         <div class="res-card-name">${escapeHtml(displayName)}</div>
         <div class="res-card-time">${time} · ${r.guests || '?'} P</div>
         ${detail ? `<div class="res-card-detail">${escapeHtml(detail)}</div>` : ''}
-        ${tableInfo ? `<div class="res-card-table"><i data-lucide="arrow-right" class="icon-sm"></i> ${escapeHtml(tableInfo)}</div>` : ''}
-        <div class="res-card-actions">
-          <button data-action="edit">Bearbeiten</button>
-          ${r.assignedResources?.length > 0 ? '<button data-action="unassign">Tisch lösen</button>' : ''}
-          <button data-action="delete" class="danger">Löschen</button>
-        </div>`;
-      // Click-to-Assign: Karte klicken → in den Assign-Mode für diese Reservation gehen.
-      card.addEventListener('click', (e) => {
-        // Action-Buttons (Bearbeiten/Lösen/Löschen) nicht unterdrücken
-        if (e.target.closest('button')) return;
-        if (LAYOUT_SELECTED_RESV && LAYOUT_SELECTED_RESV.id === r.id) {
-          deselectReservationForAssign();
-        } else {
-          selectReservationForAssign(r);
-        }
-      });
+        ${tableInfo ? `<div class="res-card-table"><i data-lucide="arrow-right" class="icon-sm"></i> ${escapeHtml(tableInfo)}</div>` : ''}`;
+      // Click auf Karte → Edit-Modal (dort bearbeiten + löschen, Tisch-Wechsel via DnD im Tagesplan).
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => walkinOpenEdit(r));
 
       // Hover-Highlight: zeige im Layout welche Tische zur dieser Reservation gehoeren.
       card.addEventListener('mouseenter', () => {
@@ -2270,62 +2258,6 @@
         (r.assignedResources || []).forEach(ar => {
           const t = document.querySelector('.layout-table[data-table-id="' + ar.id + '"]');
           if (t) t.classList.remove('highlighted');
-        });
-      });
-      card.querySelectorAll('button[data-action]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const action = btn.dataset.action;
-          if (action === 'edit') {
-            walkinOpenEdit(r);
-            return;
-          }
-          if (action === 'delete') {
-            if (!confirm('Reservation wirklich löschen?')) return;
-            try {
-              await api('/api/customer/reservations/' + r.id, { method: 'DELETE' });
-              await layoutRefresh();
-            } catch (err) { alert(err.message); }
-          } else if (action === 'unassign') {
-            // Optimistic Update: lokal alle Zuweisungen entfernen, sofort rendern, DELETEs parallel im Hintergrund
-            const toRemove = [...(r.assignedResources || [])];
-            if (toRemove.length === 0) return;
-            // Backup für Revert
-            const backupArs = toRemove.map(ar => ar);
-            const backupBuckets = {};
-            toRemove.forEach(ar => {
-              backupBuckets[ar.id] = LAYOUT_ASSIGNMENTS[ar.id] ? [...LAYOUT_ASSIGNMENTS[ar.id]] : null;
-            });
-            // Lokal mutieren
-            r.assignedResources = [];
-            toRemove.forEach(ar => {
-              if (LAYOUT_ASSIGNMENTS[ar.id]) {
-                LAYOUT_ASSIGNMENTS[ar.id] = LAYOUT_ASSIGNMENTS[ar.id].filter(x => x.id !== r.id);
-                if (LAYOUT_ASSIGNMENTS[ar.id].length === 0) delete LAYOUT_ASSIGNMENTS[ar.id];
-              }
-            });
-            layoutDrawTables();
-            layoutRenderReservations();
-            updateAssignBanner();
-            layoutStatus(toRemove.length + ' Tisch' + (toRemove.length === 1 ? '' : 'e') + ' geloest', 'success');
-            // Server-Sync parallel
-            try {
-              await Promise.all(toRemove.map(ar =>
-                api('/api/customer/reservations/' + r.id + '/assign/' + ar.id, { method: 'DELETE' })
-              ));
-            } catch (err) {
-              // Revert
-              r.assignedResources = backupArs;
-              Object.keys(backupBuckets).forEach(id => {
-                if (backupBuckets[id] === null) delete LAYOUT_ASSIGNMENTS[id];
-                else LAYOUT_ASSIGNMENTS[id] = backupBuckets[id];
-              });
-              layoutDrawTables();
-              layoutRenderReservations();
-              updateAssignBanner();
-              layoutStatus('Lösen fehlgeschlagen: ' + err.message + ' — zurückgesetzt', 'error');
-            }
-          }
         });
       });
       return card;
