@@ -751,7 +751,7 @@
       <div class="tab-content hidden" data-tab-content="reservations">
         <div class="panel" id="res-enabled-panel">
           <div class="layout-toolbar">
-            <label style="font-size:13px;color:var(--muted);">Datum</label>
+            <label id="layout-date-label" style="font-size:13px;color:var(--muted);">Datum</label>
             <input type="date" id="layout-date"/>
             <div class="view-toggle-group" role="tablist">
               <button data-view="timeline" class="active" id="view-timeline-btn" type="button" role="tab" title="Tagesplan: Tische als Zeilen, Zeit als Spalten — wie Outlook-Kalender">Tagesplan</button>
@@ -1634,21 +1634,35 @@
         b.classList.toggle('active', b.dataset.view === view);
       });
       // Toolbar je View: Tisch-Plan = nur Layout-Editor (Mode-Toggle + Zoom),
-      // Tagesplan = operativ (Reservations-Liste rechts, Walk-In, CSV).
+      // Tagesplan = operativ (Datum, Reservations-Liste rechts, Walk-In, CSV).
       const isTimeline = (view === 'timeline');
       const mtog = $('layout-mode-toggle');
       const zoomBtn = $('layout-zoom-reset');
       const aside = $('reservation-list-aside');
       const ddur = $('layout-default-duration-wrap');
       const grid = $('layout-grid');
+      const dlabel = $('layout-date-label');
+      const dinput = $('layout-date');
       if (mtog) mtog.classList.toggle('hidden', isTimeline);
       if (zoomBtn) zoomBtn.classList.toggle('hidden', isTimeline);
       if (aside) aside.classList.toggle('hidden', !isTimeline);
       if (ddur) ddur.classList.toggle('hidden', !isTimeline);
       // Tisch-Plan ohne Sidebar → Canvas auf volle Breite ziehen.
       if (grid) grid.classList.toggle('no-aside', !isTimeline);
-      // Tisch-Plan zeigt aktuelle Belegung → LAYOUT_TIME auf "jetzt" rechnen.
-      if (!isTimeline) LAYOUT_TIME = computeDefaultLayoutTime();
+      // Tisch-Plan zeigt immer "heute jetzt" — Date-Picker hidden + LAYOUT_DATE
+      // auf today fixieren (sonst zeigt Floor-Plan Belegung an gewähltem Datum).
+      if (dlabel) dlabel.classList.toggle('hidden', !isTimeline);
+      if (dinput) dinput.classList.toggle('hidden', !isTimeline);
+      if (!isTimeline) {
+        const today = new Date().toISOString().slice(0, 10);
+        const dateChanged = LAYOUT_DATE !== today;
+        if (dateChanged) {
+          LAYOUT_DATE = today;
+          if (dinput) dinput.value = today;
+        }
+        LAYOUT_TIME = computeDefaultLayoutTime();
+        if (dateChanged) layoutRefresh();
+      }
       // Wechsel nach Timeline während Edit-Mode → zurück auf Live-Sicht (sonst
       // bleiben "+ Tisch"/"Layout speichern" mode-getoggelt im Hintergrund aktiv).
       if (isTimeline && LAYOUT_MODE === 'edit') {
