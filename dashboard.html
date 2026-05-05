@@ -1450,6 +1450,9 @@
           TG_DRAG_RESV_ID = block.dataset.resvId;
           const row = block.closest('.tg-row');
           TG_DRAG_FROM_RESOURCE_ID = row ? (row.dataset.resourceId || '') : '';
+          // offsetX: Cursor-Position innerhalb Block. Beim Drop berechnen wir
+          // die Block-Linkskante via (drop-X - offsetX) und snappen auf Grid.
+          TG_DRAG_GRAB_OFFSET_X = e.offsetX || 0;
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('text/plain', TG_DRAG_RESV_ID);
           block.classList.add('dragging');
@@ -1457,6 +1460,7 @@
         block.addEventListener('dragend', () => {
           TG_DRAG_RESV_ID = null;
           TG_DRAG_FROM_RESOURCE_ID = null;
+          TG_DRAG_GRAB_OFFSET_X = 0;
           block.classList.remove('dragging');
           body.querySelectorAll('.tg-row.drop-target').forEach(r => r.classList.remove('drop-target'));
         });
@@ -1478,25 +1482,51 @@
           const resvId = TG_DRAG_RESV_ID;
           const fromRid = TG_DRAG_FROM_RESOURCE_ID || '';
           const toRid = row.dataset.resourceId || '';
+          const grabOffsetX = TG_DRAG_GRAB_OFFSET_X || 0;
           TG_DRAG_RESV_ID = null;
           TG_DRAG_FROM_RESOURCE_ID = null;
-          if (!resvId || String(fromRid) === String(toRid)) return;
-          await moveReservationToResource(resvId, fromRid, toRid);
+          TG_DRAG_GRAB_OFFSET_X = 0;
+          if (!resvId) return;
+
+          // Neue Start-Zeit aus drop-X berechnen (nur fuer reguläre Tisch-Zeilen,
+          // nicht für Unzugewiesen-Zeile).
+          let newStartTime = null;
+          if (toRid) {
+            const cells = row.querySelector('.tg-cells');
+            if (cells && TG_CELL_WIDTH > 0) {
+              const cellsRect = cells.getBoundingClientRect();
+              const blockLeftX = e.clientX - cellsRect.left - grabOffsetX;
+              let cellIndex = Math.round(blockLeftX / TG_CELL_WIDTH);
+              cellIndex = Math.max(0, Math.min(numCells - 1, cellIndex));
+              const candidate = minToTime(startMin + cellIndex * gran);
+              const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
+              const currentStart = resv && resv.start_time ? resv.start_time.slice(0, 5) : null;
+              if (candidate !== currentStart) newStartTime = candidate;
+            }
+          }
+
+          const sameRow = String(fromRid) === String(toRid);
+          if (sameRow && !newStartTime) return;  // No-op
+          await moveReservationToResource(resvId, fromRid, toRid, newStartTime);
         });
       });
     }
 
-    // Tagesplan-Drag-State (HTML5 DnD): tg-block in andere Zeile droppen → Tisch wechseln.
+    // Tagesplan-Drag-State (HTML5 DnD):
+    // - tg-block in andere Zeile droppen → Tisch wechseln
+    // - tg-block horizontal verschieben → Start-Zeit aendern (snapt auf gran)
     let TG_DRAG_RESV_ID = null;
     let TG_DRAG_FROM_RESOURCE_ID = null;
+    let TG_DRAG_GRAB_OFFSET_X = 0;  // Cursor-X innerhalb Block beim Greifen — fuer Snap-Berechnung
 
-    async function moveReservationToResource(resvId, fromRid, toRid) {
+    async function moveReservationToResource(resvId, fromRid, toRid, newStartTime) {
       const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
       if (!resv) return;
-      // Frontend-Konflikt-Check: ueberlappt resv mit anderer Reservation am Ziel-Tisch?
+      // Konflikt-Check mit ggf. neuer Start-Zeit (synthetische Resv).
+      const checkResv = newStartTime ? { ...resv, start_time: newStartTime } : resv;
       if (toRid) {
         const targetBucket = (LAYOUT_ASSIGNMENTS[toRid] || []).filter(r => String(r.id) !== String(resvId));
-        const conflict = targetBucket.find(other => reservationsOverlap(resv, other));
+        const conflict = targetBucket.find(other => reservationsOverlap(checkResv, other));
         if (conflict) {
           const targetResource = LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid));
           const cStart = (conflict.start_time || '').slice(0, 5);
@@ -1504,32 +1534,37 @@
           layoutStatus(
             (targetResource && targetResource.label || 'Tisch') + ' belegt um ' + cStart + ' von ' + cName,
             'error',
-            { actionLabel: 'Trotzdem verschieben', onAction: () => moveReservationApply(resvId, fromRid, toRid, true) }
+            { actionLabel: 'Trotzdem verschieben', onAction: () => moveReservationApply(resvId, fromRid, toRid, newStartTime, true) }
           );
           return;
         }
       }
-      await moveReservationApply(resvId, fromRid, toRid, false);
+      await moveReservationApply(resvId, fromRid, toRid, newStartTime, false);
     }
 
-    async function moveReservationApply(resvId, fromRid, toRid, force) {
+    async function moveReservationApply(resvId, fromRid, toRid, newStartTime, force) {
       const resv = LAYOUT_RESERVATIONS.find(r => String(r.id) === String(resvId));
       if (!resv) return;
       // Snapshot fuer Revert bei Server-Fehler
       const beforeAR = [...(resv.assignedResources || [])];
       const beforeAssign = JSON.parse(JSON.stringify(LAYOUT_ASSIGNMENTS));
+      const beforeStartTime = resv.start_time;
+      const tableChanged = String(fromRid) !== String(toRid);
 
       // === Optimistic UI ===
-      if (fromRid && LAYOUT_ASSIGNMENTS[fromRid]) {
-        LAYOUT_ASSIGNMENTS[fromRid] = LAYOUT_ASSIGNMENTS[fromRid].filter(r => String(r.id) !== String(resvId));
-        if (LAYOUT_ASSIGNMENTS[fromRid].length === 0) delete LAYOUT_ASSIGNMENTS[fromRid];
-      }
-      resv.assignedResources = (resv.assignedResources || []).filter(ar => String(ar.id) !== String(fromRid));
-      if (toRid) {
-        const target = LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid));
-        if (target) {
-          LAYOUT_ASSIGNMENTS[toRid] = [...(LAYOUT_ASSIGNMENTS[toRid] || []), resv];
-          resv.assignedResources = [...resv.assignedResources, target];
+      if (newStartTime) resv.start_time = newStartTime;
+      if (tableChanged) {
+        if (fromRid && LAYOUT_ASSIGNMENTS[fromRid]) {
+          LAYOUT_ASSIGNMENTS[fromRid] = LAYOUT_ASSIGNMENTS[fromRid].filter(r => String(r.id) !== String(resvId));
+          if (LAYOUT_ASSIGNMENTS[fromRid].length === 0) delete LAYOUT_ASSIGNMENTS[fromRid];
+        }
+        resv.assignedResources = (resv.assignedResources || []).filter(ar => String(ar.id) !== String(fromRid));
+        if (toRid) {
+          const target = LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid));
+          if (target) {
+            LAYOUT_ASSIGNMENTS[toRid] = [...(LAYOUT_ASSIGNMENTS[toRid] || []), resv];
+            resv.assignedResources = [...resv.assignedResources, target];
+          }
         }
       }
       tagesplanRender();
@@ -1537,23 +1572,42 @@
 
       // === Server-Sync ===
       try {
-        if (fromRid) {
-          await api('/api/customer/reservations/' + resvId + '/assign/' + fromRid, { method: 'DELETE' });
-        }
-        if (toRid) {
-          const body = { resource_id: toRid, replace: false };
-          if (force) body.force = true;
-          await api('/api/customer/reservations/' + resvId + '/assign', {
-            method: 'POST',
-            body: JSON.stringify(body)
+        // 1) Zeit-PATCH zuerst (falls Backend Konflikt wirft, geht Tisch-Wechsel gar nicht erst los).
+        if (newStartTime) {
+          const patchBody = { start_time: newStartTime };
+          if (force) patchBody.force = true;
+          await api('/api/customer/reservations/' + resvId, {
+            method: 'PATCH',
+            body: JSON.stringify(patchBody)
           });
         }
+        // 2) Tisch-Wechsel (DELETE alt + POST neu) nur wenn Tisch wirklich gewechselt.
+        if (tableChanged) {
+          if (fromRid) {
+            await api('/api/customer/reservations/' + resvId + '/assign/' + fromRid, { method: 'DELETE' });
+          }
+          if (toRid) {
+            const body = { resource_id: toRid, replace: false };
+            if (force) body.force = true;
+            await api('/api/customer/reservations/' + resvId + '/assign', {
+              method: 'POST',
+              body: JSON.stringify(body)
+            });
+          }
+        }
+        // === Status-Message ===
         const targetLabel = toRid
           ? (LAYOUT_RESOURCES.find(r => String(r.id) === String(toRid)) || {}).label || 'Tisch'
           : 'Unzugewiesen';
-        const baseMsg = force ? targetLabel + ' verschoben (Doppelbelegung)' : 'Verschoben zu ' + targetLabel;
+        let baseMsg;
+        if (newStartTime && tableChanged) {
+          baseMsg = 'Verschoben zu ' + targetLabel + ' um ' + newStartTime;
+        } else if (newStartTime) {
+          baseMsg = 'Zeit auf ' + newStartTime + ' geändert';
+        } else {
+          baseMsg = force ? targetLabel + ' verschoben (Doppelbelegung)' : 'Verschoben zu ' + targetLabel;
+        }
         // Capacity-Hint: wenn Ziel-Tisch(e) zusammen weniger Plaetze als Gaeste → non-blocking Notice.
-        // Wirt entscheidet ob er Stuhl dazu schiebt oder weiteren Tisch zuweist.
         const capCheckCap = (resv.assignedResources || []).reduce((s, ar) => s + (Number(ar.capacity) || 0), 0);
         const capCheckGuests = Number(resv.guests) || 0;
         if (toRid && capCheckGuests > 0 && capCheckCap > 0 && capCheckCap < capCheckGuests) {
@@ -1567,6 +1621,7 @@
         }
       } catch (err) {
         // Revert
+        resv.start_time = beforeStartTime;
         resv.assignedResources = beforeAR;
         LAYOUT_ASSIGNMENTS = beforeAssign;
         tagesplanRender();
@@ -1575,7 +1630,7 @@
         if (isConflict && toRid) {
           layoutStatus(err.message, 'error', {
             actionLabel: 'Trotzdem verschieben',
-            onAction: () => moveReservationApply(resvId, fromRid, toRid, true)
+            onAction: () => moveReservationApply(resvId, fromRid, toRid, newStartTime, true)
           });
         } else {
           layoutStatus('Verschieben fehlgeschlagen: ' + err.message, 'error');
