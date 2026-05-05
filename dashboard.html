@@ -753,13 +753,6 @@
           <div class="layout-toolbar">
             <label style="font-size:13px;color:var(--muted);">Datum</label>
             <input type="date" id="layout-date"/>
-            <label id="layout-time-label" class="hidden" style="font-size:13px;color:var(--muted);margin-left:6px;">Zeit</label>
-            <div class="time-stepper hidden" id="layout-time-stepper">
-              <button class="tstep" id="layout-time-prev" title="-15 Min" type="button">‹</button>
-              <input type="time" id="layout-time" step="900" value="19:00"/>
-              <button class="tstep" id="layout-time-next" title="+15 Min" type="button">›</button>
-              <button class="tnow" id="layout-time-now" type="button">Jetzt</button>
-            </div>
             <div class="view-toggle-group" role="tablist">
               <button data-view="timeline" class="active" id="view-timeline-btn" type="button" role="tab" title="Tagesplan: Tische als Zeilen, Zeit als Spalten — wie Outlook-Kalender">Tagesplan</button>
               <button data-view="floor" id="view-floor-btn" type="button" role="tab" title="Tisch-Plan: räumliche Sicht des Restaurants">Tisch-Plan</button>
@@ -1642,31 +1635,20 @@
       });
       // Toolbar je View: Tisch-Plan = nur Layout-Editor (Mode-Toggle + Zoom),
       // Tagesplan = operativ (Reservations-Liste rechts, Walk-In, CSV).
-      // Zeit-UI in beiden Views weg — Tisch-Plan zeigt "jetzt" automatisch,
-      // Tagesplan zeigt Zeit als Spalten.
       const isTimeline = (view === 'timeline');
-      const tlbl = $('layout-time-label');
-      const tstep = $('layout-time-stepper');
       const mtog = $('layout-mode-toggle');
       const zoomBtn = $('layout-zoom-reset');
       const aside = $('reservation-list-aside');
       const ddur = $('layout-default-duration-wrap');
       const grid = $('layout-grid');
-      if (tlbl) tlbl.classList.add('hidden');
-      if (tstep) tstep.classList.add('hidden');
       if (mtog) mtog.classList.toggle('hidden', isTimeline);
       if (zoomBtn) zoomBtn.classList.toggle('hidden', isTimeline);
       if (aside) aside.classList.toggle('hidden', !isTimeline);
       if (ddur) ddur.classList.toggle('hidden', !isTimeline);
       // Tisch-Plan ohne Sidebar → Canvas auf volle Breite ziehen.
       if (grid) grid.classList.toggle('no-aside', !isTimeline);
-      // Tisch-Plan zeigt aktuelle Belegung — LAYOUT_TIME auf "jetzt" setzen
-      // (an heutigem Datum auf 15min gerundet, sonst 19:00 als Default).
-      if (!isTimeline) {
-        LAYOUT_TIME = computeDefaultLayoutTime();
-        const ti = $('layout-time');
-        if (ti) ti.value = LAYOUT_TIME;
-      }
+      // Tisch-Plan zeigt aktuelle Belegung → LAYOUT_TIME auf "jetzt" rechnen.
+      if (!isTimeline) LAYOUT_TIME = computeDefaultLayoutTime();
       // Wechsel nach Timeline während Edit-Mode → zurück auf Live-Sicht (sonst
       // bleiben "+ Tisch"/"Layout speichern" mode-getoggelt im Hintergrund aktiv).
       if (isTimeline && LAYOUT_MODE === 'edit') {
@@ -1803,50 +1785,12 @@
         LAYOUT_DATE = e.target.value;
         // Time auf neuen Default berechnen wenn Datum wechselt
         LAYOUT_TIME = computeDefaultLayoutTime();
-        $('layout-time').value = LAYOUT_TIME;
         layoutRefresh();
       });
 
-      // Time-Stepper
+      // LAYOUT_TIME wird intern auf "jetzt" gehalten — UI-Stepper wurde entfernt,
+      // weil Tisch-Plan immer aktuelle Belegung zeigt und Tagesplan Zeit als Spalten rendert.
       LAYOUT_TIME = computeDefaultLayoutTime();
-      const timeInput = $('layout-time');
-      timeInput.value = LAYOUT_TIME;
-      timeInput.addEventListener('change', () => {
-        LAYOUT_TIME = timeInput.value || '19:00';
-        layoutDrawTables();
-        layoutRenderReservations();
-        updateAssignBanner();
-        updateCanvasHint();
-      });
-      $('layout-time-prev').addEventListener('click', () => {
-        const m = parseTimeToMin(LAYOUT_TIME);
-        LAYOUT_TIME = minToTime((m == null ? 19 * 60 : m) - 15);
-        timeInput.value = LAYOUT_TIME;
-        layoutDrawTables();
-        layoutRenderReservations();
-        updateAssignBanner();
-        updateCanvasHint();
-      });
-      $('layout-time-next').addEventListener('click', () => {
-        const m = parseTimeToMin(LAYOUT_TIME);
-        LAYOUT_TIME = minToTime((m == null ? 19 * 60 : m) + 15);
-        timeInput.value = LAYOUT_TIME;
-        layoutDrawTables();
-        layoutRenderReservations();
-        updateAssignBanner();
-        updateCanvasHint();
-      });
-      $('layout-time-now').addEventListener('click', () => {
-        const today = new Date().toISOString().slice(0, 10);
-        if (LAYOUT_DATE !== today) {
-          // Wenn nicht heute: zuerst auf heute springen
-          LAYOUT_DATE = today;
-          datePicker.value = today;
-        }
-        LAYOUT_TIME = computeDefaultLayoutTime();
-        timeInput.value = LAYOUT_TIME;
-        layoutRefresh();
-      });
       // View-Toggle: Tagesplan vs Tisch-Plan
       document.querySelectorAll('.view-toggle-group [data-view]').forEach(btn => {
         btn.addEventListener('click', () => layoutSwitchView(btn.dataset.view));
@@ -2098,16 +2042,6 @@
               selectReservationForAssign(fresh);
             }
           });
-
-          // Hover-Highlight: zeige verbundene Reservation-Karte in Liste
-          chip.addEventListener('mouseenter', () => {
-            const card = document.querySelector('.res-card[data-resv-id="' + resv.id + '"]');
-            if (card) card.classList.add('highlighted');
-          });
-          chip.addEventListener('mouseleave', () => {
-            const card = document.querySelector('.res-card[data-resv-id="' + resv.id + '"]');
-            if (card) card.classList.remove('highlighted');
-          });
           chips.appendChild(chip);
         });
         div.appendChild(chips);
@@ -2195,30 +2129,21 @@
     }
 
     function layoutRenderReservations() {
+      // Sidebar nur im Tagesplan sichtbar — im Tisch-Plan komplett verstecken,
+      // also DOM-Arbeit hier sparen.
+      if (LAYOUT_VIEW !== 'timeline') return;
       const list = $('resv-today-list');
       const count = $('resv-list-count');
       const empty = $('resv-today-empty');
       list.innerHTML = '';
-      // Tisch-Plan-Sicht: nur Reservationen aktiv im LAYOUT_TIME-Slot.
-      // Tagesplan-Sicht: alle Reservationen heute (Timeline trennt visuell nach Zeit).
-      const showAll = LAYOUT_VIEW === 'timeline';
-      const filtered = showAll
-        ? LAYOUT_RESERVATIONS
-        : LAYOUT_RESERVATIONS.filter(r => isResvActiveAtSlot(r, LAYOUT_TIME));
-      if (showAll) {
-        count.textContent = '(' + LAYOUT_RESERVATIONS.length + ' heute)';
-      } else {
-        count.textContent = '(' + filtered.length + ' um ' + LAYOUT_TIME + ' · ' + LAYOUT_RESERVATIONS.length + ' total heute)';
-      }
-      if (filtered.length === 0) {
+      count.textContent = '(' + LAYOUT_RESERVATIONS.length + ' heute)';
+      if (LAYOUT_RESERVATIONS.length === 0) {
         empty.classList.remove('hidden');
-        empty.textContent = showAll
-          ? 'Keine Reservierungen für dieses Datum'
-          : ('Keine Reservationen aktiv um ' + LAYOUT_TIME);
+        empty.textContent = 'Keine Reservierungen für dieses Datum';
         return;
       }
       empty.classList.add('hidden');
-      const sorted = [...filtered].sort((a, b) =>
+      const sorted = [...LAYOUT_RESERVATIONS].sort((a, b) =>
         (a.start_time || '').localeCompare(b.start_time || ''));
       sorted.forEach(r => list.appendChild(layoutBuildResvCard(r)));
       if (window.lucide) lucide.createIcons();
@@ -2228,7 +2153,6 @@
       const card = document.createElement('div');
       card.className = 'res-card';
       if (r.assignedResources?.length > 0) card.classList.add('assigned');
-      if (LAYOUT_SELECTED_RESV && LAYOUT_SELECTED_RESV.id === r.id) card.classList.add('selected');
       card.dataset.resvId = r.id;
       const time = r.start_time ? r.start_time.slice(0, 5) : '—';
       const tableInfo = (r.assignedResources || []).map(a => a.label).join(', ');
@@ -2246,20 +2170,6 @@
       // Click auf Karte → Edit-Modal (dort bearbeiten + löschen, Tisch-Wechsel via DnD im Tagesplan).
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => walkinOpenEdit(r));
-
-      // Hover-Highlight: zeige im Layout welche Tische zur dieser Reservation gehoeren.
-      card.addEventListener('mouseenter', () => {
-        (r.assignedResources || []).forEach(ar => {
-          const t = document.querySelector('.layout-table[data-table-id="' + ar.id + '"]');
-          if (t) t.classList.add('highlighted');
-        });
-      });
-      card.addEventListener('mouseleave', () => {
-        (r.assignedResources || []).forEach(ar => {
-          const t = document.querySelector('.layout-table[data-table-id="' + ar.id + '"]');
-          if (t) t.classList.remove('highlighted');
-        });
-      });
       return card;
     }
 
