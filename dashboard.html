@@ -305,6 +305,7 @@
     .layout-grid {
       display: grid; grid-template-columns: 1fr 280px; gap: 14px;
     }
+    .layout-grid.no-aside { grid-template-columns: 1fr; }
     @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
     .layout-main { min-width: 0; /* erlaubt overflow im child */ }
 
@@ -770,7 +771,7 @@
             <button class="btn primary hidden" id="layout-add-table">+ Tisch</button>
             <button class="btn hidden" id="layout-save">Layout speichern</button>
             <button class="btn hidden" id="layout-zoom-reset" title="Auf alle Tische und Wände zoomen"><i data-lucide="rotate-ccw"></i> Ansicht resetten</button>
-            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird für Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
+            <span id="layout-default-duration-wrap" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);" title="Default-Dauer einer Reservation in Minuten — wird für Konflikt-Erkennung genutzt wenn keine Dauer pro Reservation gesetzt ist.">
               Standard-Dauer
               <input type="number" id="layout-default-duration" min="15" max="480" step="15" style="width:64px;padding:4px 6px;text-align:right;" />
               min
@@ -783,7 +784,7 @@
             <button class="assign-banner-done" id="assign-banner-done">Fertig</button>
           </div>
 
-          <div class="layout-grid">
+          <div class="layout-grid" id="layout-grid">
             <div class="layout-main">
               <!-- Tagesplan-Sicht: Timeline mit Tischen × Zeit (Outlook-Kalender-Style) -->
               <div class="tagesplan" id="tagesplan-view">
@@ -1649,11 +1650,16 @@
       const mtog = $('layout-mode-toggle');
       const zoomBtn = $('layout-zoom-reset');
       const aside = $('reservation-list-aside');
+      const ddur = $('layout-default-duration-wrap');
+      const grid = $('layout-grid');
       if (tlbl) tlbl.classList.add('hidden');
       if (tstep) tstep.classList.add('hidden');
       if (mtog) mtog.classList.toggle('hidden', isTimeline);
       if (zoomBtn) zoomBtn.classList.toggle('hidden', isTimeline);
       if (aside) aside.classList.toggle('hidden', !isTimeline);
+      if (ddur) ddur.classList.toggle('hidden', !isTimeline);
+      // Tisch-Plan ohne Sidebar → Canvas auf volle Breite ziehen.
+      if (grid) grid.classList.toggle('no-aside', !isTimeline);
       // Tisch-Plan zeigt aktuelle Belegung — LAYOUT_TIME auf "jetzt" setzen
       // (an heutigem Datum auf 15min gerundet, sonst 19:00 als Default).
       if (!isTimeline) {
