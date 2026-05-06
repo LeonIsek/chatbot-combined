@@ -1762,8 +1762,24 @@ console.log("WIDGET STARTET");
  return slots;
  };
 
- const showTimeSlotOptions = async () => {
- const slots = await getSlotAvailabilityForCurrentReservation();
+ const showTimeSlotOptions = async (botAvailableSlots) => {
+ // Backend-authoritativ: wenn Bot per-Tisch-Verfuegbarkeits-Liste schickt, bauen
+ // wir die Slot-Liste daraus (statt lokaler flat-capacity-Check der per-Tisch-blind ist).
+ // Default-Range fuer "voll"-Markierung: Restaurant 17-22 Uhr im 30-Min-Raster.
+ let slots;
+ if (Array.isArray(botAvailableSlots)) {
+ const freeSet = new Set(botAvailableSlots);
+ const allSlots = [];
+ for (let h = 17; h <= 22; h++) {
+ for (const mm of [0, 30]) {
+ const t = `${String(h).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+ allSlots.push({ time: t, isFree: freeSet.has(t) });
+ }
+ }
+ slots = allSlots;
+ } else {
+ slots = await getSlotAvailabilityForCurrentReservation();
+ }
 
  if (slots && slots.closed) {
  reservationState.date = null;
@@ -1934,7 +1950,9 @@ console.log("WIDGET STARTET");
  if (typeof showDateOptions === 'function') await showDateOptions();
  break;
  case 'show_time_slots':
- if (typeof showTimeSlotOptions === 'function') await showTimeSlotOptions();
+ // Backend liefert availableSlots[] mit per-Tisch-Verfuegbarkeit (wenn guests bekannt).
+ // Widget bevorzugt diese authoritativ vor lokalem Capacity-Check.
+ if (typeof showTimeSlotOptions === 'function') await showTimeSlotOptions(result.availableSlots);
  break;
  case 'show_summary':
  if (typeof showReservationSummary === 'function') showReservationSummary();
