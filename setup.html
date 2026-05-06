@@ -469,6 +469,22 @@
   const BACKEND = 'https://chatbot-widget-kaqe.onrender.com';
   let currentScriptTag = '';
 
+  // Stripe-Redirect-Status auswerten (nach Checkout-Rueckkehr)
+  (function handleStripeReturn() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paid') === 'true') {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#10b981;color:#fff;padding:18px 24px;border-radius:12px;margin:20px auto;max-width:620px;font-weight:600;text-align:center;font-family:Arial,sans-serif;box-shadow:0 4px 16px rgba(16,185,129,0.25)';
+      banner.innerHTML = 'Bezahlung erfolgreich! Dein Bot ist aktiv.<br><span style="font-weight:400;font-size:14px;opacity:0.9">Den Embed-Code findest du in deiner Email — auch dein Dashboard-Login wurde gesendet.</span>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    } else if (params.get('canceled') === 'true') {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#f59e0b;color:#fff;padding:18px 24px;border-radius:12px;margin:20px auto;max-width:620px;font-weight:600;text-align:center;font-family:Arial,sans-serif;box-shadow:0 4px 16px rgba(245,158,11,0.25)';
+      banner.innerHTML = 'Bezahlung abgebrochen.<br><span style="font-weight:400;font-size:14px;opacity:0.9">Kein Problem — fuelle das Formular einfach erneut aus, falls du es dir doch ueberlegst.</span>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
+  })();
+
   document.getElementById('reservationsEnabled').addEventListener('change', function() {
     document.getElementById('reservationFields').style.display = this.checked ? 'block' : 'none';
   });
@@ -566,6 +582,16 @@
 
       currentScriptTag = data.scriptTag;
       document.getElementById('scriptTagDisplay').textContent = data.scriptTag;
+
+      // Wenn Stripe-Checkout-URL vorliegt: direkt zur Bezahlung weiterleiten.
+      // Der Embed-Code wird per Email zugesandt; nach erfolgreicher
+      // Bezahlung wird der Bot via Stripe-Webhook automatisch aktiviert.
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      // Fallback (kein Stripe konfiguriert): Inline-Erfolgsanzeige
       document.getElementById('formView').classList.add('hidden');
       document.getElementById('successView').classList.add('visible');
 
