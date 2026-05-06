@@ -561,12 +561,12 @@
           prices: document.getElementById('prices').value.trim() || null,
           tone,
           reservationsEnabled: document.getElementById('reservationsEnabled').checked,
-          reservationType: document.getElementById('reservationType').value || null,
-          capacity: document.getElementById('capacity').value || null,
-          tableConfig: document.getElementById('tableConfig').value.trim() || null,
-          slotDuration: document.getElementById('slotDuration').value === 'custom'
-            ? (document.getElementById('slotDurationCustom').value || null)
-            : (document.getElementById('slotDuration').value || null),
+          reservationType: document.getElementById('reservationType')?.value || null,
+          capacity: document.getElementById('capacity')?.value || null,
+          tableConfig: document.getElementById('tableConfig')?.value.trim() || null,
+          slotDuration: document.getElementById('slotDuration')?.value === 'custom'
+            ? (document.getElementById('slotDurationCustom')?.value || null)
+            : (document.getElementById('slotDuration')?.value || null),
           extraInfo: document.getElementById('extraInfo').value.trim() || null,
           themePreset,
           monthlyPrice,
