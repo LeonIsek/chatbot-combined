@@ -1612,16 +1612,61 @@ console.log("WIDGET STARTET");
  if (node && node.parentNode) node.parentNode.removeChild(node);
  };
 
+ // XSS-safe Markdown-Renderer fuer Bot-Antworten:
+ // unterstuetzt **bold**, "- bullet"-Listen und \n-Linebreaks.
+ // Parsing nur via createElement + textContent (kein innerHTML).
+ const appendInlineWithBold = (container, text) => {
+ const parts = String(text).split(/(\*\*[^*\n]+\*\*)/);
+ parts.forEach(part => {
+ if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+ const strong = document.createElement('strong');
+ strong.textContent = part.slice(2, -2);
+ container.appendChild(strong);
+ } else if (part.length > 0) {
+ container.appendChild(document.createTextNode(part));
+ }
+ });
+ };
+ const renderMarkdownSafe = (container, text) => {
+ const lines = String(text).split('\n');
+ let currentList = null;
+ lines.forEach((line, i) => {
+ const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/);
+ if (bulletMatch) {
+ if (!currentList) {
+ currentList = document.createElement('ul');
+ currentList.style.margin = '4px 0';
+ currentList.style.paddingLeft = '20px';
+ container.appendChild(currentList);
+ }
+ const li = document.createElement('li');
+ appendInlineWithBold(li, bulletMatch[1]);
+ currentList.appendChild(li);
+ } else {
+ currentList = null;
+ if (i > 0 && container.lastChild && container.lastChild.tagName !== 'UL') {
+ container.appendChild(document.createElement('br'));
+ }
+ appendInlineWithBold(container, line);
+ }
+ });
+ };
+
  const addMessage = (sender, text, attachments) => {
  const messageDiv = document.createElement('div');
  messageDiv.className = `message ${sender}`;
  const content = document.createElement('div');
  content.className = 'message-content';
- // Use textContent per line + <br> — prevents XSS from any source
+ if (sender === 'bot') {
+ // Bot-Nachrichten: Markdown-Parsing (bold + listen)
+ renderMarkdownSafe(content, text);
+ } else {
+ // User-Nachrichten: plain text mit \n → <br>, kein Markdown
  String(text).split('\n').forEach((line, i) => {
  if (i > 0) content.appendChild(document.createElement('br'));
  content.appendChild(document.createTextNode(line));
  });
+ }
  messageDiv.appendChild(content);
 
  // Sprint 4b — Multi-Modal Attachments (image/link/map)
