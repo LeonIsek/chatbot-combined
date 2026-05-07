@@ -1206,7 +1206,11 @@ console.log("WIDGET STARTET");
  }
 
  if ((occupied + reservationState.people) > capacityPerSlot) {
- return 'Zu dieser Zeit ist leider kein Platz mehr frei. Möchtest du eine andere Uhrzeit versuchen?';
+ return t(
+   'Zu dieser Zeit ist leider kein Platz mehr frei. Möchtest du eine andere Uhrzeit versuchen?',
+   'Zu dieser Zeit ist leider kein Platz mehr frei. Möchten Sie eine andere Uhrzeit versuchen?',
+   'Da ist gerade kein Platz mehr. Andere Zeit?'
+ );
  }
  }
  }
@@ -1583,8 +1587,8 @@ console.log("WIDGET STARTET");
  if (chatMessages.children.length === 0) {
  addMessage('bot', t(
  `Hallo! Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\nPreise\nÖffnungszeiten\nStandort\nKontakt`,
- `Hallo! Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\nPreise\nÖffnungszeiten\nStandort\nKontakt`,
- `Hallo! Wie kann ich dir helfen?\n\nIch beantworte Fragen zu:\nPreise\nÖffnungszeiten\nStandort\nKontakt`
+ `Guten Tag! Wie kann ich Ihnen helfen?\n\nIch beantworte Ihre Fragen zu:\nPreisen\nÖffnungszeiten\nStandort\nKontakt`,
+ `Hey! Was kann ich für dich tun?\n\nIch kenn mich aus mit:\nPreisen\nÖffnungszeiten\nStandort\nKontakt`
  ));
  }
  }
