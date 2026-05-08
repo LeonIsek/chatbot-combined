@@ -975,10 +975,13 @@ console.log("WIDGET STARTET");
  for (const raw of lines) {
  const line = raw.trim();
  if (!line) continue;
- const colonSplit = line.match(/^([^:]+?):\s*(.+)$/);
- if (!colonSplit) continue;
- const dayPart = colonSplit[1].trim().toLowerCase();
- let hoursPart = colonSplit[2].trim().toLowerCase();
+ // Bug 2026-05-08: Wirt-Eingabe ist mal mit, mal ohne Kolon ("Di-Do: 11:30-14:00"
+ // oder "Di-Do 11:30-14:00"). Splitten am ersten Whitespace, der vor einer Zahl
+ // oder einem Schluss-Keyword steht.
+ const split = line.match(/^(.+?)\s+(\d.*|geschlossen.*|ruhetag.*|closed.*|-)$/i);
+ if (!split) continue;
+ const dayPart = split[1].replace(/[:,;]+$/, '').trim().toLowerCase();
+ let hoursPart = split[2].trim().toLowerCase();
  // Strip parenthetical notes: "(nur nach Vereinbarung)"
  hoursPart = hoursPart.replace(/\([^)]*\)/g, '').trim();
 
@@ -1798,14 +1801,20 @@ console.log("WIDGET STARTET");
  // Range in Minuten
  let startMin, endMin, interval = 30;
  if (bt === 'restaurant' || bt === 'cafe' || bt === 'pizzeria' || bt === 'bar') {
- startMin = 17 * 60; endMin = 22 * 60 + 30;
+ startMin = 17 * 60; endMin = 22 * 60;
  } else if (bt === 'medical' || bt === 'beauty' || bt === 'service' || bt === 'salon' || bt === 'coiffeur') {
  startMin = 9 * 60; endMin = 18 * 60; interval = 30;
  } else {
  startMin = 10 * 60; endMin = 20 * 60;
  }
+ // Bug 2026-05-08: letzter Slot muss + default_duration <= endMin sein, sonst
+ // bietet der Bot eine Reservation an, die ueber Schluss laeuft (z.B. 22:30 + 90min).
+ const clientInterval = parseInt(clientData.slotInterval, 10);
+ if (!Number.isNaN(clientInterval) && clientInterval > 0) interval = clientInterval;
+ const duration = parseInt(clientData.defaultDurationMinutes, 10) || 0;
+ const latestStart = endMin - duration;
  const slots = [];
- for (let m = startMin; m <= endMin; m += interval) {
+ for (let m = startMin; m <= latestStart; m += interval) {
  slots.push({ time: formatMinutesToTime(m), isFree: true });
  }
  return slots;
