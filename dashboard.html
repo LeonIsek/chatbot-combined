@@ -140,6 +140,26 @@
     .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
 
+    /* Business-Hours-Grid (Phase B 2026-05-08) */
+    .bh-grid { display: grid; gap: 8px; }
+    .bh-day { display: grid; grid-template-columns: 110px 1fr auto; gap: 12px; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .bh-day:last-child { border-bottom: none; }
+    .bh-day-label { font-size: 13px; font-weight: 500; }
+    .bh-ranges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .bh-range { display: inline-flex; gap: 4px; align-items: center; padding: 4px 4px 4px 8px;
+      border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+    .bh-range input[type="time"] { width: 80px; padding: 4px 6px; font-size: 12px;
+      border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
+    .bh-range-sep { color: var(--muted); font-size: 12px; }
+    .bh-range-x { background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 14px; padding: 0 4px; line-height: 1; }
+    .bh-range-x:hover { color: var(--danger); }
+    .bh-closed { color: var(--muted); font-size: 12px; font-style: italic; }
+    .bh-add-btn { padding: 4px 8px; font-size: 12px; border: 1px dashed var(--border);
+      background: transparent; color: var(--muted); border-radius: var(--radius); cursor: pointer; }
+    .bh-add-btn:hover { color: var(--text); border-color: var(--text); }
+
     .btn { padding: 9px 14px; border: 1px solid var(--border); background: var(--surface);
       color: var(--text); border-radius: var(--radius); font-size: 13px; font-weight: 500;
       cursor: pointer; font-family: inherit; transition: all 120ms; }
@@ -732,7 +752,12 @@
           </div>
           <div class="field"><label>Adresse</label><input type="text" data-field="address"/></div>
           <div class="field"><label>Website</label><input type="url" data-field="website"/></div>
-          <div class="field"><label>Öffnungszeiten</label><textarea data-field="opening_hours" placeholder="Mo Ruhetag&#10;Di-Do 11:30-14:00 & 17:30-22:00&#10;..."></textarea></div>
+          <div class="field" id="business-hours-field">
+            <label>Öffnungszeiten</label>
+            <div id="bh-grid" class="bh-grid"></div>
+            <div class="sub">Mehrere Zeitfenster pro Tag möglich (z.B. Mittag + Abend). Geschlossen = keine Zeitfenster.</div>
+          </div>
+          <div class="field hidden"><label>Öffnungszeiten (legacy text)</label><textarea data-field="opening_hours" placeholder=""></textarea></div>
           <div class="field"><label>Preise / Angebote</label><textarea data-field="prices"></textarea></div>
           <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, gehört in den Tab Bot-Infos.</div></div>
 
@@ -1078,12 +1103,119 @@
       }
     }
 
+    // ============ Business-Hours (Phase B 2026-05-08) ============
+    // Strukturierte Oeffnungszeiten ersetzen brittle Freitext clients.opening_hours.
+    // Weekday-Konvention: 0=Sonntag, 1=Montag, ..., 6=Samstag (JS Date.getDay()).
+    const BH_DAY_LABELS = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const BH_DAY_ORDER = [1,2,3,4,5,6,0]; // Mo-Sa-So fuer Anzeige
+    let bhRowsOriginal = []; // fuer Cancel-Edit
+
+    async function loadBusinessHours() {
+      try {
+        const { rows } = await api('/api/customer/business-hours');
+        bhRowsOriginal = JSON.parse(JSON.stringify(rows || []));
+        renderBusinessHours(rows || []);
+      } catch (e) {
+        console.error('loadBusinessHours failed:', e);
+        renderBusinessHours([]);
+      }
+    }
+
+    function renderBusinessHours(rows) {
+      const grid = $('bh-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const byDay = {};
+      for (const r of rows) {
+        const wd = Number(r.weekday);
+        if (!byDay[wd]) byDay[wd] = [];
+        byDay[wd].push({
+          open: String(r.open_time || '').slice(0,5),
+          close: String(r.close_time || '').slice(0,5)
+        });
+      }
+      for (const wd of BH_DAY_ORDER) {
+        const dayRanges = byDay[wd] || [];
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'bh-day';
+        dayDiv.dataset.weekday = String(wd);
+        dayDiv.innerHTML = `
+          <div class="bh-day-label">${BH_DAY_LABELS[wd]}</div>
+          <div class="bh-ranges"></div>
+          <button type="button" class="bh-add-btn" data-add="${wd}">+ Zeitfenster</button>
+        `;
+        const rangesDiv = dayDiv.querySelector('.bh-ranges');
+        if (dayRanges.length === 0) {
+          rangesDiv.innerHTML = '<span class="bh-closed">geschlossen</span>';
+        } else {
+          for (const r of dayRanges) bhAppendRangeUI(rangesDiv, r.open, r.close);
+        }
+        dayDiv.querySelector('.bh-add-btn').addEventListener('click', () => {
+          const closed = rangesDiv.querySelector('.bh-closed');
+          if (closed) closed.remove();
+          bhAppendRangeUI(rangesDiv, '', '');
+        });
+        grid.appendChild(dayDiv);
+      }
+    }
+
+    function bhAppendRangeUI(container, openVal, closeVal) {
+      const span = document.createElement('span');
+      span.className = 'bh-range';
+      span.innerHTML = `
+        <input type="time" class="bh-open" value="${openVal}" step="900" />
+        <span class="bh-range-sep">–</span>
+        <input type="time" class="bh-close" value="${closeVal}" step="900" />
+        <button type="button" class="bh-range-x" title="Entfernen">×</button>
+      `;
+      span.querySelector('.bh-range-x').addEventListener('click', () => {
+        const parent = span.parentElement;
+        span.remove();
+        if (parent && parent.children.length === 0) {
+          parent.innerHTML = '<span class="bh-closed">geschlossen</span>';
+        }
+      });
+      container.appendChild(span);
+    }
+
+    function collectBusinessHoursRows() {
+      const out = [];
+      const days = getAll('#bh-grid .bh-day');
+      for (const day of days) {
+        const wd = Number(day.dataset.weekday);
+        const ranges = day.querySelectorAll('.bh-range');
+        for (const r of ranges) {
+          const open = (r.querySelector('.bh-open') || {}).value || '';
+          const close = (r.querySelector('.bh-close') || {}).value || '';
+          if (!open || !close) continue;
+          out.push({ weekday: wd, open_time: open, close_time: close });
+        }
+      }
+      return out;
+    }
+
+    async function saveBusinessHours() {
+      const rows = collectBusinessHoursRows();
+      // Validation client-side: close > open
+      for (const r of rows) {
+        if (r.close_time <= r.open_time) {
+          throw new Error(`Bei ${BH_DAY_LABELS[r.weekday]}: Schluss nach Oeffnung.`);
+        }
+      }
+      await api('/api/customer/business-hours', {
+        method: 'PUT',
+        body: JSON.stringify({ rows })
+      });
+      bhRowsOriginal = JSON.parse(JSON.stringify(rows));
+    }
+
     // ============ Load Data ============
     async function loadAll() {
       try {
         const { client } = await api('/api/customer/client');
         clientData = client;
         fillForm();
+        await loadBusinessHours();
         $('header-title').textContent = 'Dashboard · ' + client.business_name;
         $('header-user-email').textContent = client.email;
         // Reservations-Tab toggle
@@ -2727,7 +2859,9 @@
     // ============ Save ============
     async function saveSection(section) {
       const mapping = {
-        home:     ['business_name','phone','address','website','opening_hours','prices','note'],
+        // opening_hours: Phase B 2026-05-08 — wird ueber business_hours-Tabelle gepflegt,
+        // nicht mehr ueber clients.opening_hours-Freitext.
+        home:     ['business_name','phone','address','website','prices','note'],
         botinfo:  ['tone','custom_info'],
         branding: ['bubble_color','bubble_icon_url']
       };
@@ -2741,6 +2875,10 @@
       statusEl.className = 'save-status';
       try {
         await api('/api/customer/client', { method: 'PATCH', body: JSON.stringify(payload) });
+        // Phase B: business_hours separat speichern wenn home-Tab. Eigene Tabelle.
+        if (section === 'home') {
+          await saveBusinessHours();
+        }
         statusEl.textContent = 'Gespeichert';
         statusEl.className = 'save-status saved';
         Object.assign(clientData, payload);
@@ -2760,7 +2898,7 @@
 
     function homeEnterEditMode() {
       homeOriginalValues = {};
-      ['business_name','phone','address','website','opening_hours','prices','note'].forEach(f => {
+      ['business_name','phone','address','website','prices','note'].forEach(f => {
         const el = get(`[data-field="${f}"]`);
         if (el) homeOriginalValues[f] = el.value;
       });
@@ -2772,6 +2910,8 @@
         const el = get(`[data-field="${f}"]`);
         if (el) el.value = v;
       });
+      // Phase B: business_hours auf Original zuruecksetzen
+      renderBusinessHours(bhRowsOriginal || []);
       $('home-panel').classList.add('readonly-mode');
     }
 
