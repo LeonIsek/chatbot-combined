@@ -754,12 +754,15 @@
           <div class="field"><label>Website</label><input type="url" data-field="website"/></div>
           <div class="field" id="business-hours-field">
             <label>Öffnungszeiten</label>
+            <div id="bh-empty-hint" class="hidden" style="background:var(--bg);border:1px dashed var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--muted);">
+              <i data-lucide="info"></i> Du hast noch keine strukturierten Öffnungszeiten eingetragen. Trage hier deine Zeiten ein, damit der Bot Reservationen passgenau prüfen kann.
+            </div>
             <div id="bh-grid" class="bh-grid"></div>
-            <div class="sub">Mehrere Zeitfenster pro Tag möglich (z.B. Mittag + Abend). Geschlossen = keine Zeitfenster.</div>
+            <div class="sub">Mehrere Zeitfenster pro Tag möglich (z.B. Mittag + Abend). Tag ohne Zeitfenster = Ruhetag.</div>
           </div>
           <div class="field hidden"><label>Öffnungszeiten (legacy text)</label><textarea data-field="opening_hours" placeholder=""></textarea></div>
           <div class="field"><label>Preise / Angebote</label><textarea data-field="prices"></textarea></div>
-          <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, gehört in den Tab Bot-Infos.</div></div>
+          <div class="field"><label>Allgemeine Notizen (nur für dich)</label><textarea data-field="note" placeholder="Internes Memo: Notizen die nur du siehst, z.B. Telefonnummer eines Stammkunden, Lieferanten-Nummer..."></textarea><div class="sub">Internes Memo nur für dich. Was der Bot wissen soll, sagst du im Tab Bot konfigurieren.</div></div>
 
           <div class="save-bar">
             <span class="save-status" id="home-save-status"></span>
@@ -994,7 +997,7 @@
       <div class="tab-content hidden" data-tab-content="wirt-chat">
         <div class="panel">
           <h3>Bot konfigurieren</h3>
-          <p class="section-hint">Sag dem Bot in eigenen Worten was sich aendert — er traegt es selbst ein.</p>
+          <p class="section-hint">Sag dem Bot in eigenen Worten was sich ändert — er trägt es selbst ein.</p>
           <div id="wirt-chat-log" style="border:1px solid var(--border);border-radius:8px;padding:12px;height:340px;overflow-y:auto;background:var(--surface);font-size:14px;line-height:1.5;"></div>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <textarea id="wirt-chat-input" rows="2" placeholder="Was soll der Bot wissen?" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;resize:vertical;background:var(--surface);color:var(--text);"></textarea>
@@ -1017,7 +1020,7 @@
             "Bitte siez die Kunden ab jetzt"<br/>
             "Hunde sind willkommen, aber nicht im Innenraum"<br/>
             "Diese Woche kostet jede Pizza CHF 18"<br/>
-            "Zeig mir die Regeln" / "Loesche die Schliessung"
+            "Zeig mir die Regeln" / "Lösche die Schliessung"
           </div>
         </details>
       </div>
@@ -1130,6 +1133,10 @@
           close: String(r.close_time || '').slice(0,5)
         });
       }
+      const tableEmpty = (rows || []).length === 0;
+      const hint = $('bh-empty-hint');
+      if (hint) hint.classList.toggle('hidden', !tableEmpty);
+      const emptyDayLabel = tableEmpty ? 'noch nicht eingetragen' : 'Ruhetag';
       for (const wd of BH_DAY_ORDER) {
         const dayRanges = byDay[wd] || [];
         const dayDiv = document.createElement('div');
@@ -1142,7 +1149,7 @@
         `;
         const rangesDiv = dayDiv.querySelector('.bh-ranges');
         if (dayRanges.length === 0) {
-          rangesDiv.innerHTML = '<span class="bh-closed">geschlossen</span>';
+          rangesDiv.innerHTML = `<span class="bh-closed">${emptyDayLabel}</span>`;
         } else {
           for (const r of dayRanges) bhAppendRangeUI(rangesDiv, r.open, r.close);
         }
@@ -1168,7 +1175,7 @@
         const parent = span.parentElement;
         span.remove();
         if (parent && parent.children.length === 0) {
-          parent.innerHTML = '<span class="bh-closed">geschlossen</span>';
+          parent.innerHTML = '<span class="bh-closed">Ruhetag</span>';
         }
       });
       container.appendChild(span);
@@ -3123,7 +3130,7 @@
         row.innerHTML = `<div style="flex:1;"><span style="display:inline-block;background:var(--brand);color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;margin-right:8px;">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>${escapeHtml(r.description)}${scopeStr}</div>`;
         const btn = document.createElement('button');
         btn.className = 'btn';
-        btn.textContent = 'Loeschen';
+        btn.textContent = 'Löschen';
         btn.style.color = 'var(--danger)';
         btn.style.marginLeft = '12px';
         btn.addEventListener('click', () => wirtDeleteRule(r.id));
@@ -3149,12 +3156,12 @@
     }
 
     async function wirtDeleteRule(id) {
-      if (!confirm('Regel wirklich loeschen?')) return;
+      if (!confirm('Regel wirklich löschen?')) return;
       try {
         await api('/api/customer/bot-rules/' + id, { method: 'DELETE' });
         await wirtLoadRules();
       } catch (e) {
-        alert('Loeschen fehlgeschlagen: ' + e.message);
+        alert('Löschen fehlgeschlagen: ' + e.message);
       }
     }
 
@@ -3194,7 +3201,7 @@
         return;
       }
       wirtState.initialized = true;
-      const greeting = 'Hallo! Sag mir was sich geaendert hat — z.B. "morgen haben wir zu" oder "siez die Kunden ab jetzt". Ich trage es direkt fuer den Bot ein.';
+      const greeting = 'Hallo! Sag mir was sich geändert hat — z.B. "morgen haben wir zu" oder "siez die Kunden ab jetzt". Ich trage es direkt für den Bot ein.';
       wirtAddMsg('assistant', greeting);
       const sendBtn = $('wirt-chat-send');
       if (sendBtn) sendBtn.addEventListener('click', wirtSendMessage);
