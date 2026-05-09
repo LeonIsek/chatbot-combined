@@ -718,7 +718,6 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="home"><i data-lucide="home"></i> Übersicht</button>
         <button class="tab-btn" data-tab="reservations"><i data-lucide="calendar"></i> Reservierungen</button>
-        <button class="tab-btn" data-tab="botinfo"><i data-lucide="message-circle"></i> Bot-Infos</button>
         <button class="tab-btn" data-tab="website"><i data-lucide="globe"></i> Website</button>
         <button class="tab-btn" data-tab="branding"><i data-lucide="palette"></i> Branding</button>
         <button class="tab-btn" data-tab="tables"><i data-lucide="armchair"></i> Tische</button>
@@ -729,9 +728,9 @@
       <div class="tab-content" data-tab-content="home">
         <div class="panel hint-panel">
           <p style="margin:0;font-size:13px;">
-            <i data-lucide="lightbulb"></i> <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) trägst du im Tab
-            <a href="#" onclick="document.querySelector('[data-tab=&quot;botinfo&quot;]').click(); return false;" style="font-weight:600;"><i data-lucide="message-circle"></i> Bot-Infos <i data-lucide="arrow-right"></i></a>
-            ein. Bot berücksichtigt das ab der nächsten Nachricht, kein Deploy nötig.
+            <i data-lucide="lightbulb"></i> <strong>Was der Bot lernen soll</strong> (Specials, Ausnahmen, Ferien, „nächste Woche geschlossen"…) sagst du im Tab
+            <a href="#" onclick="document.querySelector('[data-tab=&quot;wirt-chat&quot;]').click(); return false;" style="font-weight:600;"><i data-lucide="message-square"></i> Bot konfigurieren <i data-lucide="arrow-right"></i></a>
+            in eigenen Worten. Bot berücksichtigt das ab der nächsten Nachricht, kein Deploy nötig.
           </p>
         </div>
 
@@ -839,42 +838,6 @@
       </div>
 
       <!-- Tab: Bot-Infos -->
-      <div class="tab-content hidden" data-tab-content="botinfo">
-        <div class="panel">
-          <h3>Tonfall des Bots</h3>
-          <p class="section-hint">Wie soll der Bot mit Gästen reden?</p>
-          <div class="field">
-            <select data-field="tone">
-              <option value="friendly">Freundlich (passt sich an Person an)</option>
-              <option value="formal">Formell (immer "Sie")</option>
-              <option value="casual">Locker (immer "du", mit Emoji)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>Zusätzliche Infos für den Bot</h3>
-          <p class="section-hint">Was soll der Bot wissen über deinen Betrieb? Je konkreter, desto besser die Antworten. Auch Ferien, temporäre Schließungen und Specials gehören hier rein. Beispiele:</p>
-          <div style="background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--muted); font-family: monospace;">
-            • Vom 1.-7. Mai geschlossen wegen Ferien<br/>
-            • Diese Woche Specials: Trüffel-Pasta CHF 32, Tiramisu hausgemacht<br/>
-            • Freitag Abend kein Kindermenü<br/>
-            • Hund im Garten OK, nicht im Innenraum<br/>
-            • Für 10+ Personen bitte mindestens 3 Tage vorher reservieren<br/>
-            • Wir haben vegan/vegetarisch (Menü auf Anfrage)<br/>
-            • Parkplatz: 5 Plätze direkt am Haus, sonst Pilatus-Parkhaus (200m)
-          </div>
-          <div class="field">
-            <textarea data-field="custom_info" rows="10" placeholder="Hier schreiben..."></textarea>
-            <div class="sub">Bot berücksichtigt das ab der nächsten Nachricht. Keine Deployment-Wartezeit.</div>
-          </div>
-          <div class="save-bar">
-            <span class="save-status" id="botinfo-save-status"></span>
-            <button class="btn primary" data-save="botinfo">Speichern</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Tab: Website -->
       <div class="tab-content hidden" data-tab-content="website">
         <div class="panel">
@@ -1031,18 +994,10 @@
       <div class="tab-content hidden" data-tab-content="wirt-chat">
         <div class="panel">
           <h3>Bot konfigurieren</h3>
-          <p class="section-hint">Sag dem Bot in eigenen Worten was sich aendert — er traegt es selbst ein. Beispiele:</p>
-          <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--muted);font-family:monospace;">
-            "Morgen haben wir zu"<br/>
-            "Vom 15. bis 22. Juni sind wir in den Ferien"<br/>
-            "Bitte siez die Kunden ab jetzt"<br/>
-            "Hunde sind willkommen, aber nicht im Innenraum"<br/>
-            "Diese Woche kostet jede Pizza CHF 18"<br/>
-            "Zeig mir die Regeln" / "Loesche die Schliessung"
-          </div>
-          <div id="wirt-chat-log" style="border:1px solid var(--border);border-radius:8px;padding:12px;height:340px;overflow-y:auto;background:var(--bg);font-size:14px;line-height:1.5;"></div>
+          <p class="section-hint">Sag dem Bot in eigenen Worten was sich aendert — er traegt es selbst ein.</p>
+          <div id="wirt-chat-log" style="border:1px solid var(--border);border-radius:8px;padding:12px;height:340px;overflow-y:auto;background:var(--surface);font-size:14px;line-height:1.5;"></div>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <textarea id="wirt-chat-input" rows="2" placeholder="Was soll der Bot wissen?" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+            <textarea id="wirt-chat-input" rows="2" placeholder="Was soll der Bot wissen?" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;resize:vertical;background:var(--surface);color:var(--text);"></textarea>
             <button class="btn primary" id="wirt-chat-send" style="align-self:flex-end;">Senden</button>
           </div>
         </div>
@@ -1053,6 +1008,18 @@
           <div id="wirt-rules-list"></div>
           <div class="empty hidden" id="wirt-rules-empty">Noch keine Regeln gespeichert.</div>
         </div>
+
+        <details class="panel" style="padding:14px 18px;">
+          <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--muted);">Beispiele anzeigen</summary>
+          <div style="margin-top:10px;font-size:12px;color:var(--muted);font-family:monospace;line-height:1.7;">
+            "Morgen haben wir zu"<br/>
+            "Vom 15. bis 22. Juni sind wir in den Ferien"<br/>
+            "Bitte siez die Kunden ab jetzt"<br/>
+            "Hunde sind willkommen, aber nicht im Innenraum"<br/>
+            "Diese Woche kostet jede Pizza CHF 18"<br/>
+            "Zeig mir die Regeln" / "Loesche die Schliessung"
+          </div>
+        </details>
       </div>
     </div>
   </main>
@@ -2891,7 +2858,6 @@
         // opening_hours: Phase B 2026-05-08 — wird ueber business_hours-Tabelle gepflegt,
         // nicht mehr ueber clients.opening_hours-Freitext.
         home:     ['business_name','phone','address','website','prices','note'],
-        botinfo:  ['tone','custom_info'],
         branding: ['bubble_color','bubble_icon_url']
       };
       const payload = {};
@@ -3118,11 +3084,12 @@
       div.style.borderRadius = '8px';
       div.style.maxWidth = '85%';
       if (role === 'user') {
-        div.style.background = 'var(--brand)';
-        div.style.color = '#fff';
+        div.style.background = 'var(--text)';
+        div.style.color = 'var(--on-accent)';
         div.style.marginLeft = 'auto';
       } else {
-        div.style.background = 'var(--card-bg, #fff)';
+        div.style.background = 'var(--bg)';
+        div.style.color = 'var(--text)';
         div.style.border = '1px solid var(--border)';
       }
       div.textContent = text;
