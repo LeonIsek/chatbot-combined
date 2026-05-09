@@ -722,6 +722,7 @@
         <button class="tab-btn" data-tab="website"><i data-lucide="globe"></i> Website</button>
         <button class="tab-btn" data-tab="branding"><i data-lucide="palette"></i> Branding</button>
         <button class="tab-btn" data-tab="tables"><i data-lucide="armchair"></i> Tische</button>
+        <button class="tab-btn" data-tab="wirt-chat"><i data-lucide="message-square"></i> Bot konfigurieren</button>
       </div>
 
       <!-- Tab: Home / Business-Info -->
@@ -1023,6 +1024,34 @@
             </table>
           </div>
           <div class="empty hidden" id="resource-empty">Noch keine Ressourcen angelegt. Klick "+ Neu anlegen" um zu starten.</div>
+        </div>
+      </div>
+
+      <!-- Tab: Wirt-Chat-Mode (Phase C 2026-05-09) -->
+      <div class="tab-content hidden" data-tab-content="wirt-chat">
+        <div class="panel">
+          <h3>Bot konfigurieren</h3>
+          <p class="section-hint">Sag dem Bot in eigenen Worten was sich aendert — er traegt es selbst ein. Beispiele:</p>
+          <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--muted);font-family:monospace;">
+            "Morgen haben wir zu"<br/>
+            "Vom 15. bis 22. Juni sind wir in den Ferien"<br/>
+            "Bitte siez die Kunden ab jetzt"<br/>
+            "Hunde sind willkommen, aber nicht im Innenraum"<br/>
+            "Diese Woche kostet jede Pizza CHF 18"<br/>
+            "Zeig mir die Regeln" / "Loesche die Schliessung"
+          </div>
+          <div id="wirt-chat-log" style="border:1px solid var(--border);border-radius:8px;padding:12px;height:340px;overflow-y:auto;background:var(--bg);font-size:14px;line-height:1.5;"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <textarea id="wirt-chat-input" rows="2" placeholder="Was soll der Bot wissen?" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+            <button class="btn primary" id="wirt-chat-send" style="align-self:flex-end;">Senden</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Aktive Regeln</h3>
+          <p class="section-hint">Diese Regeln zieht der Bot bei Kunden-Anfragen automatisch heran.</p>
+          <div id="wirt-rules-list"></div>
+          <div class="empty hidden" id="wirt-rules-empty">Noch keine Regeln gespeichert.</div>
         </div>
       </div>
     </div>
@@ -3056,6 +3085,7 @@
       getAll('.tab-content').forEach(c => c.classList.add('hidden'));
       get('[data-tab-content="' + btn.dataset.tab + '"]').classList.remove('hidden');
       if (btn.dataset.tab === 'tables') loadResources();
+      if (btn.dataset.tab === 'wirt-chat') wirtChatInitOnce();
       if (btn.dataset.tab === 'reservations') {
         // layoutInitOnce ist idempotent und bindet ALLE Controls (View-Toggle,
         // Mode-Toggle, Modal-Buttons, Zeit-Stepper). Wenn das hier nicht laeuft
@@ -3066,6 +3096,150 @@
         }, 50);
       }
     }));
+
+    // ============ Wirt-Chat-Mode (Phase C 2026-05-09) ============
+    // Wirt redet mit dem Bot zur Konfiguration: "morgen zu", "siez die Kunden", etc.
+    // Backend nutzt Function-Calling (claude-sonnet-4-6) und schreibt in bot_rules /
+    // clients-Felder. UI: Chat-Log oben, aktive-Regeln-Liste unten.
+    const wirtState = { initialized: false, history: [] };
+    const RULE_TYPE_LABEL = {
+      closure: 'Schliessung',
+      custom_info: 'Info',
+      pricing: 'Preis',
+      note: 'Hinweis'
+    };
+
+    function wirtAddMsg(role, text) {
+      const log = $('wirt-chat-log');
+      if (!log) return;
+      const div = document.createElement('div');
+      div.style.marginBottom = '10px';
+      div.style.padding = '8px 12px';
+      div.style.borderRadius = '8px';
+      div.style.maxWidth = '85%';
+      if (role === 'user') {
+        div.style.background = 'var(--brand)';
+        div.style.color = '#fff';
+        div.style.marginLeft = 'auto';
+      } else {
+        div.style.background = 'var(--card-bg, #fff)';
+        div.style.border = '1px solid var(--border)';
+      }
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function wirtRenderRules(rules) {
+      const list = $('wirt-rules-list');
+      const empty = $('wirt-rules-empty');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!rules || rules.length === 0) {
+        if (empty) empty.classList.remove('hidden');
+        return;
+      }
+      if (empty) empty.classList.add('hidden');
+      for (const r of rules) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '10px 12px';
+        row.style.border = '1px solid var(--border)';
+        row.style.borderRadius = '6px';
+        row.style.marginBottom = '8px';
+        row.style.background = 'var(--bg)';
+        const scopeStr = (r.scope_start || r.scope_end)
+          ? ` <span style="color:var(--muted);font-size:12px;">(${[r.scope_start, r.scope_end].filter(Boolean).map(s => s.slice(0, 10)).join(' bis ')})</span>`
+          : '';
+        row.innerHTML = `<div style="flex:1;"><span style="display:inline-block;background:var(--brand);color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;margin-right:8px;">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>${escapeHtml(r.description)}${scopeStr}</div>`;
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = 'Loeschen';
+        btn.style.color = 'var(--danger)';
+        btn.style.marginLeft = '12px';
+        btn.addEventListener('click', () => wirtDeleteRule(r.id));
+        row.appendChild(btn);
+        list.appendChild(row);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    async function wirtLoadRules() {
+      try {
+        const { rules } = await api('/api/customer/bot-rules');
+        wirtRenderRules(rules || []);
+      } catch (e) {
+        console.error('wirtLoadRules failed:', e);
+        wirtRenderRules([]);
+      }
+    }
+
+    async function wirtDeleteRule(id) {
+      if (!confirm('Regel wirklich loeschen?')) return;
+      try {
+        await api('/api/customer/bot-rules/' + id, { method: 'DELETE' });
+        await wirtLoadRules();
+      } catch (e) {
+        alert('Loeschen fehlgeschlagen: ' + e.message);
+      }
+    }
+
+    async function wirtSendMessage() {
+      const input = $('wirt-chat-input');
+      const sendBtn = $('wirt-chat-send');
+      if (!input || !sendBtn) return;
+      const message = input.value.trim();
+      if (!message) return;
+      sendBtn.disabled = true;
+      input.disabled = true;
+      wirtAddMsg('user', message);
+      input.value = '';
+      try {
+        const data = await api('/api/wirt-chat', {
+          method: 'POST',
+          body: JSON.stringify({ message, history: wirtState.history.slice(-10) })
+        });
+        wirtAddMsg('assistant', data.reply || '(keine Antwort)');
+        wirtState.history.push({ role: 'user', content: message });
+        wirtState.history.push({ role: 'assistant', content: data.reply || '' });
+        if (Array.isArray(data.actions) && data.actions.length > 0) {
+          await wirtLoadRules();
+        }
+      } catch (e) {
+        wirtAddMsg('assistant', 'Fehler: ' + e.message);
+      } finally {
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    function wirtChatInitOnce() {
+      if (wirtState.initialized) {
+        wirtLoadRules();
+        return;
+      }
+      wirtState.initialized = true;
+      const greeting = 'Hallo! Sag mir was sich geaendert hat — z.B. "morgen haben wir zu" oder "siez die Kunden ab jetzt". Ich trage es direkt fuer den Bot ein.';
+      wirtAddMsg('assistant', greeting);
+      const sendBtn = $('wirt-chat-send');
+      if (sendBtn) sendBtn.addEventListener('click', wirtSendMessage);
+      const input = $('wirt-chat-input');
+      if (input) input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          wirtSendMessage();
+        }
+      });
+      wirtLoadRules();
+    }
 
     // Resources-Add
     const resAddBtn = $('resource-add-btn');
