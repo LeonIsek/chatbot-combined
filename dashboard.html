@@ -247,6 +247,14 @@
     .panel.readonly-mode .sub { display: none; }
     .panel.readonly-mode .save-bar { display: none; }
     .panel.readonly-mode .edit-bar { display: flex !important; }
+    /* business_hours: time-inputs read-only, +/× nur im Edit-Modus */
+    .panel.readonly-mode input[type="time"] {
+      pointer-events: none;
+      background: transparent;
+      border-color: transparent;
+    }
+    .panel.readonly-mode .bh-range-x,
+    .panel.readonly-mode .bh-add-btn { display: none; }
     .edit-bar { display: none; justify-content: flex-end; padding-top: 12px; }
     .panel-header-actions {
       display: flex; gap: 8px; align-items: center;
