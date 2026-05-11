@@ -687,7 +687,7 @@ console.log("WIDGET STARTET");
 
  // Thanks keywords
  if (message.includes('danke') || message.includes('merci') || messageWithoutFillers.includes('danke')) {
- return ft('Sehr gerne! Wenn du noch Fragen zu Pizza, Öffnungszeiten oder Kontakt hast, bin ich da.', 'Sehr gerne! Für weitere Fragen zu Preisen, Öffnungszeiten oder Kontakt stehe ich Ihnen gerne zur Verfügung.', 'Klar doch! Falls du noch was wissen willst – einfach fragen.');
+ return ft('Sehr gerne! Wenn du noch Fragen zu Preisen, Öffnungszeiten oder Kontakt hast, bin ich da.', 'Sehr gerne! Für weitere Fragen zu Preisen, Öffnungszeiten oder Kontakt stehe ich Ihnen gerne zur Verfügung.', 'Klar doch! Falls du noch was wissen willst – einfach fragen.');
  }
 
  // Goodbye keywords
