@@ -1821,11 +1821,17 @@ console.log("WIDGET STARTET");
  };
 
  const showTimeSlotOptions = async (botAvailableSlots) => {
- // Backend-authoritativ: wenn Bot per-Tisch-Verfuegbarkeits-Liste schickt, bauen
- // wir die Slot-Liste daraus (statt lokaler flat-capacity-Check der per-Tisch-blind ist).
- // Default-Range fuer "voll"-Markierung: Restaurant 17-22 Uhr im 30-Min-Raster.
+ // Backend-authoritativ: Server schickt seit 2026-05-11 das volle Tages-Grid
+ // als [{time, isFree}, ...] direkt aus business_hours abgeleitet. Widget rendert nur.
+ // Vorher: hardcoded 17-22 Loop hier → kein Lunch (11:30-14:00), 22:30 ueber Schluss,
+ // falsche Voll-Labels. Live-Bug 2026-05-11 mittag.
  let slots;
  if (Array.isArray(botAvailableSlots)) {
+ const isObjectShape = botAvailableSlots.length > 0 && typeof botAvailableSlots[0] === 'object';
+ if (isObjectShape) {
+ slots = botAvailableSlots; // Neues Format: bereits {time, isFree}
+ } else {
+ // Legacy string[] — Backward-Compat fuer Race waehrend Render-Deploy.
  const freeSet = new Set(botAvailableSlots);
  const allSlots = [];
  for (let h = 17; h <= 22; h++) {
@@ -1835,6 +1841,7 @@ console.log("WIDGET STARTET");
  }
  }
  slots = allSlots;
+ }
  } else {
  slots = await getSlotAvailabilityForCurrentReservation();
  }
