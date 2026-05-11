@@ -788,7 +788,9 @@
         <div class="panel" id="res-enabled-panel">
           <div class="layout-toolbar">
             <label id="layout-date-label" style="font-size:13px;color:var(--muted);">Datum</label>
+            <button class="btn" id="layout-date-prev" type="button" title="Vorheriger Tag" style="padding:6px 8px;line-height:1;"><i data-lucide="chevron-left"></i></button>
             <input type="date" id="layout-date"/>
+            <button class="btn" id="layout-date-next" type="button" title="Nächster Tag" style="padding:6px 8px;line-height:1;"><i data-lucide="chevron-right"></i></button>
             <div class="view-toggle-group" role="tablist">
               <button data-view="timeline" class="active" id="view-timeline-btn" type="button" role="tab" title="Tagesplan: Tische als Zeilen, Zeit als Spalten — wie Outlook-Kalender">Tagesplan</button>
               <button data-view="floor" id="view-floor-btn" type="button" role="tab" title="Tisch-Plan: räumliche Sicht des Restaurants">Tisch-Plan</button>
@@ -1999,6 +2001,20 @@
         LAYOUT_TIME = computeDefaultLayoutTime();
         layoutRefresh();
       });
+      // Tages-Pfeile fuer schnellen Wechsel ±1 Tag
+      const shiftLayoutDate = (delta) => {
+        const [y, m, d] = LAYOUT_DATE.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        dt.setUTCDate(dt.getUTCDate() + delta);
+        LAYOUT_DATE = dt.toISOString().slice(0, 10);
+        datePicker.value = LAYOUT_DATE;
+        LAYOUT_TIME = computeDefaultLayoutTime();
+        layoutRefresh();
+      };
+      const dPrev = $('layout-date-prev');
+      const dNext = $('layout-date-next');
+      if (dPrev) dPrev.addEventListener('click', () => shiftLayoutDate(-1));
+      if (dNext) dNext.addEventListener('click', () => shiftLayoutDate(1));
 
       // LAYOUT_TIME wird intern auf "jetzt" gehalten — UI-Stepper wurde entfernt,
       // weil Tisch-Plan immer aktuelle Belegung zeigt und Tagesplan Zeit als Spalten rendert.
