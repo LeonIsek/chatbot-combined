@@ -407,6 +407,16 @@
     .tg-cell.lunch-break:hover { background: repeating-linear-gradient(
       45deg, transparent, transparent 6px,
       rgba(0,0,0,0.04) 6px, rgba(0,0,0,0.04) 12px); }
+    /* 2026-05-12: Geschlossene Stunden — sichtbar im Tagesplan aber dezent gedimmt.
+       Klick bleibt aktiv (Sonderfall-Reservation moeglich), nur visuell zurueckgenommen. */
+    .tg-cell.closed { background: repeating-linear-gradient(
+      45deg, transparent, transparent 6px,
+      rgba(0,0,0,0.025) 6px, rgba(0,0,0,0.025) 12px); opacity: 0.55;
+    }
+    .tg-cell.closed:hover { background: repeating-linear-gradient(
+      45deg, rgba(99,102,241,0.08), rgba(99,102,241,0.08) 6px,
+      rgba(0,0,0,0.05) 6px, rgba(0,0,0,0.05) 12px); opacity: 0.95; }
+    .tagesplan-header .tg-time-cell.closed { color: var(--muted); opacity: 0.5; }
 
     /* Reservation-Block: positioned absolute over tg-cells */
     .tg-block {
@@ -1306,6 +1316,7 @@
     // Tagesplan-Granularität in Minuten (Push 2 macht das switchbar)
     let TG_GRANULARITY = 30;
     let TG_CELL_WIDTH = 50; // px pro Spalte
+    let TG_LAST_AUTOSCROLLED_DATE = null; // pro Datum nur 1x auto-scrollen, danach Wirt-Scroll respektieren
 
     // Helper: HH:MM → Minuten seit 00:00
     function parseTimeToMin(t) {
@@ -1495,17 +1506,24 @@
         empty.classList.add('hidden');
       }
 
-      const startMin = sh.startMin;
-      const endMin = sh.endMin;
+      // 2026-05-12: Volle 24h-Achse anzeigen, geschlossene Stunden visuell dimmen.
+      // sh.startMin/endMin bleibt das Open-Window. renderTagesplanBlock arbeitet
+      // weiter korrekt weil offset von startMin=0 relativ berechnet wird.
+      const startMin = 0;
+      const endMin = 24 * 60;
       const gran = TG_GRANULARITY;
       const numCells = Math.ceil((endMin - startMin) / gran);
+      const isOpenMin = (m) => !sh.isClosed && m >= sh.startMin && m < sh.endMin;
 
       // === Header: Time-Labels ===
       let headerHtml = '<div class="tg-corner">Tisch</div><div class="tg-times">';
       for (let i = 0; i < numCells; i++) {
         const m = startMin + i * gran;
         const isHour = m % 60 === 0;
-        headerHtml += '<div class="tg-time-cell' + (isHour ? ' hour' : '') + '">'
+        const closed = !isOpenMin(m);
+        headerHtml += '<div class="tg-time-cell'
+          + (isHour ? ' hour' : '')
+          + (closed ? ' closed' : '') + '">'
           + (isHour ? minToTime(m) : '')
           + '</div>';
       }
@@ -1532,14 +1550,20 @@
           + '<span class="tg-cap">' + (cap ? cap + 'P' : '—') + '</span></div>';
         bodyHtml += '<div class="tg-cells">';
 
-        // Background-Cells (klickbar)
+        // Background-Cells (klickbar — auch ausserhalb Oeffnungszeit fuer Sonderfaelle)
         for (let i = 0; i < numCells; i++) {
           const m = startMin + i * gran;
           const isHour = m % 60 === 0;
+          const closed = !isOpenMin(m);
           const timeLabel = minToTime(m);
-          bodyHtml += '<div class="tg-cell' + (isHour ? ' hour' : '') + '" '
+          const title = closed
+            ? 'Ausserhalb Öffnungszeit · Klick → Reservation um ' + timeLabel + ' (Sonderfall)'
+            : 'Klick → Reservation um ' + timeLabel + ' für ' + escapeHtml(r.label || 'Tisch');
+          bodyHtml += '<div class="tg-cell'
+            + (isHour ? ' hour' : '')
+            + (closed ? ' closed' : '') + '" '
             + 'data-time="' + timeLabel + '" '
-            + 'title="Klick → Reservation um ' + timeLabel + ' für ' + escapeHtml(r.label || 'Tisch') + '"'
+            + 'title="' + title + '"'
             + '></div>';
         }
 
@@ -1570,6 +1594,28 @@
       }
 
       body.innerHTML = bodyHtml;
+
+      // 2026-05-12: Auto-Scroll auf erste sinnvolle Stunde beim Datums-Wechsel.
+      // Sonst sieht der Wirt erstmal 5h Leerlauf von 00:00. Bei "heute" auf jetzt-1h,
+      // sonst auf erste Open-Stunde. Pro Datum nur einmal — danach respektiert die
+      // Scroll-Position des Wirts (er kann frei rumscrollen).
+      if (TG_LAST_AUTOSCROLLED_DATE !== LAYOUT_DATE) {
+        TG_LAST_AUTOSCROLLED_DATE = LAYOUT_DATE;
+        requestAnimationFrame(() => {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          let targetMin;
+          if (LAYOUT_DATE === todayIso) {
+            const now = new Date();
+            targetMin = Math.max(0, now.getHours() * 60 + now.getMinutes() - 60);
+          } else {
+            targetMin = sh.isClosed ? 11 * 60 : sh.startMin;
+          }
+          // Cells gehoeren zur tg-cells-Container, nicht zur Sticky-Label-Spalte.
+          // .tagesplan ist der scrollende Container.
+          const scrollPx = (targetMin / gran) * TG_CELL_WIDTH;
+          if (wrap && scrollPx > 0) wrap.scrollLeft = scrollPx;
+        });
+      }
 
       // Click-Handler: leere Zelle → Walk-In, Block → Edit
       body.querySelectorAll('.tg-cell').forEach(cell => {
