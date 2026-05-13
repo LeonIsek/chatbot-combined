@@ -698,6 +698,25 @@
     .icon-lg [data-lucide], [data-lucide].icon-lg { width: 20px; height: 20px; }
     .icon-sm [data-lucide], [data-lucide].icon-sm { width: 14px; height: 14px; }
     button [data-lucide] { margin-right: 6px; }
+
+    /* 2026-05-13: Toast-Notifications fuer Auto-Refresh (neue Reservation eingegangen). */
+    #toast-host {
+      position: fixed; top: 20px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 4px solid var(--success); padding: 12px 16px;
+      border-radius: 8px; font-size: 14px; max-width: 360px; color: var(--text);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      opacity: 0; transform: translateX(20px);
+      transition: opacity 200ms ease, transform 200ms ease;
+      pointer-events: auto;
+    }
+    .toast.in { opacity: 1; transform: translateX(0); }
+    .toast.toast-info { border-left-color: #6366f1; }
+    .toast.toast-error { border-left-color: var(--danger); }
   </style>
 </head>
 <body>
@@ -1057,6 +1076,72 @@
 
     let clientData = null;
 
+    // 2026-05-13: Auto-Refresh fuer neue Reservations. Polling alle 20s waehrend
+    // Dashboard offen ist. Pausiert bei Hidden-Tab (visibilityState) und offenem
+    // Modal — verhindert UI-Disruption waehrend Wirt aktiv editiert.
+    let RES_POLL_INTERVAL = null;
+    let RES_KNOWN_IDS = new Set();
+    const RES_POLL_MS = 20000;
+
+    function showToast(message, type) {
+      let host = document.getElementById('toast-host');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'toast-host';
+        document.body.appendChild(host);
+      }
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + (type || 'success');
+      t.textContent = message;
+      host.appendChild(t);
+      requestAnimationFrame(() => t.classList.add('in'));
+      setTimeout(() => {
+        t.classList.remove('in');
+        setTimeout(() => t.remove(), 250);
+      }, 5000);
+    }
+
+    function startReservationPolling() {
+      if (RES_POLL_INTERVAL) return;
+      // Initial-Snapshot der bereits bekannten Reservations — Polling meldet nur
+      // was nach diesem Moment hinzukommt.
+      RES_KNOWN_IDS = new Set((typeof LAYOUT_RESERVATIONS !== 'undefined' ? LAYOUT_RESERVATIONS : [])
+        .map(r => String(r.id)));
+      RES_POLL_INTERVAL = setInterval(pollReservations, RES_POLL_MS);
+    }
+
+    function stopReservationPolling() {
+      if (RES_POLL_INTERVAL) { clearInterval(RES_POLL_INTERVAL); RES_POLL_INTERVAL = null; }
+      RES_KNOWN_IDS = new Set();
+    }
+
+    async function pollReservations() {
+      if (document.visibilityState !== 'visible') return;
+      const walkinModal = document.getElementById('walkin-modal');
+      if (walkinModal && walkinModal.classList.contains('visible')) return;
+      try {
+        const data = await api('/api/customer/reservations');
+        const todayList = (data.reservations || []).filter(r =>
+          r.date === (typeof LAYOUT_DATE !== 'undefined' ? LAYOUT_DATE : null));
+        const newOnes = todayList.filter(r => !RES_KNOWN_IDS.has(String(r.id)));
+        if (newOnes.length === 0) return;
+        newOnes.forEach(r => RES_KNOWN_IDS.add(String(r.id)));
+        // Full refresh — assignments + Tagesplan-Rerender
+        if (typeof layoutRefresh === 'function') {
+          await layoutRefresh();
+        }
+        const msg = newOnes.length === 1
+          ? 'Neue Reservation: ' + (newOnes[0].name || 'Gast') +
+            ' · ' + String(newOnes[0].start_time || '').slice(0, 5) +
+            ' · ' + (newOnes[0].guests || '?') + 'P'
+          : newOnes.length + ' neue Reservationen eingegangen';
+        showToast(msg, 'success');
+      } catch (e) {
+        // Stille Fehler — Polling ist Best-Effort, kein Hard-Fail
+        console.warn('[poll] failed:', e.message);
+      }
+    }
+
     async function api(path, opts = {}) {
       const headers = opts.headers || {};
       if (getToken()) headers['Authorization'] = 'Bearer ' + getToken();
@@ -1073,6 +1158,7 @@
       $('login-box').classList.remove('hidden');
       $('dashboard-box').classList.add('hidden');
       $('header-user').classList.add('hidden');
+      stopReservationPolling();
     }
     function showDashboard() {
       $('login-box').classList.add('hidden');
@@ -1248,6 +1334,9 @@
           $('res-enabled-panel').classList.remove('hidden');
           $('res-disabled-panel').classList.add('hidden');
           await loadReservations();
+          // 2026-05-13: Auto-Refresh starten erst nach Reservations-Load,
+          // damit RES_KNOWN_IDS den Startzustand kennt und nicht alle als "neu" toastet.
+          startReservationPolling();
         }
         await loadCrawlStatus();
         updateBubblePreview();
@@ -2182,6 +2271,11 @@
 
     async function layoutRefresh() {
       await layoutLoadAll();
+      // 2026-05-13: RES_KNOWN_IDS auf den aktuellen Stand synchronisieren — verhindert
+      // dass Datumswechsel / manuelle Edits faelschlich als "neu" getoastet werden.
+      if (typeof RES_KNOWN_IDS !== 'undefined') {
+        RES_KNOWN_IDS = new Set(LAYOUT_RESERVATIONS.map(r => String(r.id)));
+      }
       // Falls die selektierte Reservation nach Refresh weg ist (geloescht/anderes Datum) → Assign-Mode beenden
       if (LAYOUT_SELECTED_RESV) {
         const stillExists = LAYOUT_RESERVATIONS.some(r => r.id === LAYOUT_SELECTED_RESV.id);
@@ -2779,6 +2873,25 @@
       const email = $('walkin-email').value.trim();
       const note = $('walkin-note').value.trim();
       if (!date || !start_time) { alert('Datum und Uhrzeit sind Pflicht'); return; }
+
+      // 2026-05-13: Capacity-Warning fuer Neu-Eintrag mit Auto-Assign.
+      // Wirt darf bewusst ueberbuchen (Tisch laesst sich spaeter verschieben),
+      // soll aber nicht versehentlich passieren.
+      if (!WALKIN_EDITING_ID && WALKIN_AUTO_ASSIGN_RESOURCE_ID) {
+        const targetRes = (LAYOUT_RESOURCES || []).find(r =>
+          String(r.id) === String(WALKIN_AUTO_ASSIGN_RESOURCE_ID));
+        const cap = Number(targetRes?.capacity) || 0;
+        if (cap > 0 && guests > cap) {
+          const ok = confirm(
+            (targetRes.label || 'Tisch') + ' hat nur ' + cap +
+            (cap === 1 ? ' Platz' : ' Plätze') + ', du trägst aber ' + guests +
+            ' Personen ein.\n\nTrotzdem speichern? Du kannst sie später ' +
+            'auf einen grösseren Tisch verschieben.'
+          );
+          if (!ok) return;
+        }
+      }
+
       const payload = {
         name: name || null,
         date,
@@ -3159,6 +3272,14 @@
     $('login-request-btn').addEventListener('click', requestLoginEmail);
     $('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') requestLoginEmail(); });
     $('logout-btn').addEventListener('click', () => { setToken(null); showLogin(); });
+
+    // 2026-05-13: Bei Tab-Wiederkehr (visible) sofort einmal pollen — sonst muesste
+    // der Wirt nach Standby/Tab-Switch bis zu 20s warten bis er neue Reservations sieht.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && RES_POLL_INTERVAL) {
+        pollReservations();
+      }
+    });
 
     getAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
       getAll('.tab-btn').forEach(b => b.classList.remove('active'));
