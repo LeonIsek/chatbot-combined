@@ -375,9 +375,6 @@
       border-left: 1px solid var(--text);
       font-weight: 600; color: var(--text);
     }
-    .tagesplan-header .tg-time-cell.edge {
-      font-weight: 600; color: var(--text);
-    }
     .tagesplan-body { min-width: max-content; }
     .tg-row {
       display: flex; border-bottom: 1px solid var(--border);
@@ -410,16 +407,15 @@
     .tg-cell.lunch-break:hover { background: repeating-linear-gradient(
       45deg, transparent, transparent 6px,
       rgba(0,0,0,0.04) 6px, rgba(0,0,0,0.04) 12px); }
-    /* 2026-05-12: Geschlossene Stunden — sichtbar im Tagesplan aber dezent gedimmt.
-       Klick bleibt aktiv (Sonderfall-Reservation moeglich), nur visuell zurueckgenommen. */
-    .tg-cell.closed { background: repeating-linear-gradient(
-      45deg, transparent, transparent 6px,
-      rgba(0,0,0,0.025) 6px, rgba(0,0,0,0.025) 12px); opacity: 0.55;
+    /* 2026-05-13: Geschlossene Stunden — solider grau-Background damit die ganze
+       vertikale Kolumne klar als geschlossen sichtbar ist (Google/Apple Calendar-
+       Style). Klick bleibt aktiv (Sonderfall-Reservation moeglich). */
+    .tg-cell.closed { background: rgba(115, 115, 115, 0.16); }
+    .tg-cell.closed:hover { background: rgba(99, 102, 241, 0.18); }
+    .tagesplan-header .tg-time-cell.closed {
+      background: rgba(115, 115, 115, 0.16);
+      color: var(--muted);
     }
-    .tg-cell.closed:hover { background: repeating-linear-gradient(
-      45deg, rgba(99,102,241,0.08), rgba(99,102,241,0.08) 6px,
-      rgba(0,0,0,0.05) 6px, rgba(0,0,0,0.05) 12px); opacity: 0.95; }
-    .tagesplan-header .tg-time-cell.closed { color: var(--muted); opacity: 0.5; }
 
     /* Reservation-Block: positioned absolute over tg-cells */
     .tg-block {
@@ -1519,22 +1515,15 @@
       const isOpenMin = (m) => !sh.isClosed && m >= sh.startMin && m < sh.endMin;
 
       // === Header: Time-Labels ===
-      // 2026-05-13: Zusaetzlich zu vollen Stunden auch Halb-Stunden-Labels an
-      // Open/Close-Edges zeigen (z.B. 11:30 wenn ab 11:30 offen), damit der
-      // Wirt im Header die exakten Oeffnungs-Grenzen sieht — nicht nur das
-      // dimme "11"-Label.
       let headerHtml = '<div class="tg-corner">Tisch</div><div class="tg-times">';
       for (let i = 0; i < numCells; i++) {
         const m = startMin + i * gran;
         const isHour = m % 60 === 0;
         const closed = !isOpenMin(m);
-        const isOpenEdge = !isHour && (isOpenMin(m) !== isOpenMin(m - gran));
-        const showLabel = isHour || isOpenEdge;
         headerHtml += '<div class="tg-time-cell'
           + (isHour ? ' hour' : '')
-          + (isOpenEdge ? ' edge' : '')
           + (closed ? ' closed' : '') + '">'
-          + (showLabel ? minToTime(m) : '')
+          + (isHour ? minToTime(m) : '')
           + '</div>';
       }
       headerHtml += '</div>';
