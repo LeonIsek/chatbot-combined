@@ -1419,6 +1419,29 @@
     // Heuristisches Parsing: nimm alle HH:MM aus dem Text, derive min/max.
     // Filter auf heutigen Wochentag wenn moeglich (DE-Abkuerzungen Mo/Di/Mi/Do/Fr/Sa/So).
     // Fallback bei Fehlschlag: 11:00-23:00. Ruhetag/closed → isClosed=true.
+    // 2026-05-13: Single-Source business_hours-Tabelle pro Wochentag.
+    // Returns:
+    //   null → keine business_hours-Daten geladen, Caller soll Legacy-parseServiceHours nutzen
+    //   []   → explizit Ruhetag (Tabelle hat fuer den Wochentag keine Row)
+    //   [{startMin,endMin}, ...] → 1..N Open-Ranges (z.B. Lunch + Dinner getrennt)
+    function getOpenRangesForDate(dateStr, bhRows) {
+      if (!Array.isArray(bhRows) || bhRows.length === 0) return null;
+      const d = new Date(dateStr + 'T12:00:00');
+      const wd = d.getDay(); // 0=Sun..6=Sa, business_hours-Konvention
+      return bhRows
+        .filter(r => Number(r.weekday) === wd)
+        .map(r => {
+          const [oh, om] = String(r.open_time || '0:0').split(':').map(Number);
+          const [ch, cm] = String(r.close_time || '0:0').split(':').map(Number);
+          return {
+            startMin: (oh | 0) * 60 + (om | 0),
+            endMin:   (ch | 0) * 60 + (cm | 0)
+          };
+        })
+        .filter(r => r.endMin > r.startMin)
+        .sort((a, b) => a.startMin - b.startMin);
+    }
+
     function parseServiceHours(opening_hours, dateStr) {
       const FALLBACK = { startMin: 11*60, endMin: 23*60, isClosed: false };
       const text = String(opening_hours || '').trim();
@@ -1495,10 +1518,28 @@
       // CSS-Variable fuer Cell-Width setzen (bei Granularitaet-Switch in Push 2 dynamic)
       wrap.style.setProperty('--tg-cell-w', TG_CELL_WIDTH + 'px');
 
-      const sh = parseServiceHours(clientData?.opening_hours, LAYOUT_DATE);
+      // 2026-05-13: business_hours-Tabelle als Single-Source (Phase ζ.4).
+      // Multi-Range pro Wochentag wird korrekt unterstuetzt — Lunch-Luecke
+      // (z.B. 11:30-14:00 + 17:30-22:00) wird als zwei Open-Bereiche mit
+      // gedimmter 14-17:30-Pause gerendert. Fallback auf parseServiceHours
+      // wenn die Tabelle leer ist (Legacy-Pfad fuer Alt-Kunden).
+      const bhRanges = getOpenRangesForDate(LAYOUT_DATE, bhRowsOriginal);
+      let dayIsClosed, isOpenMin;
+      if (bhRanges === null) {
+        const sh = parseServiceHours(clientData?.opening_hours, LAYOUT_DATE);
+        dayIsClosed = sh.isClosed;
+        isOpenMin = (m) => !sh.isClosed && m >= sh.startMin && m < sh.endMin;
+      } else if (bhRanges.length === 0) {
+        dayIsClosed = true;
+        isOpenMin = () => false;
+      } else {
+        dayIsClosed = false;
+        isOpenMin = (m) => bhRanges.some(r => m >= r.startMin && m < r.endMin);
+      }
+
       // Auch an Ruhetagen Kalender zeigen — Wirt soll manuelle Reservation eintragen koennen.
-      // isClosed nur als Hint-Banner ueber dem Grid, nicht als Empty-State-Replacement.
-      if (sh.isClosed) {
+      // dayIsClosed nur als Hint-Banner ueber dem Grid, nicht als Empty-State-Replacement.
+      if (dayIsClosed) {
         empty.classList.remove('hidden');
         empty.textContent = 'Ruhetag — Reservationen trotzdem möglich. Klick auf eine freie Zelle.';
       } else {
@@ -1506,13 +1547,11 @@
       }
 
       // 2026-05-12: Volle 24h-Achse anzeigen, geschlossene Stunden visuell dimmen.
-      // sh.startMin/endMin bleibt das Open-Window. renderTagesplanBlock arbeitet
-      // weiter korrekt weil offset von startMin=0 relativ berechnet wird.
+      // renderTagesplanBlock arbeitet weiter korrekt weil Offset relativ zu startMin=0.
       const startMin = 0;
       const endMin = 24 * 60;
       const gran = TG_GRANULARITY;
       const numCells = Math.ceil((endMin - startMin) / gran);
-      const isOpenMin = (m) => !sh.isClosed && m >= sh.startMin && m < sh.endMin;
 
       // === Header: Time-Labels ===
       let headerHtml = '<div class="tg-corner">Tisch</div><div class="tg-times">';
