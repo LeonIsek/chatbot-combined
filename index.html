@@ -645,6 +645,134 @@
     .lp-feature-icon [data-lucide] { width: 32px; height: 32px; }
     .biz-icon [data-lucide] { width: 28px; height: 28px; }
     .top-logo [data-lucide] { width: 22px; height: 22px; vertical-align: -5px; }
+
+    /* ====== WIRT-SICHT PANEL (Phase 3 — 2026-05-31) ====== */
+    #panel-wirt {
+      padding-top: 60px;
+      background: #f1f5f9;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .ws-hero { padding: 56px 24px 32px; text-align: center; max-width: 800px; margin: 0 auto; }
+    .ws-kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #6366f1; text-transform: uppercase; margin: 0 0 12px; }
+    .ws-h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; color: #0f172a; margin: 0 0 14px; line-height: 1.15; }
+    .ws-sub { font-size: 16px; line-height: 1.6; color: #475569; margin: 0; }
+
+    .ws-mockup-wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px; }
+    .ws-mockup-window {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(15,23,42,0.15);
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+    .ws-window-chrome {
+      display: flex; align-items: center; gap: 12px;
+      background: #f8fafc; padding: 10px 14px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .ws-window-dots { display: flex; gap: 6px; flex-shrink: 0; }
+    .ws-window-dots span { width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; }
+    .ws-window-dots span:nth-child(1) { background: #ef4444; }
+    .ws-window-dots span:nth-child(2) { background: #f59e0b; }
+    .ws-window-dots span:nth-child(3) { background: #10b981; }
+    .ws-window-url {
+      flex: 1; background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 6px; padding: 4px 10px;
+      font-family: monospace; font-size: 12px; color: #475569;
+      text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .ws-dashboard { background: #fff; }
+    .ws-dash-nav {
+      display: flex; gap: 4px; padding: 12px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .ws-dash-nav::-webkit-scrollbar { display: none; }
+    .ws-dash-tab {
+      padding: 8px 14px; background: transparent; border: none;
+      border-radius: 6px; font-size: 14px; font-weight: 500;
+      color: #64748b; cursor: pointer; white-space: nowrap;
+      transition: 0.15s;
+    }
+    .ws-dash-tab:hover { background: #f1f5f9; color: #1e293b; }
+    .ws-dash-tab.active { background: #6366f1; color: #fff; }
+
+    .ws-dash-content { padding: 28px 24px; }
+    .ws-dash-content.hidden { display: none; }
+    .ws-dash-content h3 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
+    .ws-sectsub { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+
+    .ws-field-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .ws-field-label { font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 3px; }
+    .ws-field-val { font-size: 14px; color: #0f172a; }
+    .ws-badge-green { display: inline-block; padding: 3px 10px; border-radius: 12px; background: #d1fae5; color: #065f46; font-size: 12px; font-weight: 600; }
+    .ws-hours-line { display: flex; gap: 10px; font-size: 13px; padding: 2px 0; }
+    .ws-hours-day { width: 30px; font-weight: 600; color: #475569; }
+    .ws-hours-times { color: #0f172a; }
+
+    .ws-resv-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .ws-resv-date { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #1e293b; background: #fff; }
+    .ws-resv-view-toggle { display: flex; gap: 2px; padding: 2px; background: #f1f5f9; border-radius: 8px; }
+    .ws-resv-view-toggle button {
+      padding: 5px 12px; background: transparent; border: none;
+      font-size: 13px; color: #64748b; cursor: pointer; border-radius: 6px;
+    }
+    .ws-resv-view-toggle button.active { background: #fff; color: #1e293b; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+    .ws-tagesplan { border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; }
+    .ws-tg-header {
+      display: grid; grid-template-columns: 90px 1fr; background: #f8fafc;
+      padding: 8px 0 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;
+      border-bottom: 1px solid #e2e8f0;
+      min-width: 540px;
+    }
+    .ws-tg-times { display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; }
+    .ws-tg-row { display: grid; grid-template-columns: 90px 1fr; border-top: 1px solid #f1f5f9; min-width: 540px; }
+    .ws-tg-tisch { padding: 14px 12px; font-size: 13px; font-weight: 600; color: #1e293b; background: #fafbff; display: flex; align-items: center; }
+    .ws-tg-slots {
+      display: grid; grid-template-columns: repeat(8, 1fr);
+      position: relative; padding: 6px 4px; min-height: 50px;
+    }
+    .ws-tg-resv {
+      grid-row: 1; background: #6366f1; color: #fff; font-size: 11px;
+      border-radius: 4px; padding: 5px 6px; line-height: 1.2;
+      overflow: hidden; align-self: center;
+    }
+
+    .ws-chat { max-width: 600px; margin: 0 auto; }
+    .ws-chat-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-end; }
+    .ws-chat-row.bot { justify-content: flex-start; }
+    .ws-chat-row.wirt { justify-content: flex-end; }
+    .ws-chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.45; }
+    .ws-chat-row.wirt .ws-chat-bubble { background: #6366f1; color: #fff; border-bottom-right-radius: 4px; }
+    .ws-chat-row.bot .ws-chat-bubble { background: #f1f5f9; color: #1e293b; border-bottom-left-radius: 4px; }
+    .ws-chat-input { display: flex; gap: 8px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; margin-top: 20px; background: #f8fafc; }
+    .ws-chat-input-fake { flex: 1; font-size: 14px; color: #94a3b8; padding: 6px 4px; }
+    .ws-chat-send { background: #6366f1; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: default; }
+
+    .ws-cta-section {
+      max-width: 720px; margin: 32px auto 80px;
+      padding: 36px 24px; text-align: center;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 16px; color: #fff;
+    }
+    .ws-cta-section h3 { font-size: 24px; font-weight: 700; margin: 0 0 8px; color: #fff; }
+    .ws-cta-section p { font-size: 15px; opacity: 0.92; margin: 0 0 20px; }
+    .ws-cta-btn { display: inline-block; background: #fff; color: #6366f1; padding: 12px 28px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 15px; transition: 0.15s; }
+    .ws-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
+
+    @media (max-width: 720px) {
+      .ws-hero { padding: 36px 16px 24px; }
+      .ws-mockup-wrap { padding: 0 8px 24px; }
+      .ws-mockup-window { border-radius: 10px; }
+      .ws-window-url { font-size: 10px; }
+      .ws-dash-content { padding: 18px 14px; }
+      .ws-field-row { grid-template-columns: 1fr; gap: 4px; padding: 8px 0; }
+      .ws-field-label { padding-top: 0; }
+      .ws-cta-section { padding: 28px 16px; margin: 24px 12px 60px; }
+    }
   </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -659,6 +787,7 @@
     <a href="#" class="top-logo" onclick="switchTab('landing');return false;"><i data-lucide="message-circle"></i> Bot<span>Swiss</span></a>
     <div class="tab-nav">
       <button class="tab-btn" onclick="switchTab('demo')">Demo</button>
+      <button class="tab-btn" onclick="switchTab('wirt')">Wirt-Sicht</button>
       <button class="tab-btn" onclick="switchTab('anleitung')">Anleitung</button>
       <button class="tab-btn" onclick="switchTab('preise')">Preise</button>
     </div>
@@ -680,6 +809,7 @@
   </button>
   <button onclick="switchTab('landing'); closeMobileMenu()"><i data-lucide="home"></i> Start</button>
   <button onclick="switchTab('demo'); closeMobileMenu()"><i data-lucide="play"></i> Demo</button>
+  <button onclick="switchTab('wirt'); closeMobileMenu()"><i data-lucide="layout-dashboard"></i> Wirt-Sicht</button>
   <button onclick="switchTab('anleitung'); closeMobileMenu()"><i data-lucide="book-open"></i> Anleitung</button>
   <button onclick="switchTab('preise'); closeMobileMenu()"><i data-lucide="tag"></i> Preise</button>
   <hr/>
@@ -7991,23 +8121,208 @@
 </div><!-- /panel-preise -->
 
 
+<!-- ====== PANEL: WIRT-SICHT (Phase 3 — 2026-05-31) ====== -->
+<!-- 100% statisches Mockup. Keine API-Calls, keine echten Daten, nichts klickbar das schreibt. -->
+<div id="panel-wirt" class="panel">
+
+  <div class="ws-hero">
+    <p class="ws-kicker">SO SIEHT ES FÜR DICH AUS</p>
+    <h2 class="ws-h1">Dein Kunden-Portal</h2>
+    <p class="ws-sub">Reservierungen, Tische, Bot-Regeln — alles an einem Ort. Klick dich durch die Tabs unten, schau wie das Dashboard aussieht wenn du selber BotSwiss nutzt.</p>
+  </div>
+
+  <div class="ws-mockup-wrap">
+    <div class="ws-mockup-window">
+
+      <div class="ws-window-chrome">
+        <div class="ws-window-dots"><span></span><span></span><span></span></div>
+        <div class="ws-window-url">botswiss.ch/dashboard.html</div>
+      </div>
+
+      <div class="ws-dashboard">
+
+        <div class="ws-dash-nav">
+          <button class="ws-dash-tab active" data-wstab="overview" onclick="switchWirtTab('overview')">Übersicht</button>
+          <button class="ws-dash-tab" data-wstab="reservations" onclick="switchWirtTab('reservations')">Reservierungen</button>
+          <button class="ws-dash-tab" data-wstab="wirtchat" onclick="switchWirtTab('wirtchat')">Wirt-Chat</button>
+        </div>
+
+        <!-- ÜBERSICHT -->
+        <div class="ws-dash-content" data-wscontent="overview">
+          <h3>Business-Informationen</h3>
+          <p class="ws-sectsub">Diese Angaben nutzt der Bot wenn Gäste fragen.</p>
+
+          <div class="ws-field-row">
+            <div class="ws-field-label">Firmenname</div>
+            <div class="ws-field-val">Pizzeria Da Mario</div>
+          </div>
+          <div class="ws-field-row">
+            <div class="ws-field-label">Telefon</div>
+            <div class="ws-field-val">+41 41 555 12 34</div>
+          </div>
+          <div class="ws-field-row">
+            <div class="ws-field-label">Adresse</div>
+            <div class="ws-field-val">Bahnhofstrasse 12, 6003 Luzern</div>
+          </div>
+          <div class="ws-field-row">
+            <div class="ws-field-label">Öffnungszeiten</div>
+            <div class="ws-field-val">
+              <div class="ws-hours-line"><span class="ws-hours-day">Mo</span><span class="ws-hours-times">geschlossen</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">Di</span><span class="ws-hours-times">17:30 – 22:30</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">Mi</span><span class="ws-hours-times">11:30 – 14:00 · 17:30 – 22:30</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">Do</span><span class="ws-hours-times">17:30 – 22:30</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">Fr</span><span class="ws-hours-times">11:30 – 14:00 · 17:30 – 23:00</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">Sa</span><span class="ws-hours-times">17:30 – 23:00</span></div>
+              <div class="ws-hours-line"><span class="ws-hours-day">So</span><span class="ws-hours-times">17:30 – 22:00</span></div>
+            </div>
+          </div>
+          <div class="ws-field-row">
+            <div class="ws-field-label">Reservierungen entgegennehmen</div>
+            <div class="ws-field-val"><span class="ws-badge-green">Aktiv</span></div>
+          </div>
+          <div class="ws-field-row">
+            <div class="ws-field-label">Preise / Angebote</div>
+            <div class="ws-field-val">Mittagsmenü Mo–Fr CHF 22 · Pizzas ab CHF 18 · Hauptgerichte CHF 28–42</div>
+          </div>
+        </div>
+
+        <!-- RESERVIERUNGEN -->
+        <div class="ws-dash-content hidden" data-wscontent="reservations">
+          <h3>Reservierungen heute</h3>
+          <p class="ws-sectsub">Tagesplan: jede Reservierung sitzt automatisch auf dem richtigen Tisch.</p>
+
+          <div class="ws-resv-toolbar">
+            <div class="ws-resv-date">📅 Sa, 31. Mai 2026</div>
+            <div class="ws-resv-view-toggle">
+              <button class="active">Tagesplan</button>
+              <button>Tisch-Plan</button>
+            </div>
+          </div>
+
+          <div class="ws-tagesplan">
+            <div class="ws-tg-header">
+              <div></div>
+              <div class="ws-tg-times">
+                <div>17:00</div><div>18:00</div><div>19:00</div><div>20:00</div>
+                <div>21:00</div><div>22:00</div><div>23:00</div><div>00:00</div>
+              </div>
+            </div>
+
+            <div class="ws-tg-row">
+              <div class="ws-tg-tisch">Tisch 1 (4P)</div>
+              <div class="ws-tg-slots">
+                <div class="ws-tg-resv" style="grid-column: 2 / 4;">Müller · 2P · 18:00</div>
+                <div class="ws-tg-resv" style="grid-column: 4 / 6; background: #10b981;">Schmidt · 4P · 19:30</div>
+              </div>
+            </div>
+
+            <div class="ws-tg-row">
+              <div class="ws-tg-tisch">Tisch 2 (2P)</div>
+              <div class="ws-tg-slots">
+                <div class="ws-tg-resv" style="grid-column: 3 / 5;">Weber · 2P · 19:00</div>
+              </div>
+            </div>
+
+            <div class="ws-tg-row">
+              <div class="ws-tg-tisch">Tisch 3 (6P)</div>
+              <div class="ws-tg-slots">
+                <div class="ws-tg-resv" style="grid-column: 4 / 7; background: #f59e0b;">Fischer · 6P · 20:00</div>
+              </div>
+            </div>
+
+            <div class="ws-tg-row">
+              <div class="ws-tg-tisch">Tisch 4 (4P)</div>
+              <div class="ws-tg-slots">
+                <div class="ws-tg-resv" style="grid-column: 5 / 7;">Keller · 3P · 20:30</div>
+              </div>
+            </div>
+
+            <div class="ws-tg-row">
+              <div class="ws-tg-tisch">Tisch 5 (2P)</div>
+              <div class="ws-tg-slots"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WIRT-CHAT -->
+        <div class="ws-dash-content hidden" data-wscontent="wirtchat">
+          <h3>Wirt-Chat — Bot natürlichsprachlich konfigurieren</h3>
+          <p class="ws-sectsub">Schreib einfach was du willst, der Bot lernt es. Keine Menüs durchklicken, kein Tech-Wissen nötig.</p>
+
+          <div class="ws-chat">
+            <div class="ws-chat-row wirt">
+              <div class="ws-chat-bubble">Morgen sind wir geschlossen.</div>
+            </div>
+            <div class="ws-chat-row bot">
+              <div class="ws-chat-bubble">Verstanden. Reservierungen für Sonntag 1. Juni blocke ich. Gäste die für morgen anfragen bekommen "leider geschlossen".</div>
+            </div>
+
+            <div class="ws-chat-row wirt">
+              <div class="ws-chat-bubble">Heute Abend ab 22:00 keine neuen Tische mehr, zu viele Reservierungen.</div>
+            </div>
+            <div class="ws-chat-row bot">
+              <div class="ws-chat-bubble">OK, ab 22:00 nehme ich heute keine Reservierungen mehr. Bestehende Buchungen bleiben.</div>
+            </div>
+
+            <div class="ws-chat-row wirt">
+              <div class="ws-chat-bubble">Mittagsmenü Mo–Fr 22 Franken, Suppe und Hauptgang.</div>
+            </div>
+            <div class="ws-chat-row bot">
+              <div class="ws-chat-bubble">Notiert. Bei Fragen zum Mittag sage ich Gästen: CHF 22, Mo–Fr, Suppe + Hauptgang.</div>
+            </div>
+
+            <div class="ws-chat-input">
+              <div class="ws-chat-input-fake">Schreib dem Bot was er wissen soll …</div>
+              <div class="ws-chat-send">Senden</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="ws-cta-section">
+    <h3>Will ich auch für mein Business.</h3>
+    <p>In 2 Minuten eingerichtet. CHF 100 Setup + CHF 99/Monat — Bot läuft direkt nach Bezahlung.</p>
+    <a href="/setup.html" class="ws-cta-btn">Jetzt starten →</a>
+  </div>
+
+</div><!-- /panel-wirt -->
+
+
 <script src="script.js"></script>
 
 <script>
 /* ====== TAB SWITCHING ====== */
 function switchTab(tab) {
+  const tabsWithoutWidget = ['landing', 'anleitung', 'preise', 'wirt'];
+  const tabLabelPrefix = { demo: 'demo', anleitung: 'anl', preise: 'prei', wirt: 'wirt' };
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
   const widget = document.getElementById('chatbot-widget');
-  if (widget) widget.style.display = (tab === 'landing' || tab === 'anleitung' || tab === 'preise') ? 'none' : '';
+  if (widget) widget.style.display = tabsWithoutWidget.includes(tab) ? 'none' : '';
   if (tab === 'landing') { window.scrollTo(0, 0); return; }
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.textContent.toLowerCase().startsWith(tab === 'anleitung' ? 'anl' : tab === 'preise' ? 'prei' : 'demo')) {
-      b.classList.add('active');
-    }
-  });
+  const prefix = tabLabelPrefix[tab];
+  if (prefix) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      if (b.textContent.toLowerCase().startsWith(prefix)) {
+        b.classList.add('active');
+      }
+    });
+  }
   window.scrollTo(0, 0);
+}
+
+/* ====== WIRT-SICHT SUB-TAB SWITCHING (Mockup, kein Backend) ====== */
+function switchWirtTab(target) {
+  document.querySelectorAll('.ws-dash-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ws-dash-content').forEach(c => c.classList.add('hidden'));
+  const btn = document.querySelector('.ws-dash-tab[data-wstab="' + target + '"]');
+  const content = document.querySelector('.ws-dash-content[data-wscontent="' + target + '"]');
+  if (btn) btn.classList.add('active');
+  if (content) content.classList.remove('hidden');
 }
 
 // Demo-Mode: Click-Prevention für alle "echten" Aktionen innerhalb .demo-site
