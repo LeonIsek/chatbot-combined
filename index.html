@@ -683,23 +683,51 @@
       text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .ws-dashboard { background: #fff; }
+    .ws-dashboard { background: #fafafa; }
+
+    /* Klickbarkeits-Hint: Banner über Sub-Tab-Nav mit animiertem Pfeil */
+    .ws-tab-hint {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
+      border-bottom: 1px solid rgba(99,102,241,0.22);
+      padding: 9px 16px; font-size: 13px; color: #4f46e5; font-weight: 600;
+    }
+    .ws-tab-hint-arrow {
+      display: inline-block;
+      animation: ws-hint-bounce 1.4s ease-in-out infinite;
+      font-size: 16px; line-height: 1;
+    }
+    @keyframes ws-hint-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(4px); }
+    }
+    .ws-tab-hint.dismissed { display: none; }
+
     .ws-dash-nav {
-      display: flex; gap: 4px; padding: 12px 20px;
-      border-bottom: 1px solid #e2e8f0;
+      display: flex; gap: 6px; padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
       overflow-x: auto; scrollbar-width: none;
     }
     .ws-dash-nav::-webkit-scrollbar { display: none; }
     .ws-dash-tab {
-      padding: 8px 14px; background: transparent; border: none;
-      border-radius: 6px; font-size: 14px; font-weight: 500;
-      color: #64748b; cursor: pointer; white-space: nowrap;
-      transition: 0.15s;
+      padding: 8px 14px; background: transparent; border: 1px solid #e5e5e5;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      color: #737373; cursor: pointer; white-space: nowrap;
+      transition: 0.15s; position: relative;
     }
-    .ws-dash-tab:hover { background: #f1f5f9; color: #1e293b; }
-    .ws-dash-tab.active { background: #6366f1; color: #fff; }
+    .ws-dash-tab:hover { background: #f5f5f5; color: #0a0a0a; border-color: #d4d4d4; }
+    .ws-dash-tab.active { background: #0a0a0a; color: #fff; border-color: #0a0a0a; animation: none; }
+    /* Pulse-Hint auf nicht-aktiven Tabs solange User noch nicht geklickt hat */
+    .ws-dashboard:not(.ws-touched) .ws-dash-tab:not(.active) {
+      animation: ws-tab-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes ws-tab-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); border-color: #e5e5e5; }
+      50% { box-shadow: 0 0 0 5px rgba(99,102,241,0.14); border-color: #6366f1; }
+    }
 
-    .ws-dash-content { padding: 28px 24px; }
+    .ws-dash-content { padding: 28px 24px; background: #fff; }
     .ws-dash-content.hidden { display: none; }
     .ws-dash-content h3 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
     .ws-sectsub { font-size: 13px; color: #64748b; margin: 0 0 20px; }
@@ -712,34 +740,72 @@
     .ws-hours-day { width: 30px; font-weight: 600; color: #475569; }
     .ws-hours-times { color: #0f172a; }
 
+    /* Reservierungen-Tab: 1:1 wie echtes Dashboard (--bg #fafafa, --border #e5e5e5, --text #0a0a0a, --muted #737373) */
     .ws-resv-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-    .ws-resv-date { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #1e293b; background: #fff; }
-    .ws-resv-view-toggle { display: flex; gap: 2px; padding: 2px; background: #f1f5f9; border-radius: 8px; }
+    .ws-resv-date { padding: 6px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px; color: #0a0a0a; background: #fff; }
+    .ws-resv-view-toggle { display: flex; gap: 0; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
     .ws-resv-view-toggle button {
-      padding: 5px 12px; background: transparent; border: none;
-      font-size: 13px; color: #64748b; cursor: pointer; border-radius: 6px;
+      padding: 6px 14px; background: #fff; border: none;
+      font-size: 13px; font-weight: 500; color: #737373; cursor: pointer;
     }
-    .ws-resv-view-toggle button.active { background: #fff; color: #1e293b; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .ws-resv-view-toggle button.active { background: #0a0a0a; color: #fff; }
+    .ws-resv-view-toggle button:not(.active):hover { background: #fafafa; color: #0a0a0a; }
 
-    .ws-tagesplan { border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; }
+    .ws-tagesplan {
+      background: #fff; border: 1px solid #e5e5e5; border-radius: 8px;
+      overflow: auto; position: relative;
+    }
     .ws-tg-header {
-      display: grid; grid-template-columns: 90px 1fr; background: #f8fafc;
-      padding: 8px 0 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;
-      border-bottom: 1px solid #e2e8f0;
-      min-width: 540px;
+      display: flex; background: #fafafa; border-bottom: 2px solid #e5e5e5;
+      min-width: max-content;
     }
-    .ws-tg-times { display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; }
-    .ws-tg-row { display: grid; grid-template-columns: 90px 1fr; border-top: 1px solid #f1f5f9; min-width: 540px; }
-    .ws-tg-tisch { padding: 14px 12px; font-size: 13px; font-weight: 600; color: #1e293b; background: #fafbff; display: flex; align-items: center; }
-    .ws-tg-slots {
-      display: grid; grid-template-columns: repeat(8, 1fr);
-      position: relative; padding: 6px 4px; min-height: 50px;
+    .ws-tg-corner {
+      flex: 0 0 140px; padding: 10px 12px;
+      font-size: 11px; font-weight: 600; color: #737373;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      background: #fafafa; border-right: 1px solid #e5e5e5;
+      display: flex; align-items: center;
     }
-    .ws-tg-resv {
-      grid-row: 1; background: #6366f1; color: #fff; font-size: 11px;
-      border-radius: 4px; padding: 5px 6px; line-height: 1.2;
-      overflow: hidden; align-self: center;
+    .ws-tg-times { display: flex; flex: 1; }
+    .ws-tg-time-cell {
+      flex: 0 0 60px;
+      padding: 8px 0; font-size: 11px; color: #737373;
+      text-align: center;
+      border-left: 1px solid #e5e5e5;
     }
+    .ws-tg-time-cell.hour {
+      border-left: 1px solid #0a0a0a;
+      font-weight: 600; color: #0a0a0a;
+    }
+    .ws-tg-body { min-width: max-content; }
+    .ws-tg-row {
+      display: flex; border-bottom: 1px solid #e5e5e5;
+      min-height: 56px;
+    }
+    .ws-tg-row-label {
+      flex: 0 0 140px; padding: 10px 12px;
+      background: #fafafa; border-right: 1px solid #e5e5e5;
+      display: flex; flex-direction: column; justify-content: center;
+      font-size: 13px; font-weight: 600; color: #0a0a0a;
+    }
+    .ws-tg-cap { font-size: 11px; color: #737373; font-weight: 500; margin-top: 2px; }
+    .ws-tg-cells { position: relative; flex: 1; display: flex; min-width: 0; }
+    .ws-tg-cell {
+      flex: 0 0 60px;
+      border-left: 1px solid #e5e5e5;
+      min-height: 56px;
+    }
+    .ws-tg-block {
+      position: absolute; top: 4px; bottom: 4px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff; border-radius: 6px;
+      padding: 6px 10px; font-size: 12px; font-weight: 600;
+      display: flex; flex-direction: column; justify-content: center;
+      white-space: nowrap; overflow: hidden;
+      box-shadow: 0 1px 4px rgba(79,70,229,0.35);
+    }
+    .ws-tg-block-name { font-weight: 700; line-height: 1.1; }
+    .ws-tg-block-meta { font-size: 10px; opacity: 0.85; line-height: 1.1; margin-top: 2px; }
 
     .ws-chat { max-width: 600px; margin: 0 auto; }
     .ws-chat-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-end; }
@@ -773,6 +839,69 @@
       .ws-field-label { padding-top: 0; }
       .ws-cta-section { padding: 28px 16px; margin: 24px 12px 60px; }
     }
+
+    /* Theme-Toggle-Button im Browser-Chrome */
+    .ws-theme-toggle {
+      background: transparent; border: 1px solid #e2e8f0;
+      padding: 4px 8px; border-radius: 6px;
+      color: #64748b; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: 0.15s;
+    }
+    .ws-theme-toggle:hover { background: #f1f5f9; color: #0f172a; }
+    .ws-theme-toggle [data-lucide] { width: 14px; height: 14px; }
+    .ws-theme-icon-dark { display: none; }
+    .ws-mockup-window.ws-dark .ws-theme-icon-light { display: none; }
+    .ws-mockup-window.ws-dark .ws-theme-icon-dark { display: inline-block; }
+
+    /* ====== DARK-MODE: Override aller ws-* Klassen im Mockup ====== */
+    .ws-mockup-window.ws-dark { box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+    .ws-mockup-window.ws-dark .ws-window-chrome { background: #1a1a1a; border-bottom-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-window-url { background: #0a0a0a; border-color: #2a2a2a; color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-theme-toggle { color: #a3a3a3; border-color: #404040; }
+    .ws-mockup-window.ws-dark .ws-theme-toggle:hover { background: #1f1f1f; color: #fafafa; }
+
+    .ws-mockup-window.ws-dark .ws-dashboard { background: #0a0a0a; }
+    .ws-mockup-window.ws-dark .ws-tab-hint {
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18));
+      border-bottom-color: rgba(99,102,241,0.3);
+      color: #a5b4fc;
+    }
+    .ws-mockup-window.ws-dark .ws-dash-nav { background: #171717; border-bottom-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-dash-tab { border-color: #2a2a2a; color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-dash-tab:hover { background: #1f1f1f; color: #fafafa; border-color: #404040; }
+    .ws-mockup-window.ws-dark .ws-dash-tab.active { background: #fafafa; color: #0a0a0a; border-color: #fafafa; }
+
+    .ws-mockup-window.ws-dark .ws-dash-content { background: #171717; }
+    .ws-mockup-window.ws-dark .ws-dash-content h3 { color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-sectsub { color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-field-row { border-bottom-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-field-label { color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-field-val { color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-hours-day { color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-hours-times { color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-badge-green { background: rgba(52,211,153,0.18); color: #34d399; }
+
+    .ws-mockup-window.ws-dark .ws-resv-date { background: #0a0a0a; border-color: #2a2a2a; color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-resv-view-toggle { border-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-resv-view-toggle button { background: #171717; color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-resv-view-toggle button.active { background: #fafafa; color: #0a0a0a; }
+    .ws-mockup-window.ws-dark .ws-resv-view-toggle button:not(.active):hover { background: #1f1f1f; color: #fafafa; }
+
+    .ws-mockup-window.ws-dark .ws-tagesplan { background: #171717; border-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-header { background: #0a0a0a; border-bottom-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-corner { background: #0a0a0a; color: #a3a3a3; border-right-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-time-cell { color: #a3a3a3; border-left-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-time-cell.hour { border-left-color: #fafafa; color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-tg-row { border-bottom-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-row-label { background: #0a0a0a; color: #fafafa; border-right-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-tg-cap { color: #a3a3a3; }
+    .ws-mockup-window.ws-dark .ws-tg-cell { border-left-color: #2a2a2a; }
+    /* tg-block bleibt Indigo-Gradient — sieht in beiden Themes gut aus */
+
+    .ws-mockup-window.ws-dark .ws-chat-row.bot .ws-chat-bubble { background: #2a2a2a; color: #fafafa; }
+    .ws-mockup-window.ws-dark .ws-chat-input { background: #1f1f1f; border-color: #2a2a2a; }
+    .ws-mockup-window.ws-dark .ws-chat-input-fake { color: #6b6b6b; }
   </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -8137,9 +8266,18 @@
       <div class="ws-window-chrome">
         <div class="ws-window-dots"><span></span><span></span><span></span></div>
         <div class="ws-window-url">botswiss.ch/dashboard.html</div>
+        <button type="button" class="ws-theme-toggle" onclick="toggleWirtTheme()" title="Hell/Dunkel umschalten" aria-label="Theme umschalten">
+          <i data-lucide="moon" class="ws-theme-icon-light"></i>
+          <i data-lucide="sun" class="ws-theme-icon-dark"></i>
+        </button>
       </div>
 
-      <div class="ws-dashboard">
+      <div class="ws-dashboard" id="ws-dashboard">
+
+        <div class="ws-tab-hint" id="ws-tab-hint">
+          <span class="ws-tab-hint-arrow">↓</span>
+          <span class="ws-tab-hint-text">Klick durch die Tabs um alle Bereiche zu sehen</span>
+        </div>
 
         <div class="ws-dash-nav">
           <button class="ws-dash-tab active" data-wstab="overview" onclick="switchWirtTab('overview')">Übersicht</button>
@@ -8200,46 +8338,87 @@
           </div>
 
           <div class="ws-tagesplan">
+            <!-- Header: Corner + 8 hour-cells (17-00) -->
             <div class="ws-tg-header">
-              <div></div>
+              <div class="ws-tg-corner">Tisch</div>
               <div class="ws-tg-times">
-                <div>17:00</div><div>18:00</div><div>19:00</div><div>20:00</div>
-                <div>21:00</div><div>22:00</div><div>23:00</div><div>00:00</div>
+                <div class="ws-tg-time-cell hour">17:00</div>
+                <div class="ws-tg-time-cell hour">18:00</div>
+                <div class="ws-tg-time-cell hour">19:00</div>
+                <div class="ws-tg-time-cell hour">20:00</div>
+                <div class="ws-tg-time-cell hour">21:00</div>
+                <div class="ws-tg-time-cell hour">22:00</div>
+                <div class="ws-tg-time-cell hour">23:00</div>
+                <div class="ws-tg-time-cell hour">00:00</div>
               </div>
             </div>
 
-            <div class="ws-tg-row">
-              <div class="ws-tg-tisch">Tisch 1 (4P)</div>
-              <div class="ws-tg-slots">
-                <div class="ws-tg-resv" style="grid-column: 2 / 4;">Müller · 2P · 18:00</div>
-                <div class="ws-tg-resv" style="grid-column: 4 / 6; background: #10b981;">Schmidt · 4P · 19:30</div>
+            <!-- Body: 5 rows mit fake Reservationen, alle indigo wie echtes Dashboard -->
+            <div class="ws-tg-body">
+              <div class="ws-tg-row">
+                <div class="ws-tg-row-label">Tisch 1<span class="ws-tg-cap">4P</span></div>
+                <div class="ws-tg-cells">
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-block" style="left: 60px; width: 90px;">
+                    <span class="ws-tg-block-name">Müller</span>
+                    <span class="ws-tg-block-meta">2P · 18:00–19:30</span>
+                  </div>
+                  <div class="ws-tg-block" style="left: 150px; width: 120px;">
+                    <span class="ws-tg-block-name">Schmidt</span>
+                    <span class="ws-tg-block-meta">4P · 19:30–21:30</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="ws-tg-row">
-              <div class="ws-tg-tisch">Tisch 2 (2P)</div>
-              <div class="ws-tg-slots">
-                <div class="ws-tg-resv" style="grid-column: 3 / 5;">Weber · 2P · 19:00</div>
+              <div class="ws-tg-row">
+                <div class="ws-tg-row-label">Tisch 2<span class="ws-tg-cap">2P</span></div>
+                <div class="ws-tg-cells">
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-block" style="left: 120px; width: 90px;">
+                    <span class="ws-tg-block-name">Weber</span>
+                    <span class="ws-tg-block-meta">2P · 19:00–20:30</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="ws-tg-row">
-              <div class="ws-tg-tisch">Tisch 3 (6P)</div>
-              <div class="ws-tg-slots">
-                <div class="ws-tg-resv" style="grid-column: 4 / 7; background: #f59e0b;">Fischer · 6P · 20:00</div>
+              <div class="ws-tg-row">
+                <div class="ws-tg-row-label">Tisch 3<span class="ws-tg-cap">6P</span></div>
+                <div class="ws-tg-cells">
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-block" style="left: 180px; width: 150px;">
+                    <span class="ws-tg-block-name">Fischer</span>
+                    <span class="ws-tg-block-meta">6P · 20:00–22:30</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="ws-tg-row">
-              <div class="ws-tg-tisch">Tisch 4 (4P)</div>
-              <div class="ws-tg-slots">
-                <div class="ws-tg-resv" style="grid-column: 5 / 7;">Keller · 3P · 20:30</div>
+              <div class="ws-tg-row">
+                <div class="ws-tg-row-label">Tisch 4<span class="ws-tg-cap">4P</span></div>
+                <div class="ws-tg-cells">
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-block" style="left: 210px; width: 90px;">
+                    <span class="ws-tg-block-name">Keller</span>
+                    <span class="ws-tg-block-meta">3P · 20:30–22:00</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="ws-tg-row">
-              <div class="ws-tg-tisch">Tisch 5 (2P)</div>
-              <div class="ws-tg-slots"></div>
+              <div class="ws-tg-row">
+                <div class="ws-tg-row-label">Tisch 5<span class="ws-tg-cap">2P</span></div>
+                <div class="ws-tg-cells">
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                  <div class="ws-tg-cell"></div><div class="ws-tg-cell"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -8317,12 +8496,21 @@ function switchTab(tab) {
 
 /* ====== WIRT-SICHT SUB-TAB SWITCHING (Mockup, kein Backend) ====== */
 function switchWirtTab(target) {
+  const dash = document.getElementById('ws-dashboard');
+  if (dash) dash.classList.add('ws-touched');
+  const hint = document.getElementById('ws-tab-hint');
+  if (hint) hint.classList.add('dismissed');
   document.querySelectorAll('.ws-dash-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.ws-dash-content').forEach(c => c.classList.add('hidden'));
   const btn = document.querySelector('.ws-dash-tab[data-wstab="' + target + '"]');
   const content = document.querySelector('.ws-dash-content[data-wscontent="' + target + '"]');
   if (btn) btn.classList.add('active');
   if (content) content.classList.remove('hidden');
+}
+
+function toggleWirtTheme() {
+  const win = document.querySelector('#panel-wirt .ws-mockup-window');
+  if (win) win.classList.toggle('ws-dark');
 }
 
 // Demo-Mode: Click-Prevention für alle "echten" Aktionen innerhalb .demo-site
