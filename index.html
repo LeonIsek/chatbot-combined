@@ -201,7 +201,8 @@
     }
     .mobile-overlay [data-lucide] { width: 18px; height: 18px; flex-shrink: 0; }
 
-    @media (max-width: 768px) {
+    /* Nav schaltet schon ab 960px auf Hamburger — 5 Tabs + CTAs brauchen mehr Platz, sonst Überlauf */
+    @media (max-width: 960px) {
       .top-nav { padding: env(safe-area-inset-top) 16px 0; }
       .top-logo { font-size: 16px; margin-right: 0; }
       .tab-nav { display: none; }
@@ -726,6 +727,30 @@
       0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); border-color: #e5e5e5; }
       50% { box-shadow: 0 0 0 5px rgba(99,102,241,0.14); border-color: #6366f1; }
     }
+    /* Auto-Tour: Fortschrittsbalken am unteren Rand des aktiven Tabs (nur waehrend Tour) */
+    .ws-tab-fill {
+      position: absolute; left: 0; bottom: 0; height: 2.5px; width: 0;
+      background: #6366f1; border-radius: 0 2px 2px 0; opacity: 0;
+      pointer-events: none;
+    }
+    .ws-dashboard.ws-touring .ws-dash-tab.active .ws-tab-fill { opacity: 1; }
+    .ws-dash-tab.active .ws-tab-fill { background: rgba(255,255,255,0.9); }
+    .ws-mockup-window.ws-dark .ws-dash-tab.active .ws-tab-fill { background: #6366f1; }
+    .ws-tab-fill.filling { width: 100%; transition: width 3.3s linear; }
+    /* Waehrend Tour kein Pulse (die Bewegung selbst ist der Hint) */
+    .ws-dashboard.ws-touring .ws-dash-tab:not(.active) { animation: none; }
+    /* Inhalt sanft einblenden beim Tab-Wechsel */
+    .ws-dash-content:not(.hidden) { animation: ws-fade-in 0.34s ease both; }
+    @keyframes ws-fade-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ws-tab-hint-arrow { animation: none; }
+      .ws-dashboard:not(.ws-touched) .ws-dash-tab:not(.active) { animation: none; }
+      .ws-tab-fill { display: none; }
+      .ws-dash-content:not(.hidden) { animation: none; }
+    }
 
     .ws-dash-content { padding: 28px 24px; background: #fff; }
     .ws-dash-content.hidden { display: none; }
@@ -919,6 +944,7 @@
       <button class="tab-btn" onclick="switchTab('wirt')">Wirt-Sicht</button>
       <button class="tab-btn" onclick="switchTab('anleitung')">Anleitung</button>
       <button class="tab-btn" onclick="switchTab('preise')">Preise</button>
+      <button class="tab-btn tab-btn-website" onclick="switchTab('website')">Noch keine Website?</button>
     </div>
     <a href="https://pizzeria-da-mario-omega.vercel.app" class="top-live" title="Bot auf einer echten Website live ausprobieren">Live testen <i data-lucide="arrow-right"></i></a>
     <a href="/setup.html" class="top-cta">Jetzt starten <i data-lucide="arrow-right"></i></a>
@@ -941,6 +967,7 @@
   <button onclick="switchTab('wirt'); closeMobileMenu()"><i data-lucide="layout-dashboard"></i> Wirt-Sicht</button>
   <button onclick="switchTab('anleitung'); closeMobileMenu()"><i data-lucide="book-open"></i> Anleitung</button>
   <button onclick="switchTab('preise'); closeMobileMenu()"><i data-lucide="tag"></i> Preise</button>
+  <button class="m-website" onclick="switchTab('website'); closeMobileMenu()"><i data-lucide="sparkles"></i> Noch keine Website?</button>
   <hr/>
   <a href="https://pizzeria-da-mario-omega.vercel.app" onclick="closeMobileMenu()"><i data-lucide="external-link"></i> Live testen</a>
   <a href="/dashboard.html" onclick="closeMobileMenu()"><i data-lucide="user"></i> Kunden-Login</a>
@@ -8112,6 +8139,140 @@
     @media (max-width: 720px) {
       .dcm { width: calc(100% - 24px); max-width: 320px; right: 12px; bottom: 12px; height: 420px; }
     }
+
+    /* ====== NAV-AKZENT: "Noch keine Website?" abgesetzt + hervorgehoben ====== */
+    .tab-btn-website {
+      margin-left: 18px;
+      position: relative;
+      color: #a5b4fc !important;
+      font-weight: 600;
+    }
+    .tab-btn-website::before {
+      content: ""; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+      width: 1px; height: 18px; background: rgba(148,163,184,0.5);
+    }
+    .tab-btn-website::after {
+      content: ""; position: absolute; top: 6px; right: 2px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #8b5cf6; box-shadow: 0 0 0 0 rgba(139,92,246,0.5);
+      animation: web-dot-pulse 2s ease-in-out infinite;
+    }
+    @keyframes web-dot-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.45); }
+      50% { box-shadow: 0 0 0 5px rgba(139,92,246,0); }
+    }
+    .tab-btn-website.active { color: #fff !important; }
+    .m-website { color: #a5b4fc !important; }
+
+    /* ====== PANEL: NOCH KEINE WEBSITE? ====== */
+    #panel-website { padding: 80px 20px 100px; background: #f8fafc; min-height: 100vh; }
+    .web-wrap { max-width: 980px; margin: 0 auto; }
+    .web-hero { text-align: center; max-width: 720px; margin: 0 auto 44px; }
+    .web-kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #8b5cf6; text-transform: uppercase; margin: 0 0 14px; }
+    .web-h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; color: #0f172a; line-height: 1.12; margin: 0 0 16px; }
+    .web-lead { font-size: 17px; line-height: 1.6; color: #475569; margin: 0; }
+
+    .web-benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 0 0 48px; }
+    .web-benefit { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 16px; text-align: center; }
+    .web-benefit-ico {
+      width: 42px; height: 42px; margin: 0 auto 12px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+    }
+    .web-benefit-ico [data-lucide] { width: 20px; height: 20px; }
+    .web-benefit-t { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+    .web-benefit-d { font-size: 12.5px; color: #64748b; line-height: 1.4; margin: 0; }
+
+    /* Preis-Karten: Website allein + Paket */
+    .web-pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 0 0 50px; align-items: stretch; }
+    .web-pcard {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 30px 26px;
+      display: flex; flex-direction: column;
+    }
+    .web-pcard.featured {
+      border: 2px solid #6366f1; position: relative;
+      box-shadow: 0 16px 44px rgba(99,102,241,0.16);
+    }
+    .web-pcard-tag {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+      font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em;
+      padding: 5px 14px; border-radius: 20px; white-space: nowrap;
+    }
+    .web-pcard-name { font-size: 14px; font-weight: 700; color: #6366f1; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .web-pcard-price { font-size: 38px; font-weight: 800; color: #0f172a; line-height: 1; }
+    .web-pcard-price small { font-size: 15px; font-weight: 600; color: #64748b; }
+    .web-pcard-was { font-size: 14px; color: #94a3b8; text-decoration: line-through; margin: 6px 0 0; }
+    .web-pcard-sub { font-size: 13.5px; color: #64748b; margin: 8px 0 18px; }
+    .web-pcard ul { list-style: none; padding: 0; margin: 0 0 22px; flex: 1; }
+    .web-pcard li { font-size: 14px; color: #334155; padding: 7px 0 7px 26px; position: relative; line-height: 1.4; }
+    .web-pcard li::before {
+      content: "✓"; position: absolute; left: 0; top: 6px;
+      color: #10b981; font-weight: 800; font-size: 13px;
+    }
+    .web-save { display: inline-block; background: #d1fae5; color: #065f46; font-size: 12.5px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin: 0 0 16px; }
+    .web-pcard-cta {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none; font-weight: 700; font-size: 15px;
+      padding: 13px 20px; border-radius: 11px; transition: 0.15s;
+    }
+    .web-pcard-cta.primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+    .web-pcard-cta.primary:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(99,102,241,0.3); }
+    .web-pcard-cta.ghost { background: #f1f5f9; color: #0f172a; }
+    .web-pcard-cta.ghost:hover { background: #e2e8f0; }
+    .web-pcard-cta [data-lucide] { width: 16px; height: 16px; }
+
+    /* So läufts ab + Was ich brauche */
+    .web-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin: 0 0 48px; }
+    .web-col-h { font-size: 19px; font-weight: 800; color: #0f172a; margin: 0 0 18px; }
+    .web-steps { list-style: none; padding: 0; margin: 0; counter-reset: ws; }
+    .web-steps li { position: relative; padding: 0 0 20px 44px; counter-increment: ws; }
+    .web-steps li::before {
+      content: counter(ws); position: absolute; left: 0; top: -2px;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+      font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+    .web-steps li:not(:last-child)::after {
+      content: ""; position: absolute; left: 14px; top: 30px; bottom: 6px; width: 2px; background: #e2e8f0;
+    }
+    .web-step-t { font-size: 15px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px; }
+    .web-step-d { font-size: 13.5px; color: #64748b; line-height: 1.45; }
+    .web-needs { list-style: none; padding: 0; margin: 0; }
+    .web-needs li { font-size: 14.5px; color: #334155; padding: 9px 0 9px 28px; position: relative; border-bottom: 1px solid #eef2f6; }
+    .web-needs li:last-child { border-bottom: none; }
+    .web-needs li::before { content: "→"; position: absolute; left: 0; top: 9px; color: #8b5cf6; font-weight: 700; }
+
+    /* Reassurance-Box: einmalig, kein Abo */
+    .web-reassure {
+      background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid #10b981;
+      border-radius: 12px; padding: 22px 24px; margin: 0 0 46px;
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .web-reassure-ico { color: #10b981; flex-shrink: 0; }
+    .web-reassure-ico [data-lucide] { width: 26px; height: 26px; }
+    .web-reassure h4 { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
+    .web-reassure p { font-size: 14px; color: #475569; line-height: 1.55; margin: 0; }
+
+    .web-final { text-align: center; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 18px; padding: 44px 28px; color: #fff; }
+    .web-final h3 { font-size: clamp(22px, 3vw, 28px); font-weight: 800; margin: 0 0 10px; color: #fff; }
+    .web-final p { font-size: 15px; opacity: 0.92; margin: 0 0 22px; }
+    .web-final-cta { display: inline-block; background: #fff; color: #6366f1; padding: 14px 32px; border-radius: 11px; font-weight: 700; font-size: 16px; text-decoration: none; transition: 0.15s; }
+    .web-final-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+
+    @media (max-width: 860px) {
+      .web-benefits { grid-template-columns: repeat(2, 1fr); }
+      .web-pricing { grid-template-columns: 1fr; }
+      .web-cols { grid-template-columns: 1fr; gap: 30px; }
+    }
+    @media (max-width: 720px) {
+      .tab-btn-website { margin-left: 10px; }
+      .tab-btn-website::before { display: none; }
+      #panel-website { padding: 60px 16px 80px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tab-btn-website::after { animation: none; }
+    }
   </style>
   <div class="dcm" id="dcm" aria-hidden="true">
     <div class="dcm-head">
@@ -8250,6 +8411,122 @@
 </div><!-- /panel-preise -->
 
 
+<!-- ====== PANEL: NOCH KEINE WEBSITE? (Website-as-a-Service Angebot) ====== -->
+<div id="panel-website" class="panel">
+  <div class="web-wrap">
+
+    <div class="web-hero">
+      <p class="web-kicker">Website + KI-Bot aus einer Hand</p>
+      <h1 class="web-h1">Noch keine Website? Oder eine aus 2012?</h1>
+      <p class="web-lead">Ich baue dir eine moderne, schnelle Website — mit dem Reservierungs-Bot direkt eingebaut. Fixpreis, einmal fertig, kein Abo. Du musst nichts können ausser mir ein paar Infos schicken.</p>
+    </div>
+
+    <div class="web-benefits">
+      <div class="web-benefit">
+        <div class="web-benefit-ico"><i data-lucide="smartphone"></i></div>
+        <p class="web-benefit-t">Modern &amp; mobil</p>
+        <p class="web-benefit-d">Sieht auf Handy, Tablet und Desktop top aus — automatisch.</p>
+      </div>
+      <div class="web-benefit">
+        <div class="web-benefit-ico"><i data-lucide="zap"></i></div>
+        <p class="web-benefit-t">In Tagen statt Wochen</p>
+        <p class="web-benefit-d">Dank moderner Tools schnell gebaut — darum auch bezahlbar.</p>
+      </div>
+      <div class="web-benefit">
+        <div class="web-benefit-ico"><i data-lucide="badge-check"></i></div>
+        <p class="web-benefit-t">Fixpreis, kein Abo</p>
+        <p class="web-benefit-d">Einmal bezahlt, gehört dir. Keine laufenden Agentur-Kosten.</p>
+      </div>
+      <div class="web-benefit">
+        <div class="web-benefit-ico"><i data-lucide="message-circle"></i></div>
+        <p class="web-benefit-t">Bot inklusive</p>
+        <p class="web-benefit-d">Der Reservierungs-Bot ist direkt eingebaut — nichts zu installieren.</p>
+      </div>
+    </div>
+
+    <!-- Preise: Website allein + Paket -->
+    <div class="web-pricing">
+      <div class="web-pcard">
+        <p class="web-pcard-name">Nur Website</p>
+        <div class="web-pcard-price">CHF 890 <small>einmalig</small></div>
+        <p class="web-pcard-sub">Deine moderne Website, fixfertig eingerichtet.</p>
+        <ul>
+          <li>Modernes, mobiles Design</li>
+          <li>Bis zu 5 Seiten (Start, Menü/Angebot, Über uns, Kontakt, Anfahrt)</li>
+          <li>Öffnungszeiten, Kontakt &amp; Karte eingebaut</li>
+          <li>Fotos &amp; Texte sauber eingesetzt</li>
+          <li>Gehört dir — kein Abo</li>
+        </ul>
+        <a href="/setup.html" class="web-pcard-cta ghost">Website anfragen <i data-lucide="arrow-right"></i></a>
+      </div>
+
+      <div class="web-pcard featured">
+        <span class="web-pcard-tag">★ Beliebt — Website + Bot</span>
+        <p class="web-pcard-name">Website + KI-Bot</p>
+        <div class="web-pcard-price">CHF 490 <small>Website, einmalig</small></div>
+        <p class="web-pcard-was">Website statt CHF 890</p>
+        <span class="web-save">Website CHF 400 günstiger</span>
+        <p class="web-pcard-sub">Nimmst du den Bot dazu, wird deine Website günstiger. Der Bot kostet ganz normal.</p>
+        <ul>
+          <li>Alles aus „Nur Website"</li>
+          <li>Reservierungs-Bot direkt eingebaut</li>
+          <li>Reservierungen automatisch via Chat + E-Mail</li>
+          <li>Bot: CHF 100 Setup + CHF 99/Monat, monatlich kündbar</li>
+        </ul>
+        <a href="/setup.html" class="web-pcard-cta primary">Paket sichern <i data-lucide="arrow-right"></i></a>
+      </div>
+    </div>
+
+    <!-- So läufts ab + Was ich brauche -->
+    <div class="web-cols">
+      <div>
+        <h3 class="web-col-h">So läuft's ab</h3>
+        <ul class="web-steps">
+          <li>
+            <span class="web-step-t">Du schickst mir deine Infos</span>
+            <span class="web-step-d">Texte, Fotos, Logo, Öffnungszeiten — per WhatsApp oder E-Mail reicht.</span>
+          </li>
+          <li>
+            <span class="web-step-t">Ich baue deine Website</span>
+            <span class="web-step-d">Modern und mobil, mit Bot eingebaut. Du bekommst sie zum Anschauen.</span>
+          </li>
+          <li>
+            <span class="web-step-t">Du gehst live</span>
+            <span class="web-step-d">Eine Korrektur-Runde inklusive, dann ist deine Website online.</span>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="web-col-h">Was ich von dir brauche</h3>
+        <ul class="web-needs">
+          <li>Ein paar Sätze über deinen Betrieb</li>
+          <li>Fotos (Lokal, Gerichte, Team — was du hast)</li>
+          <li>Dein Logo, falls vorhanden</li>
+          <li>Öffnungszeiten &amp; Kontaktdaten</li>
+          <li>Speisekarte / Angebote (optional)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Reassurance: einmalig, kein Abo -->
+    <div class="web-reassure">
+      <div class="web-reassure-ico"><i data-lucide="shield-check"></i></div>
+      <div>
+        <h4>Einmal fertig — und keine bösen Überraschungen</h4>
+        <p>Die Website wird einmalig gebaut und gehört dann dir. Kein Abo für die Website, keine laufenden Agentur-Kosten, kein monatliches „Wartungs"-Gebührchen. Willst du später grössere Änderungen, gibt's dafür ein faires Fixpaket — aber du bist zu nichts verpflichtet.</p>
+      </div>
+    </div>
+
+    <div class="web-final">
+      <h3>Bereit für eine Website, auf die du stolz bist?</h3>
+      <p>Schreib mir kurz — ich sag dir ehrlich, was für deinen Betrieb Sinn macht. Unverbindlich.</p>
+      <a href="/setup.html" class="web-final-cta">Jetzt anfragen</a>
+    </div>
+
+  </div>
+</div><!-- /panel-website -->
+
+
 <!-- ====== PANEL: WIRT-SICHT (Phase 3 — 2026-05-31) ====== -->
 <!-- 100% statisches Mockup. Keine API-Calls, keine echten Daten, nichts klickbar das schreibt. -->
 <div id="panel-wirt" class="panel">
@@ -8276,13 +8553,13 @@
 
         <div class="ws-tab-hint" id="ws-tab-hint">
           <span class="ws-tab-hint-arrow">↓</span>
-          <span class="ws-tab-hint-text">Klick durch die Tabs um alle Bereiche zu sehen</span>
+          <span class="ws-tab-hint-text">Klick dich durch die Tabs — oder schau der Tour zu</span>
         </div>
 
         <div class="ws-dash-nav">
-          <button class="ws-dash-tab active" data-wstab="overview" onclick="switchWirtTab('overview')">Übersicht</button>
-          <button class="ws-dash-tab" data-wstab="reservations" onclick="switchWirtTab('reservations')">Reservierungen</button>
-          <button class="ws-dash-tab" data-wstab="wirtchat" onclick="switchWirtTab('wirtchat')">Wirt-Chat</button>
+          <button class="ws-dash-tab active" data-wstab="overview" onclick="switchWirtTab('overview')">Übersicht<span class="ws-tab-fill"></span></button>
+          <button class="ws-dash-tab" data-wstab="reservations" onclick="switchWirtTab('reservations')">Reservierungen<span class="ws-tab-fill"></span></button>
+          <button class="ws-dash-tab" data-wstab="wirtchat" onclick="switchWirtTab('wirtchat')">Wirt-Chat<span class="ws-tab-fill"></span></button>
         </div>
 
         <!-- ÜBERSICHT -->
@@ -8475,8 +8752,8 @@
 <script>
 /* ====== TAB SWITCHING ====== */
 function switchTab(tab) {
-  const tabsWithoutWidget = ['landing', 'anleitung', 'preise', 'wirt'];
-  const tabLabelPrefix = { demo: 'demo', anleitung: 'anl', preise: 'prei', wirt: 'wirt' };
+  const tabsWithoutWidget = ['landing', 'anleitung', 'preise', 'wirt', 'website'];
+  const tabLabelPrefix = { demo: 'demo', anleitung: 'anl', preise: 'prei', wirt: 'wirt', website: 'noch' };
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
@@ -8512,6 +8789,78 @@ function toggleWirtTheme() {
   const win = document.querySelector('#panel-wirt .ws-mockup-window');
   if (win) win.classList.toggle('ws-dark');
 }
+
+/* ====== WIRT-SICHT AUTO-TOUR: zeigt von selbst dass die Tabs klickbar sind ====== */
+(function initWirtAutoTour() {
+  const dash = document.getElementById('ws-dashboard');
+  if (!dash) return;
+  const ORDER = ['overview', 'reservations', 'wirtchat'];
+  const DWELL = 3400;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let idx = 0, timer = null, running = false, touched = false;
+
+  function showTab(target) {
+    dash.querySelectorAll('.ws-dash-tab').forEach(b => b.classList.remove('active'));
+    dash.querySelectorAll('.ws-dash-content').forEach(c => c.classList.add('hidden'));
+    const btn = dash.querySelector('.ws-dash-tab[data-wstab="' + target + '"]');
+    const content = dash.querySelector('.ws-dash-content[data-wscontent="' + target + '"]');
+    if (btn) { btn.classList.add('active'); restartFill(btn); }
+    if (content) content.classList.remove('hidden');
+  }
+  function restartFill(btn) {
+    const fill = btn.querySelector('.ws-tab-fill');
+    if (!fill) return;
+    fill.classList.remove('filling');
+    void fill.offsetWidth; // Reflow erzwingen, damit die Transition neu startet
+    fill.classList.add('filling');
+  }
+  function tick() {
+    idx = (idx + 1) % ORDER.length;
+    showTab(ORDER[idx]);
+  }
+  function start() {
+    if (running || touched || reduce) return;
+    running = true;
+    dash.classList.add('ws-touring');
+    const cur = dash.querySelector('.ws-dash-tab.active');
+    idx = cur ? ORDER.indexOf(cur.getAttribute('data-wstab')) : 0;
+    if (idx < 0) idx = 0;
+    if (cur) restartFill(cur);
+    timer = setInterval(tick, DWELL);
+  }
+  function pause() {
+    running = false;
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+  function takeOver() {
+    touched = true;
+    pause();
+    dash.classList.remove('ws-touring');
+    dash.classList.add('ws-touched');
+    const hint = document.getElementById('ws-tab-hint');
+    if (hint) hint.classList.add('dismissed');
+  }
+
+  const nav = dash.querySelector('.ws-dash-nav');
+  if (nav) {
+    nav.addEventListener('mouseenter', pause);
+    nav.addEventListener('mouseleave', function () { if (!touched) start(); });
+    nav.addEventListener('click', takeOver);
+    nav.addEventListener('focusin', takeOver);
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (touched) return;
+        if (e.isIntersecting) start(); else pause();
+      });
+    }, { threshold: 0.2 });
+    io.observe(dash);
+  } else {
+    start();
+  }
+})();
 
 // Demo-Mode: Click-Prevention für alle "echten" Aktionen innerhalb .demo-site
 // Hover/Cursor bleibt intakt, nur das tatsächliche Verhalten wird unterdrückt.
