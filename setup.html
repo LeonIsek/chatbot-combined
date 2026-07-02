@@ -467,20 +467,22 @@
           </div>
         </div>
 
-        <!-- Nur-Website: eigene Felder -->
-        <div id="websiteFields" style="display:none">
+        <!-- Website-Wünsche: bei Kombi UND Nur-Website -->
+        <div id="websiteWishes" style="display:none">
           <p class="section-title">Deine neue Website</p>
           <div class="field">
             <label for="message">Was für eine Website brauchst du?</label>
-            <textarea id="message" name="message" placeholder="z.B. Restaurant-Website mit Menü, Öffnungszeiten, Kontakt und Foto-Galerie. Etwa 4-5 Seiten. Modern und mobil."></textarea>
-            <p class="hint">Optional — je mehr wir wissen, desto schneller geht's. Details klären wir nach der Bestellung per Email.</p>
+            <textarea id="message" name="message" placeholder="z.B. Restaurant-Website mit Menü, Öffnungszeiten, Kontakt und Foto-Galerie. Etwa 4-5 Seiten. Und: nimmst du Reservierungen entgegen?"></textarea>
+            <p class="hint">Optional — je mehr wir wissen, desto schneller geht's. Die Details klären wir nach der Bestellung per Email/Telefon.</p>
           </div>
-          <div class="field">
-            <div style="display:flex;align-items:center;justify-content:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;">
-              <div style="text-align:center;">
-                <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 890</div>
-                <div style="font-size:12px;color:#94a3b8;">einmalig — deine Website gehört dir, kein Abo</div>
-              </div>
+        </div>
+
+        <!-- Nur-Website: Preis-Box -->
+        <div id="websitePriceBox" class="field" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;">
+            <div style="text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 890</div>
+              <div style="font-size:12px;color:#94a3b8;">einmalig — deine Website gehört dir, kein Abo</div>
             </div>
           </div>
         </div>
@@ -546,16 +548,19 @@
   // Paket-Auswahl: Felder je nach Paket ein/ausblenden
   function updatePackageUI() {
     const pkg = document.querySelector('input[name="package"]:checked')?.value || 'bot';
-    const isWebsiteOnly = pkg === 'website';
-    document.getElementById('botFields').style.display = isWebsiteOnly ? 'none' : 'block';
-    document.getElementById('websiteFields').style.display = isWebsiteOnly ? 'block' : 'none';
+    const isBot = pkg === 'bot';
+    // Bot-Config (inkl. bestehende-Website-URL + Bot-Preis-Box): nur bei "Nur Bot".
+    // Kombi + Nur-Website brauchen keine bestehende Seite und keine Bot-Config vorab.
+    document.getElementById('botFields').style.display = isBot ? 'block' : 'none';
+    document.getElementById('websiteField').style.display = isBot ? 'block' : 'none';
+    document.getElementById('websiteReq').style.display = isBot ? 'inline' : 'none';
+    document.getElementById('botPriceSection').style.display = isBot ? 'block' : 'none';
+    // Website-Wünsche: bei Kombi UND Nur-Website. 890-Box nur Nur-Website. Kombi-Aufschlüsselung nur Kombi.
+    document.getElementById('websiteWishes').style.display = (pkg === 'bundle' || pkg === 'website') ? 'block' : 'none';
+    document.getElementById('websitePriceBox').style.display = pkg === 'website' ? 'block' : 'none';
     document.getElementById('bundleNote').style.display = pkg === 'bundle' ? 'block' : 'none';
-    document.getElementById('botPriceSection').style.display = pkg === 'bot' ? 'block' : 'none';
-    // Website-URL-Feld: nur bei "Nur Bot" Pflicht; bei Kombi optional; bei Nur-Website weg
-    document.getElementById('websiteField').style.display = isWebsiteOnly ? 'none' : 'block';
-    document.getElementById('websiteReq').style.display = pkg === 'bot' ? 'inline' : 'none';
     const submitBtn = document.getElementById('submitBtn');
-    submitBtn.innerHTML = isWebsiteOnly
+    submitBtn.innerHTML = pkg === 'website'
       ? 'Website bestellen <i data-lucide="arrow-right"></i>'
       : (pkg === 'bundle' ? 'Bot + Website buchen <i data-lucide="arrow-right"></i>' : 'Chatbot einrichten <i data-lucide="arrow-right"></i>');
     if (window.lucide) lucide.createIcons();
@@ -663,6 +668,7 @@
           themePreset,
           monthlyPrice,
           package: pkg,
+          message: document.getElementById('message').value.trim() || null,
           _hp: document.getElementById('_hp').value
         })
       });
