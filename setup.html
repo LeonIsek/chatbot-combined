@@ -387,22 +387,6 @@
           </div>
         </div>
 
-        <div class="field">
-          <label for="themePreset">Design-Stil des Widgets (optional)</label>
-          <select id="themePreset" name="themePreset">
-            <option value="">Auto (an deine Website angepasst)</option>
-            <option value="modern_clean">Modern Clean — luftig, hell, tech</option>
-            <option value="luxury_dark">Luxury Dark — elegant, dunkel, edel</option>
-            <option value="playful_soft">Playful Soft — bunt, rund, freundlich</option>
-            <option value="minimal_sharp">Minimal Sharp — mono, scharf, editorial</option>
-            <option value="retro_warm">Retro Warm — warm, vintage, gemütlich</option>
-          </select>
-          <p class="hint">Auto = wir lesen Farben/Fonts automatisch von deiner Seite. Alternativ einen Preset wählen.</p>
-          <div id="themePresetPreview" style="display:none;margin-top:10px;padding:16px;border-radius:12px;transition:all 200ms;">
-            <div style="font-weight:600;margin-bottom:6px;" id="themePresetPreviewLabel"></div>
-            <div style="display:flex;gap:8px;" id="themePresetPreviewSwatches"></div>
-          </div>
-        </div>
 
         <p class="section-title">Reservierungen</p>
 
@@ -441,6 +425,7 @@
           </div>
         </div>
 
+        <div id="botPriceSection">
         <p class="section-title">Preis</p>
 
         <div class="field">
@@ -459,6 +444,7 @@
           </div>
           <p class="hint" style="margin-top:10px;">Sichere Zahlung per Kreditkarte über Stripe. Der Bot ist monatlich kündbar.</p>
         </div>
+        </div><!-- /botPriceSection -->
 
         <div class="field">
           <label for="extraInfo">Weitere Infos für den Bot</label>
@@ -471,7 +457,14 @@
         <!-- Kombi-Hinweis: nur bei Paket "Bot + Website" -->
         <div id="bundleNote" style="display:none;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:16px 20px;margin-top:8px;">
           <p style="font-size:14px;font-weight:700;color:#4338ca;margin-bottom:6px;">Kombi-Paket: Bot + neue Website</p>
-          <p style="font-size:13px;color:#4b5563;line-height:1.6;">Du bekommst den Chatbot <strong>plus eine neue Website für nur CHF 490</strong> statt 890. Der Bot läuft wie gewohnt (CHF 100 Setup + 99/Mt). Für den vergünstigten Website-Preis gilt eine <strong>Mindestlaufzeit von 3 Monaten</strong> für den Bot. Nach der Bezahlung melden wir uns für Texte &amp; Fotos deiner Website.</p>
+          <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px;">Du bekommst den Chatbot <strong>plus eine neue Website für nur CHF 490</strong> statt 890. Für den vergünstigten Website-Preis gilt eine <strong>Mindestlaufzeit von 3 Monaten</strong> für den Bot. Nach der Bezahlung melden wir uns für Texte &amp; Fotos deiner Website.</p>
+          <div style="background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:14px 16px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569;margin-bottom:4px;"><span>Website (statt CHF 890)</span><span>CHF 490</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569;margin-bottom:4px;"><span>Bot-Einrichtung</span><span>CHF 100</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569;margin-bottom:8px;"><span>Bot, 1. Monat</span><span>CHF 99</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;color:#4338ca;border-top:1px solid #e2e8f0;padding-top:8px;"><span>Jetzt zu zahlen</span><span>CHF 689</span></div>
+            <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Danach automatisch CHF 99/Monat für den Bot (nach 3 Monaten monatlich kündbar).</p>
+          </div>
         </div>
 
         <!-- Nur-Website: eigene Felder -->
@@ -557,6 +550,7 @@
     document.getElementById('botFields').style.display = isWebsiteOnly ? 'none' : 'block';
     document.getElementById('websiteFields').style.display = isWebsiteOnly ? 'block' : 'none';
     document.getElementById('bundleNote').style.display = pkg === 'bundle' ? 'block' : 'none';
+    document.getElementById('botPriceSection').style.display = pkg === 'bot' ? 'block' : 'none';
     // Website-URL-Feld: nur bei "Nur Bot" Pflicht; bei Kombi optional; bei Nur-Website weg
     document.getElementById('websiteField').style.display = isWebsiteOnly ? 'none' : 'block';
     document.getElementById('websiteReq').style.display = pkg === 'bot' ? 'inline' : 'none';
@@ -578,29 +572,6 @@
 
   document.getElementById('slotDuration').addEventListener('change', function() {
     document.getElementById('slotDurationCustomField').style.display = this.value === 'custom' ? 'block' : 'none';
-  });
-
-  // Sprint 4c — Theme-Preset Live-Preview
-  const PRESETS_PREVIEW = {
-    modern_clean:  { label: 'Modern Clean', bg: '#F8FAFC', text: '#0F172A', swatches: ['#4F46E5','#7C3AED','#06B6D4','#FFFFFF'] },
-    luxury_dark:   { label: 'Luxury Dark', bg: '#0F0F0F', text: '#F5F5F0', swatches: ['#D4A574','#A68055','#F4E4BC','#1A1A1A'] },
-    playful_soft:  { label: 'Playful Soft', bg: '#FEF3F2', text: '#831843', swatches: ['#EC4899','#F472B6','#FBBF24','#FFFFFF'] },
-    minimal_sharp: { label: 'Minimal Sharp', bg: '#FAFAFA', text: '#000000', swatches: ['#000000','#1F1F1F','#DC2626','#FFFFFF'] },
-    retro_warm:    { label: 'Retro Warm', bg: '#FFFBEB', text: '#451A03', swatches: ['#B45309','#92400E','#15803D','#FEF3C7'] }
-  };
-  document.getElementById('themePreset').addEventListener('change', function() {
-    const preview = document.getElementById('themePresetPreview');
-    const labelEl = document.getElementById('themePresetPreviewLabel');
-    const swatchEl = document.getElementById('themePresetPreviewSwatches');
-    const p = PRESETS_PREVIEW[this.value];
-    if (!p) { preview.style.display = 'none'; return; }
-    preview.style.background = p.bg;
-    preview.style.color = p.text;
-    labelEl.textContent = p.label;
-    swatchEl.innerHTML = p.swatches.map(c =>
-      '<span style="display:inline-block;width:24px;height:24px;border-radius:6px;background:' + c + ';border:1px solid rgba(0,0,0,0.1);"></span>'
-    ).join('');
-    preview.style.display = 'block';
   });
 
   document.getElementById('onboardForm').addEventListener('submit', async (e) => {
@@ -659,7 +630,7 @@
     }
 
     const tone = document.querySelector('input[name="tone"]:checked')?.value || 'friendly';
-    const themePreset = document.getElementById('themePreset').value || null;
+    const themePreset = null;
     const monthlyPrice = 99;
 
     btn.disabled = true;
