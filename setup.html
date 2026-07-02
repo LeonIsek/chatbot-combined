@@ -265,6 +265,34 @@
         <!-- Honeypot: unsichtbar für Menschen, Bots füllen es aus -->
         <input type="text" name="_hp" id="_hp" style="display:none;position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true">
 
+        <p class="section-title" style="margin-top:0">Was möchtest du?</p>
+        <div class="plan-options" style="margin-bottom:4px">
+          <div>
+            <input class="plan-option" type="radio" name="package" id="pkgBot" value="bot" checked/>
+            <label class="plan-label" for="pkgBot">
+              <span class="plan-name">Nur Chatbot</span>
+              <span class="plan-price">CHF 99</span>
+              <span class="plan-sub">/Mt + 100 Setup</span>
+            </label>
+          </div>
+          <div>
+            <input class="plan-option" type="radio" name="package" id="pkgBundle" value="bundle"/>
+            <label class="plan-label" for="pkgBundle">
+              <span class="plan-name">Bot + Website</span>
+              <span class="plan-price">CHF 490</span>
+              <span class="plan-sub">Website + Bot</span>
+            </label>
+          </div>
+          <div>
+            <input class="plan-option" type="radio" name="package" id="pkgWebsite" value="website"/>
+            <label class="plan-label" for="pkgWebsite">
+              <span class="plan-name">Nur Website</span>
+              <span class="plan-price">CHF 890</span>
+              <span class="plan-sub">einmalig</span>
+            </label>
+          </div>
+        </div>
+
         <p class="section-title">Kontaktperson</p>
 
         <div class="field">
@@ -305,9 +333,9 @@
           <input type="tel" id="phone" name="phone" placeholder="+41 44 123 45 67"/>
         </div>
 
-        <div class="field">
-          <label for="website">Website <span class="req">*</span></label>
-          <input type="url" id="website" name="website" placeholder="https://deine-website.ch" required/>
+        <div class="field" id="websiteField">
+          <label for="website">Website <span class="req" id="websiteReq">*</span></label>
+          <input type="url" id="website" name="website" placeholder="https://deine-website.ch"/>
           <p class="hint"><i data-lucide="bot"></i> Wir analysieren deine Website automatisch — Infos, Farben und Logo werden übernommen</p>
         </div>
 
@@ -315,6 +343,8 @@
           <label for="address">Adresse</label>
           <input type="text" id="address" name="address" placeholder="Bahnhofstrasse 1, 8001 Zürich"/>
         </div>
+
+        <div id="botFields">
 
         <p class="section-title">Bot-Konfiguration</p>
 
@@ -427,13 +457,39 @@
               <div style="font-size:12px;color:#94a3b8;">pro Monat</div>
             </div>
           </div>
-          <p class="hint" style="margin-top:10px;">Zahlung per Banküberweisung oder Twint — du kriegst eine Rechnung von uns.</p>
+          <p class="hint" style="margin-top:10px;">Sichere Zahlung per Kreditkarte über Stripe. Der Bot ist monatlich kündbar.</p>
         </div>
 
         <div class="field">
           <label for="extraInfo">Weitere Infos für den Bot</label>
           <textarea id="extraInfo" name="extraInfo" placeholder="z.B. Wir haben einen Aussenbereich. Hunde sind willkommen. Bei Gruppen ab 8 Personen bitte telefonisch anmelden..."></textarea>
           <p class="hint">Alles was der Bot über dein Business wissen soll — der Bot merkt sich das.</p>
+        </div>
+
+        </div><!-- /botFields -->
+
+        <!-- Kombi-Hinweis: nur bei Paket "Bot + Website" -->
+        <div id="bundleNote" style="display:none;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:16px 20px;margin-top:8px;">
+          <p style="font-size:14px;font-weight:700;color:#4338ca;margin-bottom:6px;">Kombi-Paket: Bot + neue Website</p>
+          <p style="font-size:13px;color:#4b5563;line-height:1.6;">Du bekommst den Chatbot <strong>plus eine neue Website für nur CHF 490</strong> statt 890. Der Bot läuft wie gewohnt (CHF 100 Setup + 99/Mt). Für den vergünstigten Website-Preis gilt eine <strong>Mindestlaufzeit von 3 Monaten</strong> für den Bot. Nach der Bezahlung melden wir uns für Texte &amp; Fotos deiner Website.</p>
+        </div>
+
+        <!-- Nur-Website: eigene Felder -->
+        <div id="websiteFields" style="display:none">
+          <p class="section-title">Deine neue Website</p>
+          <div class="field">
+            <label for="message">Was für eine Website brauchst du?</label>
+            <textarea id="message" name="message" placeholder="z.B. Restaurant-Website mit Menü, Öffnungszeiten, Kontakt und Foto-Galerie. Etwa 4-5 Seiten. Modern und mobil."></textarea>
+            <p class="hint">Optional — je mehr wir wissen, desto schneller geht's. Details klären wir nach der Bestellung per Email.</p>
+          </div>
+          <div class="field">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;">
+              <div style="text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:#6366f1;">CHF 890</div>
+                <div style="font-size:12px;color:#94a3b8;">einmalig — deine Website gehört dir, kein Abo</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="errorMsg" class="error-msg"></div>
@@ -472,7 +528,12 @@
   // Stripe-Redirect-Status auswerten (nach Checkout-Rueckkehr)
   (function handleStripeReturn() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('paid') === 'true') {
+    if (params.get('website_paid') === 'true') {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#10b981;color:#fff;padding:18px 24px;border-radius:12px;margin:20px auto;max-width:620px;font-weight:600;text-align:center;font-family:Arial,sans-serif;box-shadow:0 4px 16px rgba(16,185,129,0.25)';
+      banner.innerHTML = 'Bestellung erfolgreich! Deine Website ist bestellt.<br><span style="font-weight:400;font-size:14px;opacity:0.9">Wir melden uns per Email für Texte und Fotos und legen los.</span>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    } else if (params.get('paid') === 'true') {
       const banner = document.createElement('div');
       banner.style.cssText = 'background:#10b981;color:#fff;padding:18px 24px;border-radius:12px;margin:20px auto;max-width:620px;font-weight:600;text-align:center;font-family:Arial,sans-serif;box-shadow:0 4px 16px rgba(16,185,129,0.25)';
       banner.innerHTML = 'Bezahlung erfolgreich! Dein Bot ist aktiv.<br><span style="font-weight:400;font-size:14px;opacity:0.9">Den Embed-Code findest du in deiner Email — auch dein Dashboard-Login wurde gesendet.</span>';
@@ -488,6 +549,32 @@
   document.getElementById('reservationsEnabled').addEventListener('change', function() {
     document.getElementById('reservationFields').style.display = this.checked ? 'block' : 'none';
   });
+
+  // Paket-Auswahl: Felder je nach Paket ein/ausblenden
+  function updatePackageUI() {
+    const pkg = document.querySelector('input[name="package"]:checked')?.value || 'bot';
+    const isWebsiteOnly = pkg === 'website';
+    document.getElementById('botFields').style.display = isWebsiteOnly ? 'none' : 'block';
+    document.getElementById('websiteFields').style.display = isWebsiteOnly ? 'block' : 'none';
+    document.getElementById('bundleNote').style.display = pkg === 'bundle' ? 'block' : 'none';
+    // Website-URL-Feld: nur bei "Nur Bot" Pflicht; bei Kombi optional; bei Nur-Website weg
+    document.getElementById('websiteField').style.display = isWebsiteOnly ? 'none' : 'block';
+    document.getElementById('websiteReq').style.display = pkg === 'bot' ? 'inline' : 'none';
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.innerHTML = isWebsiteOnly
+      ? 'Website bestellen <i data-lucide="arrow-right"></i>'
+      : (pkg === 'bundle' ? 'Bot + Website buchen <i data-lucide="arrow-right"></i>' : 'Chatbot einrichten <i data-lucide="arrow-right"></i>');
+    if (window.lucide) lucide.createIcons();
+  }
+  document.querySelectorAll('input[name="package"]').forEach(r => r.addEventListener('change', updatePackageUI));
+
+  // Vorauswahl via ?paket= (von den Website-Tab-Buttons auf der Startseite)
+  (function preselectPackage() {
+    const p = new URLSearchParams(window.location.search).get('paket');
+    if (p === 'bundle') { const el = document.getElementById('pkgBundle'); if (el) el.checked = true; }
+    else if (p === 'website') { const el = document.getElementById('pkgWebsite'); if (el) el.checked = true; }
+    updatePackageUI();
+  })();
 
   document.getElementById('slotDuration').addEventListener('change', function() {
     document.getElementById('slotDurationCustomField').style.display = this.value === 'custom' ? 'block' : 'none';
@@ -530,10 +617,44 @@
     const email = document.getElementById('email').value.trim();
     const website = document.getElementById('website').value.trim();
     const openingHours = document.getElementById('openingHours').value.trim();
+    const pkg = document.querySelector('input[name="package"]:checked')?.value || 'bot';
 
-    if (!anrede || !vorname || !nachname || !businessName || !email || !website) {
-      errorMsg.textContent = 'Bitte Anrede, Vor- und Nachname, Firmenname, Email und Website ausfüllen.';
+    if (!anrede || !vorname || !nachname || !businessName || !email) {
+      errorMsg.textContent = 'Bitte Anrede, Vor- und Nachname, Firmenname und Email ausfüllen.';
       errorMsg.classList.add('visible');
+      return;
+    }
+    if (pkg === 'bot' && !website) {
+      errorMsg.textContent = 'Bitte gib deine Website an — wir analysieren sie für den Bot.';
+      errorMsg.classList.add('visible');
+      return;
+    }
+
+    // Nur-Website: eigener Endpoint (kein Bot, einmaliger Payment-Checkout)
+    if (pkg === 'website') {
+      btn.disabled = true;
+      btn.textContent = 'Wird bestellt...';
+      try {
+        const res = await fetch(`${BACKEND}/api/website-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            anrede, vorname, nachname, businessName, email,
+            phone: document.getElementById('phone').value.trim() || null,
+            message: document.getElementById('message').value.trim() || null,
+            _hp: document.getElementById('_hp').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
+        if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return; }
+        throw new Error('Checkout konnte nicht gestartet werden. Bitte kontaktiere info@botswiss.ch.');
+      } catch (err) {
+        errorMsg.textContent = err.message || 'Unbekannter Fehler. Bitte versuche es nochmal.';
+        errorMsg.classList.add('visible');
+        btn.disabled = false;
+        updatePackageUI();
+      }
       return;
     }
 
@@ -570,6 +691,7 @@
           extraInfo: document.getElementById('extraInfo').value.trim() || null,
           themePreset,
           monthlyPrice,
+          package: pkg,
           _hp: document.getElementById('_hp').value
         })
       });
@@ -599,8 +721,7 @@
       errorMsg.textContent = err.message || 'Unbekannter Fehler. Bitte versuche es nochmal.';
       errorMsg.classList.add('visible');
       btn.disabled = false;
-      btn.innerHTML = 'Chatbot einrichten <i data-lucide="arrow-right"></i>';
-      if (window.lucide) lucide.createIcons();
+      updatePackageUI();
     }
   });
 
